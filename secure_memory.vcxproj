@@ -99,6 +99,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="global.c" />
+    <ClCompile Include="hash_table.c" />
     <ClCompile Include="program.c" />
     <ClCompile Include="random.c" />
   </ItemGroup>
@@ -107,9 +108,11 @@
     <ClInclude Include="config.h" />
     <ClInclude Include="hashing.h" />
     <ClInclude Include="allocator.h" />
+    <ClInclude Include="hash_table.h" />
     <ClInclude Include="mutex.h" />
     <ClInclude Include="random.h" />
     <ClInclude Include="memory.h" />
+    <ClInclude Include="secure_memory.h" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="rdrand.asm">

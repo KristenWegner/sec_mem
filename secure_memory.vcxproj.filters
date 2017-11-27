@@ -20,6 +20,9 @@
     <ClCompile Include="random.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="hash_table.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="mutex.h">
@@ -41,6 +44,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="checksum.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="hash_table.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="secure_memory.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

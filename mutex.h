@@ -20,6 +20,7 @@ typedef CRITICAL_SECTION mutex_t; // Underlying mutex type.
 // Initializes the given mutex.
 inline static bool mutex_create(mutex_t* m)
 {
+	if (!m) return true;
 	InitializeCriticalSection(m);
 	return true;
 }
@@ -27,6 +28,7 @@ inline static bool mutex_create(mutex_t* m)
 // Destroys the given mutex.
 inline static bool mutex_destroy(mutex_t* m)
 {
+	if (!m) return true;
 	DeleteCriticalSection(m);
 	return true;
 }
@@ -35,6 +37,7 @@ inline static bool mutex_destroy(mutex_t* m)
 // Locks the given mutex.
 inline static bool mutex_lock(mutex_t* m)
 {
+	if (!m) return true;
 	EnterCriticalSection(m);
 	return true;
 }
@@ -43,6 +46,7 @@ inline static bool mutex_lock(mutex_t* m)
 // Unlocks the given mutex.
 inline static bool mutex_unlock(mutex_t* m)
 {
+	if (!m) return true;
 	LeaveCriticalSection(m);
 	return true;
 }
@@ -60,6 +64,7 @@ typedef pthread_mutex_t mutex_t; // Underlying mutex type.
 // Initializes the given mutex.
 inline static bool mutex_create(mutex_t* m)
 {
+	if (!m) return true;
 	return (pthread_mutex_init(m, NULL) == 0);
 }
 
@@ -67,6 +72,7 @@ inline static bool mutex_create(mutex_t* m)
 // Destroys the given mutex.
 inline static bool mutex_destroy(mutex_t* m)
 {
+	if (!m) return true;
 	return (pthread_mutex_destroy(m) == 0);
 }
 
@@ -74,6 +80,7 @@ inline static bool mutex_destroy(mutex_t* m)
 // Locks the given mutex.
 inline static bool mutex_lock(mutex_t* m)
 {
+	if (!m) return true;
 	return (pthread_mutex_lock(m) == 0);
 }
 
@@ -81,6 +88,7 @@ inline static bool mutex_lock(mutex_t* m)
 // Unlocks the given mutex.
 inline static bool mutex_unlock(mutex_t* m)
 {
+	if (!m) return true;
 	return (pthread_mutex_unlock(m) == 0);
 }
 

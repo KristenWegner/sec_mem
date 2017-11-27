@@ -137,8 +137,8 @@ inline static void sec_sha512_process(void *restrict z, const uint8_t p[128])
 {
 #define shr(x, n) (x >> n)
 #define rotr(x, n) (shr(x, n) | (x << (64 - n)))
-#define s0(x) (rotr(x, 1) ^ rotr(x, 8) ^  shr(x, 7))
-#define s1(x) (rotr(x, 19) ^ rotr(x, 61) ^  shr(x, 6))
+#define s0(x) (rotr(x, 1) ^ rotr(x, 8) ^ shr(x, 7))
+#define s1(x) (rotr(x, 19) ^ rotr(x, 61) ^ shr(x, 6))
 #define s2(x) (rotr(x, 28) ^ rotr(x, 34) ^ rotr(x, 39))
 #define s3(x) (rotr(x, 14) ^ rotr(x, 18) ^ rotr(x, 41))
 #define f0(x, y, z) ((x & y) | (z & (x | y)))
@@ -363,15 +363,6 @@ inline static uint8_t* sec_random_read_entropy()
 	o >>= 16;
 	o = UINT64_C(0x80000000) - sec_reduce_32(o, UINT32_C(0x40000));
 
-	if ((f = fopen("/dev/hda", "rb")) != 0)
-	{
-		setbuf(f, 0);
-		fseek(f, 0, SEEK_SET);
-		fread(e, o, UINT64_C(2048), f);
-		fclose(f);
-		h = true;
-	}
-
 	if ((f = fopen("/dev/urandom", "rb")) != 0)
 	{
 		setbuf(f, 0);
@@ -388,6 +379,15 @@ inline static uint8_t* sec_random_read_entropy()
 		else if (d || h) fread(e + UINT64_C(2048), 1, UINT64_C(2048), f);
 		fclose(f);
 		u = true;
+	}
+
+	if ((f = fopen("/dev/hda", "rb")) != 0)
+	{
+		setbuf(f, 0);
+		fseek(f, 0, SEEK_SET);
+		fread(e, o, UINT64_C(2048), f);
+		fclose(f);
+		h = true;
 	}
 
 	if (!h && !d && !u)

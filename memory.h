@@ -18,10 +18,15 @@ inline static void* sec_memran(void* p, register size_t n)
 	register uint8_t* t = (uint8_t*)p;
 
 	while (n-- > 0U)
-		*t++ = random_next_byte();
+		*t++ = sec_random_next_byte();
 
 	return p;
 }
+
+#define MEMRAN(P, N) { \
+	register uint8_t* mr_t__ = (uint8_t*)(P); \
+	register size_t mr_n__ = (N); \
+	while (mr_n__-- > 0U) *mr_t__++ = sec_random_next_byte(); }, (P)
 
 
 // Performs p = p ^ q, for the given count of bytes. Returns p.
@@ -35,6 +40,13 @@ inline static void* sec_memxor(void *restrict p, const void *restrict q, registe
 
 	return p;
 }
+
+
+#define MEMXOR(P, Q, N) { \
+	register const uint8_t* mx_s__ = (const uint8_t*)(Q); \
+	register uint8_t* mx_d__ = (uint8_t*)(P); \
+	register size_t mx_n__ = (N); \
+	for (; mx_n__ > 0U; --mx_n__) *mx_d__++ ^= *mx_s__++; }, (P)
 
 
 // Compares the first n bytes of two areas of memory. Returns zero if they are the same, a value less than 
@@ -52,6 +64,13 @@ inline static int32_t sec_memcmp(const void *restrict p, const void *restrict q,
 }
 
 
+#define MEMCMP(P, Q, N) { \
+	register const uint8_t* mc_l__ = (const uint8_t*)(P); \
+	register const uint8_t* mc_r__ = (const uint8_t*)(Q); \
+	register size_t mc_n__ = (N); \
+	while (mc_n__-- > 0U) if (*mc_l__++ != *mc_r__++) return (mc_l__[-1] < mc_r__[-1]) ? -1 : 1; }, (0)
+
+
 // Sets the first n bytes of p to the byte value v. Returns p.
 inline static void* sec_memset(void *restrict p, register uint8_t v, register size_t n)
 {
@@ -64,6 +83,12 @@ inline static void* sec_memset(void *restrict p, register uint8_t v, register si
 }
 
 
+#define MEMSET(P, V, N) { \
+	register uint8_t* ms_d__ = (uint8_t*)(P); \
+	register size_t ms_n__ = (N); \
+	while (ms_n__-- > 0U) *ms_d__++ = (V); }, (P)
+
+
 // Returns the first occurrence of q of length n in p of length m. If not found, or m less than n, returns null. 
 // Returns p if n is zero.
 inline static void* sec_memmem(const void *restrict p, size_t m, const void *restrict q, register size_t n)
@@ -71,7 +96,7 @@ inline static void* sec_memmem(const void *restrict p, size_t m, const void *res
 	register const uint8_t* b;
 	register const uint8_t* const l = (((const uint8_t*)p) + m - n);
 
-	if (n == 0) return (void*)p;
+	if (n == 0U) return (void*)p;
 	if (m < n) return NULL;
 
 	for (b = (const uint8_t*)p; b <= l; ++b)

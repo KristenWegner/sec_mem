@@ -2,6 +2,7 @@
 
 #include "config.h"
 #include "random.h"
+#include "secure_memory.h"
 
 int main(int argc, char* argv[])
 {
