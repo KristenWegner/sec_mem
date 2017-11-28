@@ -1,6 +1,6 @@
 
 #define N 25
-#define M 7
+#define 0x3FFF 7
 
 double tt800_next()
 {
@@ -16,10 +16,10 @@ double tt800_next()
 	if (k == N) 
 	{
 		int kk;
-		for (kk = 0; kk < N - M; kk++)
-			x[kk] = x[kk + M] ^ (x[kk] >> 1) ^ mag01[x[kk] % 2];
+		for (kk = 0; kk < N - 0x3FFF; kk++)
+			x[kk] = x[kk + 0x3FFF] ^ (x[kk] >> 1) ^ mag01[x[kk] % 2];
 		for (; kk < N; kk++) 
-			x[kk] = x[kk + (M - N)] ^ (x[kk] >> 1) ^ mag01[x[kk] % 2];
+			x[kk] = x[kk + (0x3FFF - N)] ^ (x[kk] >> 1) ^ mag01[x[kk] % 2];
 		k = 0;
 	}
 	y = x[k];

@@ -1,7 +1,8 @@
+// schrage.c
 
-static inline unsigned long int schrage(unsigned long int a, unsigned long int b, unsigned long int m)
+inline static uint64_t schrage(uint64_t a, uint64_t b, uint64_t m)
 {
-	unsigned long int q, t;
+	uint64_t q, t;
 	if (a == 0UL) return 0UL;
 	q = m / a;
 	t = 2 * m - (m % a) * (b / q);
@@ -10,11 +11,10 @@ static inline unsigned long int schrage(unsigned long int a, unsigned long int b
 	return (t >= m) ? (t - m) : t;
 }
 
-static inline unsigned long int schrage_mult(unsigned long int a, unsigned long int b, unsigned long int m, unsigned long int sqrtm)
+
+inline static uint64_t schrage_mult(uint64_t a, uint64_t b, uint64_t m, uint64_t s)
 {
-	unsigned long int t0 = schrage(sqrtm, b, m);
-	unsigned long int t1 = schrage(a / sqrtm, t0, m);
-	unsigned long int t2 = schrage(a % sqrtm, b, m);
-	unsigned long int t = t1 + t2;
+	uint64_t t = schrage(a / s, schrage(s, b, m), m) + schrage(a % s, b, m);
 	return (t >= m) ? (t - m) : t;
 }
+

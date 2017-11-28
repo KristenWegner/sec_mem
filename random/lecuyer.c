@@ -1,48 +1,29 @@
+// lecuyer.c
 
-#include <stdlib.h>
 
-/*
-MMM-1 // Max
-1 // Min
-*/
+#include "../config.h"
 
-#define AAA 40692
-#define MMM 2147483399UL
-#define QQQ 52774
-#define RRR 3791
 
-static inline unsigned long int ran_get(void *vstate);
-static double ran_get_double(void *vstate);
-static void ran_set(void *state, unsigned long int s);
+#define lecuyer_maximum 0x7FFFFF06ULL
+#define lecuyer_minimum 1ULL
+#define lecuyer_state_size sizeof(uint64_t)
 
-typedef struct
+
+inline static uint64_t lecuyer_get(void* state)
 {
-	unsigned long int x;
-}
-ran_state_t;
-
-static inline unsigned long int ran_get(void *vstate)
-{
-	ran_state_t *state = (ran_state_t *)vstate;
-	long int y = state->x;
-	long int r = RRR * (y / QQQ);
-	y = AAA * (y % QQQ) - r;
-	if (y < 0) y += MMM;
-	state->x = y;
-	return state->x;
+	uint64_t* x = state;
+	int64_t y = *x, r = 0x0ECFL * (y / 0xCE26L);
+	y = 0x9EF4L * (y % 0xCE26L) - r;
+	if (y < 0L) y += 0x7FFFFF07L;
+	*x = y;
+	return *x;
 }
 
-static double ran_get_double(void *vstate)
-{
-	ran_state_t *state = (ran_state_t *)vstate;
-	return ran_get(state) / 2147483399.0;
-}
 
-static void ran_set(void *vstate, unsigned long int s)
+inline static void lecuyer_seed(void* state, uint64_t seed)
 {
-	ran_state_t *state = (ran_state_t *)vstate;
-	if ((s % MMM) == 0) s = 1;
-	state->x = s % MMM;
-	return;
+	uint64_t* x = state;
+	if ((seed % 0x7FFFFF07ULL) == 0) seed = 1ULL;
+	*x = seed % 0x7FFFFF07ULL;
 }
 

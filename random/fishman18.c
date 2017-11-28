@@ -1,7 +1,7 @@
 // fishman18.c
 
 
-#include <stdint.h>
+#include "../config.h"
 
 #include "schrage.c"
 
@@ -11,7 +11,7 @@
 #define fishman18_state_size sizeof(uint64_t)
 
 
-static inline uint64_t fishman18_get(void* state)
+inline static uint64_t fishman18_get(void* state)
 {
 	uint64_t* s = state;
 	*s = schrage_mult(0x03B36AB7ULL, *s, 0x7FFFFFFFULL, 0xB505ULL);
@@ -19,7 +19,7 @@ static inline uint64_t fishman18_get(void* state)
 }
 
 
-static void fishman18_seed(void* state, uint64_t seed)
+inline static void fishman18_seed(void* state, uint64_t seed)
 {
 	uint64_t* s = state;
 	if ((seed % 0x7FFFFFFFULL) == 0ULL) seed = 1ULL;

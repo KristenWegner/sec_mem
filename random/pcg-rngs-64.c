@@ -156,7 +156,7 @@ extern inline uint32_t pcg_mcg_64_xsh_rr_32_random_r(struct pcg_state_64* rng);
 extern inline uint32_t
 pcg_mcg_64_xsh_rr_32_boundedrand_r(struct pcg_state_64* rng, uint32_t bound);
 
-/* Generation functions for RXS M XS (no MCG versions because they
+/* Generation functions for RXS 0x3FFF XS (no MCG versions because they
  * don't make sense when you want to use the entire state)
  */
 

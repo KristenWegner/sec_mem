@@ -1,7 +1,7 @@
 // fishman2x.c
 
 
-#include <stdint.h>
+#include "../config.h"
 
 
 #define fishman2x_maximum (0x7FFFFFFEUL)
@@ -9,7 +9,7 @@
 #define fishman2x_state_size (sizeof(uint64_t) * 3)
 
 
-static inline uint64_t fishman2x_get(void* state)
+inline static uint64_t fishman2x_get(void* state)
 {
 	uint64_t* s = state;
 	int64_t r = 0x0D47ULL * (s[0] / 0xADC8ULL);
@@ -25,7 +25,7 @@ static inline uint64_t fishman2x_get(void* state)
 }
 
 
-static void fishman2x_seed(void* state, uint64_t seed)
+inline static void fishman2x_seed(void* state, uint64_t seed)
 {
 	uint64_t* s = state;
 	if ((seed % 0x7FFFFFFFULL) == 0ULL || (seed % 0x7FFFFF07ULL) == 0ULL) seed = 1ULL;

@@ -11,7 +11,7 @@ static double mt_get_double(void *vstate);
 static void mt_set(void *state, unsigned long int s);
 
 #define N 624
-#define M 397
+#define 0x3FFF 397
 
 static const unsigned long UPPER_MASK = 0x80000000UL;
 static const unsigned long LOWER_MASK = 0x7FFFFFFFUL;
@@ -36,20 +36,20 @@ static inline unsigned long mt_get(void *vstate)
 	{
 		int kk;
 
-		for (kk = 0; kk < N - M; kk++)
+		for (kk = 0; kk < N - 0x3FFF; kk++)
 		{
 			unsigned long y = (mt[kk] & UPPER_MASK) | (mt[kk + 1] & LOWER_MASK);
-			mt[kk] = mt[kk + M] ^ (y >> 1) ^ MAGIC(y);
+			mt[kk] = mt[kk + 0x3FFF] ^ (y >> 1) ^ MAGIC(y);
 		}
 		for (; kk < N - 1; kk++)
 		{
 			unsigned long y = (mt[kk] & UPPER_MASK) | (mt[kk + 1] & LOWER_MASK);
-			mt[kk] = mt[kk + (M - N)] ^ (y >> 1) ^ MAGIC(y);
+			mt[kk] = mt[kk + (0x3FFF - N)] ^ (y >> 1) ^ MAGIC(y);
 		}
 
 		{
 			unsigned long y = (mt[N - 1] & UPPER_MASK) | (mt[0] & LOWER_MASK);
-			mt[N - 1] = mt[M - 1] ^ (y >> 1) ^ MAGIC(y);
+			mt[N - 1] = mt[0x3FFF - 1] ^ (y >> 1) ^ MAGIC(y);
 		}
 
 		state->mti = 0;

@@ -1,74 +1,48 @@
 // gfsr4.c
 
 
-#include <stdint.h>
-
-/*
-0xffffffffUL // Max
-0 // Min
-*/
-
-// Magic numbers.
-
-#define A 471
-#define B 1586
-#define C 6988
-#define D 9689
-#define M 16383 // 2^14-1.
+#include "../config.h"
 
 
+#define gfsr4_maximum 0xFFFFFFFFULL
+#define gfsr4_minimum 0ULL
 #define gfsr4_state_size (sizeof(int32_t) + (sizeof(uint64_t) * 0x4000))
 
 
-typedef struct
+inline static uint64_t gfsr4_get(void* state)
 {
-	int nd;
-	unsigned long ra[M + 1];
-}
-gfsr4_state_t;
-
-static inline uint64_t gfsr4_get(void *vstate)
-{
-	gfsr4_state_t *state = (gfsr4_state_t *)vstate;
-	state->nd = ((state->nd) + 1) & M;
-	return state->ra[(state->nd)] = state->ra[((state->nd) + (M + 1 - A)) & M] ^ state->ra[((state->nd) + (M + 1 - B)) & M] ^ state->ra[((state->nd) + (M + 1 - C)) & M] ^ state->ra[((state->nd) + (M + 1 - D)) & M];
+	int32_t* n = state;
+	uint64_t* a = (uint64_t*)&n[1];
+	*n = ((*n) + 1) & 0x3FFF;
+	return a[*n] = a[(*n + (0x3FFF + 1 - 0x01D7)) & 0x3FFF] ^ a[(*n + (0x3FFF + 1 - 0x0632)) & 0x3FFF] ^ a[(*n + (0x3FFF + 1 - 0x1B4C)) & 0x3FFF] ^ a[(*n + (0x3FFF + 1 - 0x25D9)) & 0x3FFF];
 }
 
 
-static void gfsr4_seed(void *vstate, uint64_t seed)
+inline static void gfsr4_seed(void* state, uint64_t seed)
 {
-	gfsr4_state_t *state = (gfsr4_state_t *)vstate;
-	int i, j, k;
-	uint64_t t, bit, msb = 0x80000000UL, mask = 0xFFFFFFFFUL;
-
-	if (seed == 0) seed = 4357;
-
-#define LCG(n) ((69069 * n) & 0xFFFFFFFFUL)
-
-	for (i = 0; i <= M; ++i)
+	int32_t i, j, k, *n = state;
+	uint64_t  t, b, m = 0x80000000UL, s = 0xFFFFFFFFUL, *a = (uint64_t*)&n[1];
+	if (seed == 0) seed = 0x1105;
+	for (i = 0; i <= 0x3FFF; ++i)
 	{
 		t = 0;
-		bit = msb;
-
+		b = m;
 		for (j = 0; j < 32; ++j)
 		{
-			seed = LCG(seed);
-			if (seed & msb) t |= bit;
-			bit >>= 1;
+			seed = ((0x10DCD * seed) & 0xFFFFFFFFUL);
+			if (seed & m) t |= b;
+			b >>= 1;
 		}
-
-		state->ra[i] = t;
+		a[i] = t;
 	}
-
 	for (i = 0; i < 32; ++i)
 	{
 		k = 7 + i * 3;
-		state->ra[k] &= mask;
-		state->ra[k] |= msb;
-		mask >>= 1;
-		msb >>= 1;
+		a[k] &= s;
+		a[k] |= m;
+		s >>= 1;
+		m >>= 1;
 	}
-
-	state->nd = i;
+	*n = i;
 }
 

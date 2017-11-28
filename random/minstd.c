@@ -1,44 +1,29 @@
+// minstd.c
 
-#include <stdlib.h>
 
-/*
-2147483646 // Max
-1 // Min
-*/
+#include "../config.h"
 
-static inline unsigned long int minstd_get(void *vstate);
-static double minstd_get_double(void *vstate);
-static void minstd_set(void *state, unsigned long int s);
 
-static const long int m = 2147483647, a = 16807, q = 127773, r = 2836;
+#define minstd_maximum 0x7FFFFFFEULL
+#define minstd_minimum 1ULL
+#define minstd_state_size sizeof(uint64_t)
 
-typedef struct
+
+inline static uint64_t minstd_get(void* state)
 {
-	unsigned long int x;
-}
-minstd_state_t;
-
-static inline unsigned long int minstd_get(void *vstate)
-{
-	minstd_state_t *state = (minstd_state_t *)vstate;
-	const unsigned long int x = state->x;
-	const long int h = x / q;
-	const long int t = a * (x - h * q) - h * r;
-	if (t < 0) state->x = t + m;
-	else state->x = t;
-	return state->x;
+	uint64_t* x = state;
+	const uint64_t y = *x;
+	const int64_t h = y / 0x1F31DL, t = 0x41A7L * (y - h * 0x1F31DL) - h * 0x0B14L;
+	if (t < 0L) *x = t + 0x7FFFFFFFL;
+	else *x = t;
+	return *x;
 }
 
-static double minstd_get_double(void *vstate)
-{
-	return minstd_get(vstate) / 2147483647.0;
-}
 
-static void minstd_set(void *vstate, unsigned long int s)
+inline static void minstd_seed(void* state, uint64_t seed)
 {
-	minstd_state_t *state = (minstd_state_t *)vstate;
-	if (s == 0) s = 1;
-	state->x = s;
-	return;
+	uint64_t* x = state;
+	if (seed == 0ULL) seed = 1ULL;
+	*x = seed;
 }
 

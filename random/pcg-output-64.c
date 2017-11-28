@@ -54,7 +54,7 @@ extern inline uint64_t pcg_output_xsh_rs_128_64(pcg128_t state);
 extern inline uint64_t pcg_output_xsh_rr_128_64(pcg128_t state);
 #endif
 
-// RXS M XS
+// RXS 0x3FFF XS
 
 extern inline uint64_t pcg_output_rxs_m_xs_64_64(uint64_t state);
 

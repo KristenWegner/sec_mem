@@ -103,14 +103,13 @@
     <ClCompile Include="hash_table.c" />
     <ClCompile Include="program.c" />
     <ClCompile Include="random.c" />
-    <ClCompile Include="random\borosh.c" />
+    <ClCompile Include="random\borosh13.c" />
     <ClCompile Include="random\cmrg.c" />
     <ClCompile Include="random\coveyou.c" />
     <ClCompile Include="random\fishman18.c" />
     <ClCompile Include="random\fishman20.c" />
     <ClCompile Include="random\fishman2x.c" />
     <ClCompile Include="random\gfsr4.c" />
-    <ClCompile Include="random\halton.c" />
     <ClCompile Include="random\knuthran.c" />
     <ClCompile Include="random\knuthran2.c" />
     <ClCompile Include="random\knuthran2002.c" />

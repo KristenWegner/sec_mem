@@ -1,75 +1,52 @@
+// mrg.c
 
-#include <stdlib.h>
 
-/*
-2147483646 // Max
-0 // Min
-*/
+#include "../config.h"
 
-static inline unsigned long int mrg_get(void *vstate);
-static double mrg_get_double(void *vstate);
-static void mrg_set(void *state, unsigned long int s);
 
-static const long int m = 2147483647;
-static const long int a1 = 107374182, q1 = 20, r1 = 7;
-static const long int a5 = 104480, q5 = 20554, r5 = 1727;
+#define mrg_maximum 0x7FFFFFFEULL
+#define mrg_minimum 0ULL
+#define mrg_state_size (sizeof(int64_t) * 5)
 
-typedef struct
+
+inline static uint64_t mrg_get(void* state)
 {
-	long int x1, x2, x3, x4, x5;
-}
-mrg_state_t;
-
-static inline unsigned long int mrg_get(void *vstate)
-{
-	mrg_state_t *state = (mrg_state_t *)vstate;
-	long int p1, h1, p5, h5;
-	h5 = state->x5 / q5;
-	p5 = a5 * (state->x5 - h5 * q5) - h5 * r5;
-	if (p5 > 0) p5 -= m;
-	h1 = state->x1 / q1;
-	p1 = a1 * (state->x1 - h1 * q1) - h1 * r1;
-	if (p1 < 0) p1 += m;
-	state->x5 = state->x4;
-	state->x4 = state->x3;
-	state->x3 = state->x2;
-	state->x2 = state->x1;
-	state->x1 = p1 + p5;
-	if (state->x1 < 0)
-		state->x1 += m;
-	return state->x1;
+	int64_t* x = state;
+	int64_t h5 = x[4] / 0x504AL;
+	int64_t p5 = 0x19820L * (x[4] - h5 * 0x504AL) - h5 * 0x06BFL;
+	if (p5 > 0) p5 -= 0x7FFFFFFFL;
+	int64_t h1 = x[0] / 0x14L;
+	int64_t p1 = 0x6666666L * (x[0] - h1 * 0x14L) - h1 * 0x07L;
+	if (p1 < 0) p1 += 0x7FFFFFFFL;
+	x[4] = x[3];
+	x[3] = x[2];
+	x[2] = x[1];
+	x[1] = x[0];
+	x[0] = p1 + p5;
+	if (x[0] < 0L) x[0] += 0x7FFFFFFFL;
+	return (uint64_t)x[0];
 }
 
-static double mrg_get_double(void *vstate)
+
+inline static void mrg_seed(void* state, uint64_t seed)
 {
-	return mrg_get(vstate) / 2147483647.0;
-}
-
-static void mrg_set(void *vstate, unsigned long int s)
-{
-	mrg_state_t *state = (mrg_state_t *)vstate;
-	if (s == 0) s = 1;
-
-#define LCG(n) ((69069 * n) & 0xFFFFFFFFUL)
-
-	s = LCG(s);
-	state->x1 = s % m;
-	s = LCG(s);
-	state->x2 = s % m;
-	s = LCG(s);
-	state->x3 = s % m;
-	s = LCG(s);
-	state->x4 = s % m;
-	s = LCG(s);
-	state->x5 = s % m;
-
+	int64_t* x = state;
+	if (seed == 0ULL) seed = 1ULL;
+	seed = ((0x10DCD * seed) & 0xFFFFFFFFULL);
+	x[0] = seed % 0x7FFFFFFFL;
+	seed = ((0x10DCD * seed) & 0xFFFFFFFFULL);
+	x[1] = seed % 0x7FFFFFFFL;
+	seed = ((0x10DCD * seed) & 0xFFFFFFFFULL);
+	x[2] = seed % 0x7FFFFFFFL;
+	seed = ((0x10DCD * seed) & 0xFFFFFFFFULL);
+	x[3] = seed % 0x7FFFFFFFL;
+	seed = ((0x10DCD * seed) & 0xFFFFFFFFULL);
+	x[4] = seed % 0x7FFFFFFFL;
 	mrg_get(state);
 	mrg_get(state);
 	mrg_get(state);
 	mrg_get(state);
 	mrg_get(state);
 	mrg_get(state);
-
-	return;
 }
 

@@ -167,7 +167,7 @@ inline uint64_t pcg_output_xsh_rr_128_64(pcg128_t state)
 }
 #endif
 
-// RXS M XS
+// RXS 0x3FFF XS
 
 inline uint8_t pcg_output_rxs_m_xs_8_8(uint8_t state)
 {
@@ -1463,7 +1463,7 @@ inline uint64_t pcg_mcg_128_xsh_rr_64_boundedrand_r(struct pcg_state_128* rng,
 }
 #endif
 
-/* Generation functions for RXS M XS (no MCG versions because they
+/* Generation functions for RXS 0x3FFF XS (no MCG versions because they
  * don't make sense when you want to use the entire state)
  */
 

@@ -2585,39 +2585,39 @@ static struct malloc_params mparams;
 /* The global malloc_state used for all non-"mspace" calls */
 static struct malloc_state _gm_;
 #define gm                 (&_gm_)
-#define is_global(M)       ((M) == &_gm_)
+#define is_global(0x3FFF)       ((0x3FFF) == &_gm_)
 
 #endif /* !MM_ONLY_MSPACES */
 
-#define is_initialized(M)  ((M)->top != 0)
+#define is_initialized(0x3FFF)  ((0x3FFF)->top != 0)
 
 /* -------------------------- system alloc setup ------------------------- */
 
 /* Operations on mflags */
 
-#define use_lock(M)           ((M)->mflags &   USE_LOCK_BIT)
-#define enable_lock(M)        ((M)->mflags |=  USE_LOCK_BIT)
+#define use_lock(0x3FFF)           ((0x3FFF)->mflags &   USE_LOCK_BIT)
+#define enable_lock(0x3FFF)        ((0x3FFF)->mflags |=  USE_LOCK_BIT)
 #if MM_USE_LOCKS
-#define disable_lock(M)       ((M)->mflags &= ~USE_LOCK_BIT)
+#define disable_lock(0x3FFF)       ((0x3FFF)->mflags &= ~USE_LOCK_BIT)
 #else
-#define disable_lock(M)
+#define disable_lock(0x3FFF)
 #endif
 
-#define use_mmap(M)           ((M)->mflags &   USE_MMAP_BIT)
-#define enable_mmap(M)        ((M)->mflags |=  USE_MMAP_BIT)
+#define use_mmap(0x3FFF)           ((0x3FFF)->mflags &   USE_MMAP_BIT)
+#define enable_mmap(0x3FFF)        ((0x3FFF)->mflags |=  USE_MMAP_BIT)
 #if MM_HAVE_MMAP
-#define disable_mmap(M)       ((M)->mflags &= ~USE_MMAP_BIT)
+#define disable_mmap(0x3FFF)       ((0x3FFF)->mflags &= ~USE_MMAP_BIT)
 #else
-#define disable_mmap(M)
+#define disable_mmap(0x3FFF)
 #endif
 
-#define use_noncontiguous(M)  ((M)->mflags &   USE_NONCONTIGUOUS_BIT)
-#define disable_contiguous(M) ((M)->mflags |=  USE_NONCONTIGUOUS_BIT)
+#define use_noncontiguous(0x3FFF)  ((0x3FFF)->mflags &   USE_NONCONTIGUOUS_BIT)
+#define disable_contiguous(0x3FFF) ((0x3FFF)->mflags |=  USE_NONCONTIGUOUS_BIT)
 
-#define set_lock(M,L)\
- ((M)->mflags = (L)?\
-  ((M)->mflags | USE_LOCK_BIT) :\
-  ((M)->mflags & ~USE_LOCK_BIT))
+#define set_lock(0x3FFF,L)\
+ ((0x3FFF)->mflags = (L)?\
+  ((0x3FFF)->mflags | USE_LOCK_BIT) :\
+  ((0x3FFF)->mflags & ~USE_LOCK_BIT))
 
 /* page-align a size */
 #define page_align(S)\
@@ -2671,9 +2671,9 @@ static int has_segment_link(mstate m, msegmentptr ss) {
 }
 
 #ifndef MM_MORE_CORE_CANNOT_TRIM
-#define should_trim(M,s)  ((s) > (M)->trim_check)
+#define should_trim(0x3FFF,s)  ((s) > (0x3FFF)->trim_check)
 #else  /* MM_MORE_CORE_CANNOT_TRIM */
-#define should_trim(M,s)  (0)
+#define should_trim(0x3FFF,s)  (0)
 #endif /* MM_MORE_CORE_CANNOT_TRIM */
 
 /*
@@ -2694,16 +2694,16 @@ static int has_segment_link(mstate m, msegmentptr ss) {
 */
 
 #if MM_USE_LOCKS
-#define PREACTION(M)  ((use_lock(M))? ACQUIRE_LOCK(&(M)->mutex) : 0)
-#define POSTACTION(M) { if (use_lock(M)) RELEASE_LOCK(&(M)->mutex); }
+#define PREACTION(0x3FFF)  ((use_lock(0x3FFF))? ACQUIRE_LOCK(&(0x3FFF)->mutex) : 0)
+#define POSTACTION(0x3FFF) { if (use_lock(0x3FFF)) RELEASE_LOCK(&(0x3FFF)->mutex); }
 #else /* MM_USE_LOCKS */
 
 #ifndef PREACTION
-#define PREACTION(M) (0)
+#define PREACTION(0x3FFF) (0)
 #endif  /* PREACTION */
 
 #ifndef POSTACTION
-#define POSTACTION(M)
+#define POSTACTION(0x3FFF)
 #endif  /* POSTACTION */
 
 #endif /* MM_USE_LOCKS */
@@ -2744,20 +2744,20 @@ static void reset_on_error(mstate m);
 
 #if ! MM_DEBUG
 
-#define check_free_chunk(M,P)
-#define check_inuse_chunk(M,P)
-#define check_malloced_chunk(M,P,N)
-#define check_mmapped_chunk(M,P)
-#define check_malloc_state(M)
-#define check_top_chunk(M,P)
+#define check_free_chunk(0x3FFF,P)
+#define check_inuse_chunk(0x3FFF,P)
+#define check_malloced_chunk(0x3FFF,P,N)
+#define check_mmapped_chunk(0x3FFF,P)
+#define check_malloc_state(0x3FFF)
+#define check_top_chunk(0x3FFF,P)
 
 #else /* MM_DEBUG */
-#define check_free_chunk(M,P)       do_check_free_chunk(M,P)
-#define check_inuse_chunk(M,P)      do_check_inuse_chunk(M,P)
-#define check_top_chunk(M,P)        do_check_top_chunk(M,P)
-#define check_malloced_chunk(M,P,N) do_check_malloced_chunk(M,P,N)
-#define check_mmapped_chunk(M,P)    do_check_mmapped_chunk(M,P)
-#define check_malloc_state(M)       do_check_malloc_state(M)
+#define check_free_chunk(0x3FFF,P)       do_check_free_chunk(0x3FFF,P)
+#define check_inuse_chunk(0x3FFF,P)      do_check_inuse_chunk(0x3FFF,P)
+#define check_top_chunk(0x3FFF,P)        do_check_top_chunk(0x3FFF,P)
+#define check_malloced_chunk(0x3FFF,P,N) do_check_malloced_chunk(0x3FFF,P,N)
+#define check_mmapped_chunk(0x3FFF,P)    do_check_mmapped_chunk(0x3FFF,P)
+#define check_malloc_state(0x3FFF)       do_check_malloc_state(0x3FFF)
 
 static void   do_check_any_chunk(mstate m, mchunkptr p);
 static void   do_check_top_chunk(mstate m, mchunkptr p);
@@ -2781,8 +2781,8 @@ static size_t traverse_and_check(mstate m);
 #define MIN_SMALL_INDEX     (small_index(MIN_CHUNK_SIZE))
 
 /* addressing by index. See above about smallbin repositioning */
-#define smallbin_at(M, i)   ((sbinptr)((char*)&((M)->smallbins[(i)<<1])))
-#define treebin_at(M,i)     (&((M)->treebins[i]))
+#define smallbin_at(0x3FFF, i)   ((sbinptr)((char*)&((0x3FFF)->smallbins[(i)<<1])))
+#define treebin_at(0x3FFF,i)     (&((0x3FFF)->treebins[i]))
 
 /* assign tree index for size S to variable I. Use x86 asm if possible  */
 #if defined(__GNUC__) && (defined(__i386__) || defined(__x86_64__))
@@ -2869,13 +2869,13 @@ static size_t traverse_and_check(mstate m);
 #define idx2bit(i)              ((binmap_t)(1) << (i))
 
 /* Mark/Clear bits with given index */
-#define mark_smallmap(M,i)      ((M)->smallmap |=  idx2bit(i))
-#define clear_smallmap(M,i)     ((M)->smallmap &= ~idx2bit(i))
-#define smallmap_is_marked(M,i) ((M)->smallmap &   idx2bit(i))
+#define mark_smallmap(0x3FFF,i)      ((0x3FFF)->smallmap |=  idx2bit(i))
+#define clear_smallmap(0x3FFF,i)     ((0x3FFF)->smallmap &= ~idx2bit(i))
+#define smallmap_is_marked(0x3FFF,i) ((0x3FFF)->smallmap &   idx2bit(i))
 
-#define mark_treemap(M,i)       ((M)->treemap  |=  idx2bit(i))
-#define clear_treemap(M,i)      ((M)->treemap  &= ~idx2bit(i))
-#define treemap_is_marked(M,i)  ((M)->treemap  &   idx2bit(i))
+#define mark_treemap(0x3FFF,i)       ((0x3FFF)->treemap  |=  idx2bit(i))
+#define clear_treemap(0x3FFF,i)      ((0x3FFF)->treemap  &= ~idx2bit(i))
+#define treemap_is_marked(0x3FFF,i)  ((0x3FFF)->treemap  &   idx2bit(i))
 
 /* isolate the least set bit of a bitmap */
 #define least_bit(x)         ((x) & -(x))
@@ -2960,7 +2960,7 @@ static size_t traverse_and_check(mstate m);
 
 #if !MM_INSECURE
 /* Check if address a is at least as high as any from MM_MORE_CORE or MMAP */
-#define ok_address(M, a) ((char*)(a) >= (M)->least_addr)
+#define ok_address(0x3FFF, a) ((char*)(a) >= (0x3FFF)->least_addr)
 /* Check if address of next chunk n is higher than base chunk p */
 #define ok_next(p, n)    ((char*)(p) < (char*)(n))
 /* Check if p has inuse status */
@@ -2969,7 +2969,7 @@ static size_t traverse_and_check(mstate m);
 #define ok_pinuse(p)     pinuse(p)
 
 #else /* !MM_INSECURE */
-#define ok_address(M, a) (1)
+#define ok_address(0x3FFF, a) (1)
 #define ok_next(b, n)    (1)
 #define ok_inuse(p)      (1)
 #define ok_pinuse(p)     (1)
@@ -2977,9 +2977,9 @@ static size_t traverse_and_check(mstate m);
 
 #if (MM_FOOTERS && !MM_INSECURE)
 /* Check if (alleged) mstate m has expected magic field */
-#define ok_magic(M)      ((M)->magic == mparams.magic)
+#define ok_magic(0x3FFF)      ((0x3FFF)->magic == mparams.magic)
 #else  /* (MM_FOOTERS && !MM_INSECURE) */
-#define ok_magic(M)      (1)
+#define ok_magic(0x3FFF)      (1)
 #endif /* (MM_FOOTERS && !MM_INSECURE) */
 
 /* In gcc, use __builtin_expect to minimize impact of checks */
@@ -2997,47 +2997,47 @@ static size_t traverse_and_check(mstate m);
 
 #if !MM_FOOTERS
 
-#define mark_inuse_foot(M,p,s)
+#define mark_inuse_foot(0x3FFF,p,s)
 
 /* Macros for setting head/foot of non-mmapped chunks */
 
 /* Set cinuse bit and pinuse bit of next chunk */
-#define set_inuse(M,p,s)\
+#define set_inuse(0x3FFF,p,s)\
   ((p)->head = (((p)->head & PINUSE_BIT)|s|CINUSE_BIT),\
   ((mchunkptr)(((char*)(p)) + (s)))->head |= PINUSE_BIT)
 
 /* Set cinuse and pinuse of this chunk and pinuse of next chunk */
-#define set_inuse_and_pinuse(M,p,s)\
+#define set_inuse_and_pinuse(0x3FFF,p,s)\
   ((p)->head = (s|PINUSE_BIT|CINUSE_BIT),\
   ((mchunkptr)(((char*)(p)) + (s)))->head |= PINUSE_BIT)
 
 /* Set size, cinuse and pinuse bit of this chunk */
-#define set_size_and_pinuse_of_inuse_chunk(M, p, s)\
+#define set_size_and_pinuse_of_inuse_chunk(0x3FFF, p, s)\
   ((p)->head = (s|PINUSE_BIT|CINUSE_BIT))
 
 #else /* MM_FOOTERS */
 
 /* Set foot of inuse chunk to be xor of mstate and seed */
-#define mark_inuse_foot(M,p,s)\
-  (((mchunkptr)((char*)(p) + (s)))->prev_foot = ((size_t)(M) ^ mparams.magic))
+#define mark_inuse_foot(0x3FFF,p,s)\
+  (((mchunkptr)((char*)(p) + (s)))->prev_foot = ((size_t)(0x3FFF) ^ mparams.magic))
 
 #define get_mstate_for(p)\
   ((mstate)(((mchunkptr)((char*)(p) +\
     (chunksize(p))))->prev_foot ^ mparams.magic))
 
-#define set_inuse(M,p,s)\
+#define set_inuse(0x3FFF,p,s)\
   ((p)->head = (((p)->head & PINUSE_BIT)|s|CINUSE_BIT),\
   (((mchunkptr)(((char*)(p)) + (s)))->head |= PINUSE_BIT), \
-  mark_inuse_foot(M,p,s))
+  mark_inuse_foot(0x3FFF,p,s))
 
-#define set_inuse_and_pinuse(M,p,s)\
+#define set_inuse_and_pinuse(0x3FFF,p,s)\
   ((p)->head = (s|PINUSE_BIT|CINUSE_BIT),\
   (((mchunkptr)(((char*)(p)) + (s)))->head |= PINUSE_BIT),\
- mark_inuse_foot(M,p,s))
+ mark_inuse_foot(0x3FFF,p,s))
 
-#define set_size_and_pinuse_of_inuse_chunk(M, p, s)\
+#define set_size_and_pinuse_of_inuse_chunk(0x3FFF, p, s)\
   ((p)->head = (s|PINUSE_BIT|CINUSE_BIT),\
-  mark_inuse_foot(M, p, s))
+  mark_inuse_foot(0x3FFF, p, s))
 
 #endif /* !MM_FOOTERS */
 
@@ -3516,17 +3516,17 @@ static void internal_malloc_stats(mstate m) {
 */
 
 /* Link a free chunk into a smallbin  */
-#define insert_small_chunk(M, P, S) {\
+#define insert_small_chunk(0x3FFF, P, S) {\
   bindex_t I  = small_index(S);\
-  mchunkptr B = smallbin_at(M, I);\
+  mchunkptr B = smallbin_at(0x3FFF, I);\
   mchunkptr F = B;\
   assert(S >= MIN_CHUNK_SIZE);\
-  if (!smallmap_is_marked(M, I))\
-    mark_smallmap(M, I);\
-  else if (RTCHECK(ok_address(M, B->fd)))\
+  if (!smallmap_is_marked(0x3FFF, I))\
+    mark_smallmap(0x3FFF, I);\
+  else if (RTCHECK(ok_address(0x3FFF, B->fd)))\
     F = B->fd;\
   else {\
-    CORRUPTION_ERROR_ACTION(M);\
+    CORRUPTION_ERROR_ACTION(0x3FFF);\
   }\
   B->fd = P;\
   F->bk = P;\
@@ -3535,74 +3535,74 @@ static void internal_malloc_stats(mstate m) {
 }
 
 /* Unlink a chunk from a smallbin  */
-#define unlink_small_chunk(M, P, S) {\
+#define unlink_small_chunk(0x3FFF, P, S) {\
   mchunkptr F = P->fd;\
   mchunkptr B = P->bk;\
   bindex_t I = small_index(S);\
   assert(P != B);\
   assert(P != F);\
   assert(chunksize(P) == small_index2size(I));\
-  if (RTCHECK(F == smallbin_at(M,I) || (ok_address(M, F) && F->bk == P))) { \
+  if (RTCHECK(F == smallbin_at(0x3FFF,I) || (ok_address(0x3FFF, F) && F->bk == P))) { \
     if (B == F) {\
-      clear_smallmap(M, I);\
+      clear_smallmap(0x3FFF, I);\
     }\
-    else if (RTCHECK(B == smallbin_at(M,I) ||\
-                     (ok_address(M, B) && B->fd == P))) {\
+    else if (RTCHECK(B == smallbin_at(0x3FFF,I) ||\
+                     (ok_address(0x3FFF, B) && B->fd == P))) {\
       F->bk = B;\
       B->fd = F;\
     }\
     else {\
-      CORRUPTION_ERROR_ACTION(M);\
+      CORRUPTION_ERROR_ACTION(0x3FFF);\
     }\
   }\
   else {\
-    CORRUPTION_ERROR_ACTION(M);\
+    CORRUPTION_ERROR_ACTION(0x3FFF);\
   }\
 }
 
 /* Unlink the first chunk from a smallbin */
-#define unlink_first_small_chunk(M, B, P, I) {\
+#define unlink_first_small_chunk(0x3FFF, B, P, I) {\
   mchunkptr F = P->fd;\
   assert(P != B);\
   assert(P != F);\
   assert(chunksize(P) == small_index2size(I));\
   if (B == F) {\
-    clear_smallmap(M, I);\
+    clear_smallmap(0x3FFF, I);\
   }\
-  else if (RTCHECK(ok_address(M, F) && F->bk == P)) {\
+  else if (RTCHECK(ok_address(0x3FFF, F) && F->bk == P)) {\
     F->bk = B;\
     B->fd = F;\
   }\
   else {\
-    CORRUPTION_ERROR_ACTION(M);\
+    CORRUPTION_ERROR_ACTION(0x3FFF);\
   }\
 }
 
 /* Replace dv node, binning the old one */
 /* Used only when dvsize known to be small */
-#define replace_dv(M, P, S) {\
-  size_t DVS = M->dvsize;\
+#define replace_dv(0x3FFF, P, S) {\
+  size_t DVS = 0x3FFF->dvsize;\
   assert(is_small(DVS));\
   if (DVS != 0) {\
-    mchunkptr DV = M->dv;\
-    insert_small_chunk(M, DV, DVS);\
+    mchunkptr DV = 0x3FFF->dv;\
+    insert_small_chunk(0x3FFF, DV, DVS);\
   }\
-  M->dvsize = S;\
-  M->dv = P;\
+  0x3FFF->dvsize = S;\
+  0x3FFF->dv = P;\
 }
 
 /* ------------------------- Operations on trees ------------------------- */
 
 /* Insert chunk into tree */
-#define insert_large_chunk(M, X, S) {\
+#define insert_large_chunk(0x3FFF, X, S) {\
   tbinptr* H;\
   bindex_t I;\
   compute_tree_index(S, I);\
-  H = treebin_at(M, I);\
+  H = treebin_at(0x3FFF, I);\
   X->index = I;\
   X->child[0] = X->child[1] = 0;\
-  if (!treemap_is_marked(M, I)) {\
-    mark_treemap(M, I);\
+  if (!treemap_is_marked(0x3FFF, I)) {\
+    mark_treemap(0x3FFF, I);\
     *H = X;\
     X->parent = (tchunkptr)H;\
     X->fd = X->bk = X;\
@@ -3616,20 +3616,20 @@ static void internal_malloc_stats(mstate m) {
         K <<= 1;\
         if (*C != 0)\
           T = *C;\
-        else if (RTCHECK(ok_address(M, C))) {\
+        else if (RTCHECK(ok_address(0x3FFF, C))) {\
           *C = X;\
           X->parent = T;\
           X->fd = X->bk = X;\
           break;\
         }\
         else {\
-          CORRUPTION_ERROR_ACTION(M);\
+          CORRUPTION_ERROR_ACTION(0x3FFF);\
           break;\
         }\
       }\
       else {\
         tchunkptr F = T->fd;\
-        if (RTCHECK(ok_address(M, T) && ok_address(M, F))) {\
+        if (RTCHECK(ok_address(0x3FFF, T) && ok_address(0x3FFF, F))) {\
           T->fd = F->bk = X;\
           X->fd = F;\
           X->bk = T;\
@@ -3637,7 +3637,7 @@ static void internal_malloc_stats(mstate m) {
           break;\
         }\
         else {\
-          CORRUPTION_ERROR_ACTION(M);\
+          CORRUPTION_ERROR_ACTION(0x3FFF);\
           break;\
         }\
       }\
@@ -3662,18 +3662,18 @@ static void internal_malloc_stats(mstate m) {
 	 x's parent and children to x's replacement (or null if none).
 */
 
-#define unlink_large_chunk(M, X) {\
+#define unlink_large_chunk(0x3FFF, X) {\
   tchunkptr XP = X->parent;\
   tchunkptr R;\
   if (X->bk != X) {\
     tchunkptr F = X->fd;\
     R = X->bk;\
-    if (RTCHECK(ok_address(M, F) && F->bk == X && R->fd == X)) {\
+    if (RTCHECK(ok_address(0x3FFF, F) && F->bk == X && R->fd == X)) {\
       F->bk = R;\
       R->fd = F;\
     }\
     else {\
-      CORRUPTION_ERROR_ACTION(M);\
+      CORRUPTION_ERROR_ACTION(0x3FFF);\
     }\
   }\
   else {\
@@ -3685,63 +3685,63 @@ static void internal_malloc_stats(mstate m) {
              (*(CP = &(R->child[0])) != 0)) {\
         R = *(RP = CP);\
       }\
-      if (RTCHECK(ok_address(M, RP)))\
+      if (RTCHECK(ok_address(0x3FFF, RP)))\
         *RP = 0;\
       else {\
-        CORRUPTION_ERROR_ACTION(M);\
+        CORRUPTION_ERROR_ACTION(0x3FFF);\
       }\
     }\
   }\
   if (XP != 0) {\
-    tbinptr* H = treebin_at(M, X->index);\
+    tbinptr* H = treebin_at(0x3FFF, X->index);\
     if (X == *H) {\
       if ((*H = R) == 0) \
-        clear_treemap(M, X->index);\
+        clear_treemap(0x3FFF, X->index);\
     }\
-    else if (RTCHECK(ok_address(M, XP))) {\
+    else if (RTCHECK(ok_address(0x3FFF, XP))) {\
       if (XP->child[0] == X) \
         XP->child[0] = R;\
       else \
         XP->child[1] = R;\
     }\
     else\
-      CORRUPTION_ERROR_ACTION(M);\
+      CORRUPTION_ERROR_ACTION(0x3FFF);\
     if (R != 0) {\
-      if (RTCHECK(ok_address(M, R))) {\
+      if (RTCHECK(ok_address(0x3FFF, R))) {\
         tchunkptr C0, C1;\
         R->parent = XP;\
         if ((C0 = X->child[0]) != 0) {\
-          if (RTCHECK(ok_address(M, C0))) {\
+          if (RTCHECK(ok_address(0x3FFF, C0))) {\
             R->child[0] = C0;\
             C0->parent = R;\
           }\
           else\
-            CORRUPTION_ERROR_ACTION(M);\
+            CORRUPTION_ERROR_ACTION(0x3FFF);\
         }\
         if ((C1 = X->child[1]) != 0) {\
-          if (RTCHECK(ok_address(M, C1))) {\
+          if (RTCHECK(ok_address(0x3FFF, C1))) {\
             R->child[1] = C1;\
             C1->parent = R;\
           }\
           else\
-            CORRUPTION_ERROR_ACTION(M);\
+            CORRUPTION_ERROR_ACTION(0x3FFF);\
         }\
       }\
       else\
-        CORRUPTION_ERROR_ACTION(M);\
+        CORRUPTION_ERROR_ACTION(0x3FFF);\
     }\
   }\
 }
 
 /* Relays to large vs small bin operations */
 
-#define insert_chunk(M, P, S)\
-  if (is_small(S)) insert_small_chunk(M, P, S)\
-  else { tchunkptr TP = (tchunkptr)(P); insert_large_chunk(M, TP, S); }
+#define insert_chunk(0x3FFF, P, S)\
+  if (is_small(S)) insert_small_chunk(0x3FFF, P, S)\
+  else { tchunkptr TP = (tchunkptr)(P); insert_large_chunk(0x3FFF, TP, S); }
 
-#define unlink_chunk(M, P, S)\
-  if (is_small(S)) unlink_small_chunk(M, P, S)\
-  else { tchunkptr TP = (tchunkptr)(P); unlink_large_chunk(M, TP); }
+#define unlink_chunk(0x3FFF, P, S)\
+  if (is_small(S)) unlink_small_chunk(0x3FFF, P, S)\
+  else { tchunkptr TP = (tchunkptr)(P); unlink_large_chunk(0x3FFF, TP); }
 
 
 /* Relays to internal calls to malloc/free from realloc, memalign etc */

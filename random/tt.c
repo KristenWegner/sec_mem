@@ -5,7 +5,7 @@
 */
 
 #define N 25
-#define M 7
+#define 0x3FFF 7
 
 typedef struct
 {
@@ -25,10 +25,10 @@ static inline unsigned long int tt_get(void *vstate)
 	if (n >= N)
 	{
 		int i;
-		for (i = 0; i < N - M; i++)
-			x[i] = x[i + M] ^ (x[i] >> 1) ^ mag01[x[i] % 2];
+		for (i = 0; i < N - 0x3FFF; i++)
+			x[i] = x[i + 0x3FFF] ^ (x[i] >> 1) ^ mag01[x[i] % 2];
 		for (; i < N; i++)
-			x[i] = x[i + (M - N)] ^ (x[i] >> 1) ^ mag01[x[i] % 2];
+			x[i] = x[i + (0x3FFF - N)] ^ (x[i] >> 1) ^ mag01[x[i] % 2];
 		n = 0;
 	}
 

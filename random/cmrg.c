@@ -1,7 +1,7 @@
 // cmrg.c
 
 
-#include <stdint.h>
+#include "../config.h"
 
 
 #define cmrg_maximum (0x7FFFFFFEUL)
@@ -9,7 +9,7 @@
 #define cmrg_state_size (sizeof(int64_t) * 6)
 
 
-static inline uint64_t cmrg_get(void* state)
+inline static uint64_t cmrg_get(void* state)
 {
 	int64_t h1, h2, h3, p1, p2, p3;
 	int64_t* st = state;
@@ -38,7 +38,7 @@ static inline uint64_t cmrg_get(void* state)
 }
 
 
-static void cmrg_seed(void* state, uint64_t seed)
+inline static void cmrg_seed(void* state, uint64_t seed)
 {
 	int64_t* st = state;
 	if (seed == 0) seed = 1ULL;

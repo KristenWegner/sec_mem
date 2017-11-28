@@ -1,7 +1,7 @@
 // coveyou.c
 
 
-#include <stdint.h>
+#include "../config.h"
 
 
 #define coveyou_maximum (0x7FFFFFFDULL)
@@ -9,14 +9,14 @@
 #define coveyou_state_size sizeof(uint64_t)
 
 
-static inline uint64_t coveyou_get(void* state)
+inline static uint64_t coveyou_get(void* state)
 {
 	uint64_t* x = state;
 	*x = (*x * (*x + 1ULL)) & 0xFFFFFFFFULL;
 	return *x;
 }
 
-static void coveyou_seed(void* state, uint64_t seed)
+inline static void coveyou_seed(void* state, uint64_t seed)
 {
 	uint64_t* x = state;
 	uint64_t d = ((seed % 4ULL) - 2ULL) % 0xFFFFFFFFULL;

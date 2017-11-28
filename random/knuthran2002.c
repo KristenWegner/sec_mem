@@ -1,124 +1,88 @@
+// knuthran2002.c
 
-#include <stdlib.h>
 
-/*
-0x3fffffffUL // Max
-0 // Min
-*/
+#include "../config.h"
 
-#define BUFLEN 1009
-#define KK 100
-#define LL 37
-#define MM (1L << 30)
-#define TT 70
 
-#define is_odd(x) ((x) & 1)
-#define mod_diff(x, y) (((x) - (y)) & (MM - 1))
+#define knuthran2002_maximum 0x3FFFFFFFULL
+#define knuthran2002_minimum 0ULL
+#define knuthran2002_state_size (sizeof(uint32_t) + (sizeof(int64_t) * 0x03F1ULL) + (sizeof(int64_t) * 0x64))
 
-static inline void ran_array(long int aa[], unsigned int n, long int ran_x[]);
-static inline unsigned long int ran_get(void *vstate);
-static double ran_get_double(void *vstate);
-static void ran_set(void *state, unsigned long int s);
 
-typedef struct
+inline static uint64_t knuthran2002_get(void* state)
 {
-	unsigned int i;
-	long int aa[BUFLEN];
-	long int ran_x[KK];
-}
-ran_state_t;
-
-static inline void ran_array(long int aa[], unsigned int n, long int ran_x[])
-{
-	unsigned int i, j;
-
-	for (j = 0; j < KK; j++)
-		aa[j] = ran_x[j];
-
-	for (; j < n; j++)
-		aa[j] = mod_diff(aa[j - KK], aa[j - LL]);
-
-	for (i = 0; i < LL; i++, j++)
-		ran_x[i] = mod_diff(aa[j - KK], aa[j - LL]);
-
-	for (; i < KK; i++, j++)
-		ran_x[i] = mod_diff(aa[j - KK], ran_x[i - LL]);
-}
-
-static inline unsigned long int ran_get(void *vstate)
-{
-	ran_state_t *state = (ran_state_t *)vstate;
-	unsigned int i = state->i;
-	unsigned long int v;
-	if (i == 0) ran_array(state->aa, BUFLEN, state->ran_x);
-	v = state->aa[i];
-	state->i = (i + 1) % KK;
+	uint32_t *j = state, i = *j, k, l;
+	int64_t* a = (int64_t*)&j[1U];
+	int64_t* x = &a[0x03F1ULL];
+	uint64_t v;
+	if (i == 0U) 
+	{
+		for (l = 0; l < 0x64U; ++l) a[l] = x[l];
+		for (; l < 0x03F1ULL; ++l) a[l] = (a[l - 0x64U] - a[l - 0x25U]) & (0x40000000ULL - 1);
+		for (k = 0; k < 0x25U; ++k, ++l) x[k] = (a[l - 0x64U] - a[l - 0x25U]) & (0x40000000ULL - 1);
+		for (; k < 0x64U; ++k, ++l) x[k] = (a[l - 0x64U] - x[k - 0x25U]) & (0x40000000ULL - 1);
+	}
+	v = a[i];
+	*j = (i + 1U) % 0x64U;
 	return v;
 }
 
-static double ran_get_double(void *vstate)
+
+inline static void knuthran2002_seed(void* state, uint64_t seed)
 {
-	ran_state_t *state = (ran_state_t *)vstate;
-	return ran_get(state) / 1073741824.0;
-}
+	uint32_t *i = state;
+	int64_t *a = (int64_t*)&i[1U];
+	int64_t *x = &a[0x03F1ULL], y[0x64U + 0x64U - 1U], s;
+	register int32_t j, k, l, t;
 
-static void ran_set(void *vstate, unsigned long int s)
-{
-	ran_state_t *state = (ran_state_t*)vstate;
-	long x[KK + KK - 1];
-	register int j;
-	register int t;
-	register long ss;
+	if (seed == 0ULL) seed = 0x4CB2FULL;
+	s = (seed + 2ULL) & (0x40000000ULL - 2U);
 
-	if (s == 0) s = 314159;
-	ss = (s + 2) & (MM - 2);
-
-	for (j = 0; j < KK; j++)
+	for (j = 0; j < 0x64; ++j)
 	{
-		x[j] = ss;
-		ss <<= 1;
-		if (ss >= MM) ss -= MM - 2;
+		y[j] = s;
+		s <<= 1;
+		if (s >= 0x40000000ULL) 
+			s -= 0x40000000ULL - 2;
 	}
 
-	x[1]++;
-	ss = s & (MM - 1);
-	t = TT - 1;
+	y[1]++;
+	s = seed & (0x40000000ULL - 1);
+	t = 0x46 - 1;
 
 	while (t)
 	{
-		for (j = KK - 1; j > 0; j--)
+		for (j = 0x64 - 1; j > 0; --j)
 		{
-			x[j + j] = x[j];
-			x[j + j - 1] = 0;
+			y[j + j] = y[j];
+			y[j + j - 1] = 0;
+		}
+		for (j = 0x64 + 0x64 - 2; j >= 0x64; --j)
+		{
+			y[j - (0x64U - 0x25U)] = (y[j - (0x64U - 0x25U)] - y[j]) & (0x40000000ULL - 1);
+			y[j - 0x64U] = (y[j - 0x64U] - y[j]) & (0x40000000ULL - 1);
+		}
+		if (s & 1)
+		{
+			for (j = 0x64; j > 0; --j) y[j] = y[j - 1];
+			y[0U] = y[0x64U];
+			y[0x25U] = (y[0x25U] - y[0x64U]) & (0x40000000ULL - 1);
 		}
 
-		for (j = KK + KK - 2; j >= KK; j--)
-		{
-			x[j - (KK - LL)] = mod_diff(x[j - (KK - LL)], x[j]);
-			x[j - KK] = mod_diff(x[j - KK], x[j]);
-		}
-
-		if (is_odd(ss))
-		{
-			for (j = KK; j > 0; j--)
-				x[j] = x[j - 1];
-
-			x[0] = x[KK];
-			x[LL] = mod_diff(x[LL], x[KK]);
-		}
-
-		if (ss) ss >>= 1;
+		if (s) s >>= 1;
 		else t--;
 	}
 
-	for (j = 0; j < LL; j++)
-		state->ran_x[j + KK - LL] = x[j];
+	for (j = 0; j < 0x25; ++j) x[j + 0x64 - 0x25] = y[j];
+	for (; j < 0x64; ++j) x[j - 0x25] = y[j];
 
-	for (; j < KK; j++)
-		state->ran_x[j - LL] = x[j];
+	for (j = 0; j < 10; ++j)
+	{
+		for (l = 0; l < 0x64U; ++l) y[l] = x[l];
+		for (; l < 0x64 + 0x64 - 1; ++l) y[l] = (y[l - 0x64U] - y[l - 0x25U]) & (0x40000000ULL - 1);
+		for (k = 0; k < 0x25U; ++k, ++l) x[k] = (y[l - 0x64U] - y[l - 0x25U]) & (0x40000000ULL - 1);
+		for (; k < 0x64U; ++k, ++l) x[k] = (y[l - 0x64U] - x[k - 0x25U]) & (0x40000000ULL - 1);
+	}
 
-	for (j = 0; j < 10; j++)
-		ran_array(x, KK + KK - 1, state->ran_x);
-
-	state->i = 0;
+	*i = 0;
 }

@@ -23,9 +23,6 @@
     <ClCompile Include="hash_table.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="random\borosh.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="random\cmrg.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -42,9 +39,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="random\gfsr4.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="random\halton.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="random\knuthran.c">
@@ -225,6 +219,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="allocator.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\borosh13.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
