@@ -98,10 +98,78 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="allocator.c" />
     <ClCompile Include="global.c" />
     <ClCompile Include="hash_table.c" />
     <ClCompile Include="program.c" />
     <ClCompile Include="random.c" />
+    <ClCompile Include="random\borosh.c" />
+    <ClCompile Include="random\cmrg.c" />
+    <ClCompile Include="random\coveyou.c" />
+    <ClCompile Include="random\fishman18.c" />
+    <ClCompile Include="random\fishman20.c" />
+    <ClCompile Include="random\fishman2x.c" />
+    <ClCompile Include="random\gfsr4.c" />
+    <ClCompile Include="random\halton.c" />
+    <ClCompile Include="random\knuthran.c" />
+    <ClCompile Include="random\knuthran2.c" />
+    <ClCompile Include="random\knuthran2002.c" />
+    <ClCompile Include="random\ldexp.c" />
+    <ClCompile Include="random\lecuyer.c" />
+    <ClCompile Include="random\minstd.c" />
+    <ClCompile Include="random\mrg.c" />
+    <ClCompile Include="random\mt.c" />
+    <ClCompile Include="random\niederreiter.c" />
+    <ClCompile Include="random\pcg-advance-64.c" />
+    <ClCompile Include="random\pcg-output-64.c" />
+    <ClCompile Include="random\pcg-rngs-64.c" />
+    <ClCompile Include="random\pcg.c" />
+    <ClCompile Include="random\r250.c" />
+    <ClCompile Include="random\ran0.c" />
+    <ClCompile Include="random\ran1.c" />
+    <ClCompile Include="random\ran2.c" />
+    <ClCompile Include="random\ran3.c" />
+    <ClCompile Include="random\rand.c" />
+    <ClCompile Include="random\rand48.c" />
+    <ClCompile Include="random\randu.c" />
+    <ClCompile Include="random\ranf.c" />
+    <ClCompile Include="random\ranlux.c" />
+    <ClCompile Include="random\ranlxd.c" />
+    <ClCompile Include="random\ranlxs.c" />
+    <ClCompile Include="random\ranmar.c" />
+    <ClCompile Include="random\schrage.c" />
+    <ClCompile Include="random\slatec.c" />
+    <ClCompile Include="random\sobol.c" />
+    <ClCompile Include="random\spcg64.c" />
+    <ClCompile Include="random\splitmix64.c" />
+    <ClCompile Include="random\taus.c" />
+    <ClCompile Include="random\taus113.c" />
+    <ClCompile Include="random\tiny.c" />
+    <ClCompile Include="random\transputer.c" />
+    <ClCompile Include="random\tt.c" />
+    <ClCompile Include="random\tt800.c" />
+    <ClCompile Include="random\uni.c" />
+    <ClCompile Include="random\uni32.c" />
+    <ClCompile Include="random\vax.c" />
+    <ClCompile Include="random\waterman14.c" />
+    <ClCompile Include="random\well1024a.c" />
+    <ClCompile Include="random\well19937a.c" />
+    <ClCompile Include="random\well44497a.c" />
+    <ClCompile Include="random\well512a.c" />
+    <ClCompile Include="random\wellrng19937v1.c" />
+    <ClCompile Include="random\wellrng19937v2.c" />
+    <ClCompile Include="random\wellrng44497v1.c" />
+    <ClCompile Include="random\wellrng44497v2.c" />
+    <ClCompile Include="random\wellrng607v1.c" />
+    <ClCompile Include="random\wellrng607v2.c" />
+    <ClCompile Include="random\wellrng800v1.c" />
+    <ClCompile Include="random\widynski.c" />
+    <ClCompile Include="random\xorgens.c" />
+    <ClCompile Include="random\xoroshiro116plus.c" />
+    <ClCompile Include="random\xoroshiro128plus.c" />
+    <ClCompile Include="random\xorshift1024star.c" />
+    <ClCompile Include="random\xorshift128plus.c" />
+    <ClCompile Include="random\zuf.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="checksum.h" />
@@ -112,6 +180,8 @@
     <ClInclude Include="mutex.h" />
     <ClInclude Include="random.h" />
     <ClInclude Include="memory.h" />
+    <ClInclude Include="random\pcg_entropy.h" />
+    <ClInclude Include="random\pcg_variants.h" />
     <ClInclude Include="secure_memory.h" />
   </ItemGroup>
   <ItemGroup>

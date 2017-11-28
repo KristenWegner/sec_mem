@@ -1,115 +1,65 @@
+// cmrg.c
 
-#include <stdlib.h>
 
-/*
-2147483646 //Max
-0 // Min
-*/
+#include <stdint.h>
 
-static inline unsigned long int cmrg_get (void *vstate);
-static double cmrg_get_double (void *vstate);
-static void cmrg_set (void *state, unsigned long int s);
 
-static const long int m1 = 2147483647, m2 = 2145483479;
+#define cmrg_maximum (0x7FFFFFFEUL)
+#define cmrg_minimum (0ULL)
+#define cmrg_state_size (sizeof(int64_t) * 6)
 
-static const long int a2 = 63308, qa2 = 33921, ra2 = 12979;
-static const long int a3 = -183326, qa3 = 11714, ra3 = 2883;
-static const long int b1 = 86098, qb1 = 24919, rb1 = 7417;
-static const long int b3 = -539608, qb3 = 3976, rb3 = 2071;
 
-typedef struct
-  {
-    long int x1, x2, x3;        /* first component */
-    long int y1, y2, y3;        /* second component */
-  }
-cmrg_state_t;
-
-static inline unsigned long int cmrg_get (void *vstate)
+static inline uint64_t cmrg_get(void* state)
 {
-  cmrg_state_t *state = (cmrg_state_t *) vstate;
-
-  /* Component 1 */
-
-  {
-    long int h3 = state->x3 / qa3;
-    long int p3 = -a3 * (state->x3 - h3 * qa3) - h3 * ra3;
-
-    long int h2 = state->x2 / qa2;
-    long int p2 = a2 * (state->x2 - h2 * qa2) - h2 * ra2;
-
-    if (p3 < 0)
-      p3 += m1;
-    if (p2 < 0)
-      p2 += m1;
-
-    state->x3 = state->x2;
-    state->x2 = state->x1;
-    state->x1 = p2 - p3;
-    if (state->x1 < 0)
-      state->x1 += m1;
-  }
-
-  /* Component 2 */
-
-  {
-    long int h3 = state->y3 / qb3;
-    long int p3 = -b3 * (state->y3 - h3 * qb3) - h3 * rb3;
-
-    long int h1 = state->y1 / qb1;
-    long int p1 = b1 * (state->y1 - h1 * qb1) - h1 * rb1;
-
-    if (p3 < 0)
-      p3 += m2;
-    if (p1 < 0)
-      p1 += m2;
-
-    state->y3 = state->y2;
-    state->y2 = state->y1;
-    state->y1 = p1 - p3;
-    if (state->y1 < 0)
-      state->y1 += m2;
-  }
-  
-  if (state->x1 < state->y1)
-    return (state->x1 - state->y1 + m1);
-  else
-    return (state->x1 - state->y1);
-}
-
-static double cmrg_get_double (void *vstate)
-{
-  return cmrg_get (vstate) / 2147483647.0 ;
+	int64_t h1, h2, h3, p1, p2, p3;
+	int64_t* st = state;
+	h3 = st[2] / 0x2DC2L;
+	p3 = -183326L * (st[2] - h3 * 0x2DC2L) - h3 * 0x0B43L;
+	h2 = st[1] / 0x8481L;
+	p2 = 0xF74CL * (st[1] - h2 * 0x8481L) - h2 * 0x32B3L;
+	if (p3 < 0L) p3 += 0x7FFFFFFFL;
+	if (p2 < 0L) p2 += 0x7FFFFFFFL;
+	st[2] = st[1];
+	st[1] = st[0];
+	st[0] = p2 - p3;
+	if (st[0] < 0L) st[0] += 0x7FFFFFFFL;
+	h3 = st[5] / 0x0F88L;
+	p3 = -539608L * (st[5] - h3 * 0x0F88L) - h3 * 0x0817L;
+	h1 = st[3] / 0x6157;
+	p1 = 0x15052L * (st[3] - h1 * 0x6157L) - h1 * 0x1CF9L;
+	if (p3 < 0L) p3 += 0x7FE17AD7L;
+	if (p1 < 0L) p1 += 0x7FE17AD7L;
+	st[5] = st[4];
+	st[4] = st[3];
+	st[3] = p1 - p3;
+	if (st[3] < 0) st[3] += 0x7FE17AD7L;
+	if (st[0] < st[3]) return (st[0] - st[3] + 0x7FFFFFFFL);
+	return (uint64_t)(st[0] - st[3]);
 }
 
 
-static voidcmrg_set (void *vstate, unsigned long int s)
+static void cmrg_seed(void* state, uint64_t seed)
 {
-  cmrg_state_t *state = (cmrg_state_t *) vstate;
-
-  if (s == 0) s = 1;
-
-#define LCG(n) ((69069 * n) & 0xffffffffUL)
-
-  s = LCG (s);
-  state->x1 = s % m1;
-  s = LCG (s);
-  state->x2 = s % m1;
-  s = LCG (s);
-  state->x3 = s % m1;
-
-  s = LCG (s);
-  state->y1 = s % m2;
-  s = LCG (s);
-  state->y2 = s % m2;
-  s = LCG (s);
-  state->y3 = s % m2;
-
-  /* "warm it up" */
-  cmrg_get (state);
-  cmrg_get (state);
-  cmrg_get (state);
-  cmrg_get (state);
-  cmrg_get (state);
-  cmrg_get (state);
-  cmrg_get (state);
+	int64_t* st = state;
+	if (seed == 0) seed = 1ULL;
+	seed = ((0x10DCDULL * seed) & 0xFFFFFFFFULL);
+	st[0] = seed % 0x7FFFFFFFULL;
+	seed = ((0x10DCDULL * seed) & 0xFFFFFFFFULL);
+	st[1] = seed % 0x7FFFFFFFULL;
+	seed = ((0x10DCDULL * seed) & 0xFFFFFFFFULL);
+	st[2] = seed % 0x7FFFFFFFULL;
+	seed = ((0x10DCDULL * seed) & 0xFFFFFFFFULL);
+	st[3] = seed % 0x7FE17AD7ULL;
+	seed = ((0x10DCDULL * seed) & 0xFFFFFFFFULL);
+	st[4] = seed % 0x7FE17AD7ULL;
+	seed = ((0x10DCDULL * seed) & 0xFFFFFFFFULL);
+	st[5] = seed % 0x7FE17AD7ULL;
+	cmrg_get(state);
+	cmrg_get(state);
+	cmrg_get(state);
+	cmrg_get(state);
+	cmrg_get(state);
+	cmrg_get(state);
+	cmrg_get(state);
 }
+

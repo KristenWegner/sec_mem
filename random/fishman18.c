@@ -1,44 +1,28 @@
+// fishman18.c
 
-#include <stdlib.h>
+
+#include <stdint.h>
 
 #include "schrage.c"
 
-/*
-MM - 1 // Max
-1 // Min
-*/
 
-#define AA 62089911UL
-#define MM 0x7fffffffUL // 2 ^ 31 - 1.
-#define CEIL_SQRT_MM 46341UL /// ceil(sqrt(2 ^ 31 - 1)).
+#define fishman18_maximum (0x7FFFFFFEUL)
+#define fishman18_minimum (1ULL)
+#define fishman18_state_size sizeof(uint64_t)
 
-static inline unsigned long int ran_get(void *vstate);
-static double ran_get_double(void *vstate);
-static void ran_set(void *state, unsigned long int s);
 
-typedef struct
+static inline uint64_t fishman18_get(void* state)
 {
-	unsigned long int x;
-}
-ran_state_t;
-
-static inline unsigned long int ran_get(void *vstate)
-{
-	ran_state_t *state = (ran_state_t *)vstate;
-	state->x = schrage_mult(AA, state->x, MM, CEIL_SQRT_MM);
-	return state->x;
+	uint64_t* s = state;
+	*s = schrage_mult(0x03B36AB7ULL, *s, 0x7FFFFFFFULL, 0xB505ULL);
+	return *s;
 }
 
-static double ran_get_double(void *vstate)
-{
-	ran_state_t *state = (ran_state_t*)vstate;
 
-	return ran_get(state) / 2147483647.0;
+static void fishman18_seed(void* state, uint64_t seed)
+{
+	uint64_t* s = state;
+	if ((seed % 0x7FFFFFFFULL) == 0ULL) seed = 1ULL;
+	*s = seed % 0x7FFFFFFFULL;
 }
 
-static void ran_set(void *vstate, unsigned long int s)
-{
-	ran_state_t *state = (ran_state_t *)vstate;
-	if ((s % MM) == 0) s = 1;
-	state->x = s % MM;
-}

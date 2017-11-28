@@ -1,49 +1,26 @@
+// coveyou.c
 
-#include <stdlib.h>
 
-#define MM 0xffffffffUL // 2 ^ 32 - 1.
+#include <stdint.h>
 
-/*
-MM - 1 // Max
-2 // Min
-*/
 
-static inline unsigned long int ran_get (void *vstate);
-static double ran_get_double (void *vstate);
-static void ran_set (void *state, unsigned long int s);
+#define coveyou_maximum (0x7FFFFFFDULL)
+#define coveyou_minimum (2ULL)
+#define coveyou_state_size sizeof(uint64_t)
 
-typedef struct
+
+static inline uint64_t coveyou_get(void* state)
 {
-  unsigned long int x;
-}
-ran_state_t;
-
-static inline unsigned long int ran_get (void *vstate)
-{
-  ran_state_t *state = (ran_state_t *) vstate;
-
-  state->x = (state->x * (state->x + 1)) & MM;
-
-  return state->x;
+	uint64_t* x = state;
+	*x = (*x * (*x + 1ULL)) & 0xFFFFFFFFULL;
+	return *x;
 }
 
-static double ran_get_double (void *vstate)
+static void coveyou_seed(void* state, uint64_t seed)
 {
-  ran_state_t *state = (ran_state_t *) vstate;
-
-  return ran_get (state) / 4294967296.0;
+	uint64_t* x = state;
+	uint64_t d = ((seed % 4ULL) - 2ULL) % 0xFFFFFFFFULL;
+	if (d) *x = (seed - d) & 0xFFFFFFFFULL;
+	else *x = seed & 0xFFFFFFFFULL;
 }
 
-static void ran_set (void *vstate, unsigned long int s)
-{
-  ran_state_t *state = (ran_state_t *) vstate;
-
-  unsigned long int diff = ((s % 4UL) - 2UL) % MM;
-
-  if (diff)
-    state->x = (s - diff) & MM;
-  else
-    state->x = s & MM;
-
-  return;
-}

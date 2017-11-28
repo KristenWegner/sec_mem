@@ -1,75 +1,36 @@
+// fishman2x.c
 
-#include <stdlib.h>
 
-// Fishman
-#define AAA_F 48271UL
-#define MMM_F 0x7fffffffUL // 2 ^ 31 - 1.
-#define QQQ_F 44488UL
-#define RRR_F 3399UL
+#include <stdint.h>
 
-// L'Ecuyer
-#define AAA_L 40692UL
-#define MMM_L 0x7fffff07UL // 2 ^ 31 - 249.
-#define QQQ_L 52774UL
-#define RRR_L 3791UL
 
-/*
-MMM_F - 1 // Max
-0 // Min
-*/
+#define fishman2x_maximum (0x7FFFFFFEUL)
+#define fishman2x_minimum (0ULL)
+#define fishman2x_state_size (sizeof(uint64_t) * 3)
 
-static inline unsigned long int ran_get(void *vstate);
-static double ran_get_double(void *vstate);
-static void ran_set(void *state, unsigned long int s);
 
-typedef struct
+static inline uint64_t fishman2x_get(void* state)
 {
-	unsigned long int x;
-	unsigned long int y;
-	unsigned long int z;
-}
-ran_state_t;
-
-static inline unsigned long int ran_get(void *vstate)
-{
-	ran_state_t *state = (ran_state_t *)vstate;
-
-	long int y, r;
-
-	r = RRR_F * (state->x / QQQ_F);
-	y = AAA_F * (state->x % QQQ_F) - r;
-	if (y < 0)
-		y += MMM_F;
-	state->x = y;
-
-	r = RRR_L * (state->y / QQQ_L);
-	y = AAA_L * (state->y % QQQ_L) - r;
-	if (y < 0)
-		y += MMM_L;
-	state->y = y;
-
-	state->z = (state->x > state->y) ? (state->x - state->y) :
-		MMM_F + state->x - state->y;
-
-	return state->z;
+	uint64_t* s = state;
+	int64_t r = 0x0D47ULL * (s[0] / 0xADC8ULL);
+	int64_t y = 0xBC8FULL * (s[0] % 0xADC8ULL) - r;
+	if (y < 0LL) y += 0x7FFFFFFFULL;
+	s[0] = y;
+	r = 0x0ECFULL * (s[1] / 0xCE26ULL);
+	y = 0x9EF4ULL * (s[1] % 0xCE26ULL) - r;
+	if (y < 0LL) y += 0x7FFFFF07ULL;
+	s[1] = y;
+	s[2] = (s[0] > s[1]) ? (s[0] - s[1]) : 0x7FFFFFFFULL + s[0] - s[1];
+	return s[2];
 }
 
-static double ran_get_double(void *vstate)
-{
-	ran_state_t *state = (ran_state_t *)vstate;
 
-	return ran_get(state) / 2147483647.0;
+static void fishman2x_seed(void* state, uint64_t seed)
+{
+	uint64_t* s = state;
+	if ((seed % 0x7FFFFFFFULL) == 0ULL || (seed % 0x7FFFFF07ULL) == 0ULL) seed = 1ULL;
+	s[0] = seed % 0x7FFFFFFFULL;
+	s[1] = seed % 0x7FFFFF07ULL;
+	s[2] = (s[0] > s[1]) ? (s[0] - s[1]) : 0x7FFFFFFFULL + s[0] - s[1];
 }
 
-static void ran_set(void *vstate, unsigned long int s)
-{
-	ran_state_t *state = (ran_state_t *)vstate;
-
-	if ((s % MMM_F) == 0 || (s % MMM_L) == 0) s = 1;
-
-	state->x = s % MMM_F;
-	state->y = s % MMM_L;
-	state->z = (state->x > state->y) ? (state->x - state->y) : MMM_F + state->x - state->y;
-
-	return;
-}

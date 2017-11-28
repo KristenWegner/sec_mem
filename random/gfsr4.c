@@ -1,14 +1,12 @@
+// gfsr4.c
 
-#include <stdlib.h>
+
+#include <stdint.h>
 
 /*
 0xffffffffUL // Max
 0 // Min
 */
-
-static inline unsigned long int gfsr4_get(void *vstate);
-static double gfsr4_get_double(void *vstate);
-static void gfsr4_set(void *state, unsigned long int s);
 
 // Magic numbers.
 
@@ -18,6 +16,10 @@ static void gfsr4_set(void *state, unsigned long int s);
 #define D 9689
 #define M 16383 // 2^14-1.
 
+
+#define gfsr4_state_size (sizeof(int32_t) + (sizeof(uint64_t) * 0x4000))
+
+
 typedef struct
 {
 	int nd;
@@ -25,45 +27,33 @@ typedef struct
 }
 gfsr4_state_t;
 
-static inline unsigned long gfsr4_get(void *vstate)
+static inline uint64_t gfsr4_get(void *vstate)
 {
 	gfsr4_state_t *state = (gfsr4_state_t *)vstate;
-
-	state->nd = ((state->nd) + 1)&M;
-
-	return state->ra[(state->nd)] =
-		state->ra[((state->nd) + (M + 1 - A))&M] ^
-		state->ra[((state->nd) + (M + 1 - B))&M] ^
-		state->ra[((state->nd) + (M + 1 - C))&M] ^
-		state->ra[((state->nd) + (M + 1 - D))&M];
-
+	state->nd = ((state->nd) + 1) & M;
+	return state->ra[(state->nd)] = state->ra[((state->nd) + (M + 1 - A)) & M] ^ state->ra[((state->nd) + (M + 1 - B)) & M] ^ state->ra[((state->nd) + (M + 1 - C)) & M] ^ state->ra[((state->nd) + (M + 1 - D)) & M];
 }
 
-static double gfsr4_get_double(void * vstate)
-{
-	return gfsr4_get(vstate) / 4294967296.0;
-}
 
-static void gfsr4_set(void *vstate, unsigned long int s)
+static void gfsr4_seed(void *vstate, uint64_t seed)
 {
 	gfsr4_state_t *state = (gfsr4_state_t *)vstate;
-	int i, j;
-	unsigned long int msb = 0x80000000UL;
-	unsigned long int mask = 0xFFFFFFFFUL;
+	int i, j, k;
+	uint64_t t, bit, msb = 0x80000000UL, mask = 0xFFFFFFFFUL;
 
-	if (s == 0) s = 4357;
+	if (seed == 0) seed = 4357;
 
 #define LCG(n) ((69069 * n) & 0xFFFFFFFFUL)
 
-	for (i = 0; i <= M; i++)
+	for (i = 0; i <= M; ++i)
 	{
-		unsigned long t = 0;
-		unsigned long bit = msb;
+		t = 0;
+		bit = msb;
 
-		for (j = 0; j < 32; j++)
+		for (j = 0; j < 32; ++j)
 		{
-			s = LCG(s);
-			if (s & msb) t |= bit;
+			seed = LCG(seed);
+			if (seed & msb) t |= bit;
 			bit >>= 1;
 		}
 
@@ -72,7 +62,7 @@ static void gfsr4_set(void *vstate, unsigned long int s)
 
 	for (i = 0; i < 32; ++i)
 	{
-		int k = 7 + i * 3;
+		k = 7 + i * 3;
 		state->ra[k] &= mask;
 		state->ra[k] |= msb;
 		mask >>= 1;

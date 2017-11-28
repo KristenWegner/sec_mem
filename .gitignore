@@ -44,6 +44,9 @@
 *.ipch
 *.db
 *.opendb
+*.sdf
+*.tlog
+.vs/
 
 # Kernel Module Compile Results
 *.mod*

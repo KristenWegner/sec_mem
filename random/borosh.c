@@ -1,47 +1,26 @@
+// borosh.c
 
-#include <stdlib.h>
 
-#define AA 1812433253UL
-#define MM 0xffffffffUL // 2 ^ 32 - 1.
+#include <stdint.h>
 
-/*
-MM // Max
-1// Min
-*/
 
-static inline unsigned long int ran_get (void *vstate);
-static double ran_get_double (void *vstate);
-static void ran_set (void *state, unsigned long int s);
+#define borosh_maximum (0xFFFFFFFFUL)
+#define borosh_minimum (1ULL)
+#define borosh_state_size sizeof(uint64_t)
 
-typedef struct
+
+static inline uint64_t borosh_get(void* state)
 {
-  unsigned long int x;
-}
-ran_state_t;
-
-static inline unsigned long int ran_get (void *vstate)
-{
-  ran_state_t *state = (ran_state_t *) vstate;
-
-  state->x = (AA * state->x) & MM;
-
-  return state->x;
+	uint64_t* x = state;
+	*x = (0x6C078965ULL * *x) & 0xFFFFFFFFULL;
+	return *x;
 }
 
-static double ran_get_double (void *vstate)
+
+static void borosh_seed(void* state, uint64_t seed)
 {
-  ran_state_t *state = (ran_state_t *) vstate;
-
-  return ran_get (state) / 4294967296.0;
-}
-
-static void ran_set (void *vstate, unsigned long int s)
-{
-  ran_state_t *state = (ran_state_t *) vstate;
-
-  if (s == 0) s = 1;
-  state->x = s & MM;
-
-  return;
+	uint64_t* x = state;
+	if (seed == 0ULL) seed = 1ULL;
+	*x = seed & 0xFFFFFFFFULL;
 }
 

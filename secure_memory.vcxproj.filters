@@ -23,6 +23,210 @@
     <ClCompile Include="hash_table.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="random\borosh.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\cmrg.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\coveyou.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\fishman2x.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\fishman18.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\fishman20.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\gfsr4.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\halton.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\knuthran.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\knuthran2.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\knuthran2002.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\ldexp.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\lecuyer.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\minstd.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\mrg.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\mt.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\niederreiter.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\pcg.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\pcg-advance-64.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\pcg-output-64.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\pcg-rngs-64.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\r250.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\ran0.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\ran1.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\ran2.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\ran3.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\rand.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\rand48.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\randu.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\ranf.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\ranlux.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\ranlxd.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\ranlxs.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\ranmar.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\schrage.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\slatec.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\sobol.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\spcg64.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\splitmix64.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\taus.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\taus113.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\tiny.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\transputer.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\tt.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\tt800.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\uni.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\uni32.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\vax.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\waterman14.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\well512a.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\well1024a.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\well19937a.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\well44497a.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\wellrng607v1.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\wellrng607v2.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\wellrng800v1.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\wellrng19937v1.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\wellrng19937v2.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\wellrng44497v1.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\wellrng44497v2.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\widynski.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\xorgens.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\xoroshiro116plus.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\xoroshiro128plus.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\xorshift128plus.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\xorshift1024star.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\zuf.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="allocator.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="mutex.h">
@@ -50,6 +254,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="secure_memory.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="random\pcg_entropy.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="random\pcg_variants.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

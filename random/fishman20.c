@@ -1,45 +1,30 @@
+// fishman20.c
 
-#include <stdlib.h>
 
-/*
-2147483646 // Max
-1 // Min
-*/
+#include <stdint.h>
 
-static inline unsigned long int ran_get(void *vstate);
-static double ran_get_double(void *vstate);
-static void ran_set(void *state, unsigned long int s);
 
-static const long int m = 2147483647, a = 48271, q = 44488, r = 3399;
+#define fishman20_maximum (0x7FFFFFFEUL)
+#define fishman20_minimum (1ULL)
+#define fishman20_state_size sizeof(uint64_t)
 
-typedef struct
+
+static inline uint64_t fishman20_get(void* state)
 {
-	unsigned long int x;
-}
-ran_state_t;
-
-static inline unsigned long int ran_get(void *vstate)
-{
-	ran_state_t *state = (ran_state_t *)vstate;
-	const unsigned long int x = state->x;
-	const long int h = x / q;
-	const long int t = a * (x - h * q) - h * r;
-	if (t < 0)
-		state->x = t + m;
-	else state->x = t;
-	return state->x;
+	uint64_t* s = state;
+	const uint64_t x = *s;
+	const int64_t h = x / 0xADC8LL;
+	const int64_t t = 0xBC8FLL * (x - h * 0xADC8LL) - h * 0x0D47LL;
+	if (t < 0LL) *s = t + 0x7FFFFFFFLL;
+	else *s = t;
+	return *s;
 }
 
-static double ran_get_double(void *vstate)
+
+static void fishman20_seed(void* state, uint64_t seed)
 {
-	ran_state_t *state = (ran_state_t *)vstate;
-	return ran_get(state) / 2147483647.0;
+	uint64_t* s = state;
+	if ((seed % 0x7FFFFFFFLL) == 0ULL) seed = 1ULL;
+	*s = seed & 0x7FFFFFFFLL;
 }
 
-static void ran_set(void *vstate, unsigned long int s)
-{
-	ran_state_t *state = (ran_state_t *)vstate;
-	if ((s%m) == 0) s = 1;
-	state->x = s & m;
-	return;
-}
