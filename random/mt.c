@@ -1,124 +1,64 @@
+// mt.c
 
-#include <stdlib.h>
 
-/*
-0xFFFFFFFFUL // Max
-0 // Min
-*/
+#include "../config.h"
 
-static inline unsigned long int mt_get(void *vstate);
-static double mt_get_double(void *vstate);
-static void mt_set(void *state, unsigned long int s);
 
-#define N 624
-#define 0x3FFF 397
+#define mt_maximum 0xFFFFFFFFULL
+#define mt_minimum 0ULL
+#define mt_state_size (sizeof(int32_t) + (sizeof(uint64_t) * 0x0270))
 
-static const unsigned long UPPER_MASK = 0x80000000UL;
-static const unsigned long LOWER_MASK = 0x7FFFFFFFUL;
 
-typedef struct
+inline static uint64_t mt_get(void* state)
 {
-	unsigned long mt[N];
-	int mti;
-}
-mt_state_t;
+	int32_t *i = state, j;
+	uint64_t *const m = (uint64_t*)&i[1];
+	uint64_t k, y;
 
-static inline unsigned long mt_get(void *vstate)
-{
-	mt_state_t *state = (mt_state_t *)vstate;
-
-	unsigned long k;
-	unsigned long int *const mt = state->mt;
-
-#define MAGIC(y) (((y)&0x1) ? 0X9908B0DFUL : 0)
-
-	if (state->mti >= N)
+	if (*i >= 0x0270)
 	{
-		int kk;
-
-		for (kk = 0; kk < N - 0x3FFF; kk++)
+		for (j = 0; j < 0x0270 - 0x018D; ++j)
 		{
-			unsigned long y = (mt[kk] & UPPER_MASK) | (mt[kk + 1] & LOWER_MASK);
-			mt[kk] = mt[kk + 0x3FFF] ^ (y >> 1) ^ MAGIC(y);
-		}
-		for (; kk < N - 1; kk++)
-		{
-			unsigned long y = (mt[kk] & UPPER_MASK) | (mt[kk + 1] & LOWER_MASK);
-			mt[kk] = mt[kk + (0x3FFF - N)] ^ (y >> 1) ^ MAGIC(y);
+			y = (m[j] & 0x80000000UL) | (m[j + 1] & 0x7FFFFFFFUL);
+			m[j] = m[j + 0x018D] ^ (y >> 1) ^ ((y & 1) ? 0X9908B0DFULL : 0ULL);
 		}
 
+		for (; j < 0x0270 - 1; ++j)
 		{
-			unsigned long y = (mt[N - 1] & UPPER_MASK) | (mt[0] & LOWER_MASK);
-			mt[N - 1] = mt[0x3FFF - 1] ^ (y >> 1) ^ MAGIC(y);
+			y = (m[j] & 0x80000000UL) | (m[j + 1] & 0x7FFFFFFFUL);
+			m[j] = m[j + (0x018D - 0x0270)] ^ (y >> 1) ^ ((y & 1) ? 0X9908B0DFULL : 0ULL);
 		}
 
-		state->mti = 0;
+		y = (m[0x0270 - 1] & 0x80000000UL) | (m[0] & 0x7FFFFFFFUL);
+		m[0x0270 - 1] = m[0x018D - 1] ^ (y >> 1) ^ ((y & 1) ? 0X9908B0DFULL : 0ULL);
+
+		*i = 0;
 	}
 
-	k = mt[state->mti];
+	k = m[*i];
 	k ^= (k >> 11);
-	k ^= (k << 7) & 0x9D2C5680UL;
-	k ^= (k << 15) & 0xEFC60000UL;
+	k ^= (k << 7) & 0x9D2C5680ULL;
+	k ^= (k << 15) & 0xEFC60000ULL;
 	k ^= (k >> 18);
 
-	state->mti++;
+	*i++;
 
 	return k;
 }
 
-static double mt_get_double(void* vstate)
+
+inline static void mt_seed(void* state, uint64_t seed)
 {
-	return mt_get(vstate) / 4294967296.0;
-}
-
-static void mt_set(void *vstate, unsigned long int s)
-{
-	mt_state_t *state = (mt_state_t *)vstate;
-	int i;
-
-	if (s == 0) s = 4357;
-	state->mt[0] = s & 0xFFFFFFFFUL;
-
-	for (i = 1; i < N; i++)
+	int32_t *i = state, j;
+	uint64_t* m = (uint64_t*)&i[1];
+	if (seed == 0ULL) seed = 0x1105ULL;
+	for (j = 0; j < 0x0270; ++j)
 	{
-		state->mt[i] = (1812433253UL * (state->mt[i - 1] ^ (state->mt[i - 1] >> 30)) + i);
-		state->mt[i] &= 0xFFFFFFFFUL;
+		m[j] = seed & 0xFFFF0000UL;
+		seed = (((0x10DCDULL * seed) + 1ULL) & 0xFFFFFFFFULL);
+		m[j] |= (seed & 0xFFFF0000UL) >> 16;
+		seed = (((0x10DCDULL * seed) + 1ULL) & 0xFFFFFFFFULL);
 	}
-
-	state->mti = i;
+	*i = j;
 }
 
-static void mt_1999_set(void *vstate, unsigned long int s)
-{
-	mt_state_t *state = (mt_state_t *)vstate;
-	int i;
-
-	if (s == 0) s = 4357;
-
-#define LCG(x) ((69069 * x) + 1) &0xFFFFFFFFUL
-
-	for (i = 0; i < N; i++)
-	{
-		state->mt[i] = s & 0xFFFF0000UL;
-		s = LCG(s);
-		state->mt[i] |= (s & 0xFFFF0000UL) >> 16;
-		s = LCG(s);
-	}
-
-	state->mti = i;
-}
-
-static void mt_1998_set(void *vstate, unsigned long int s)
-{
-	mt_state_t *state = (mt_state_t *)vstate;
-	int i;
-
-	if (s == 0) s = 4357;
-	state->mt[0] = s & 0xFFFFFFFFUL;
-
-#define LCG1998(n) ((69069 * n) & 0xFFFFFFFFUL)
-
-	for (i = 1; i < N; i++)
-		state->mt[i] = LCG1998(state->mt[i - 1]);
-	state->mti = i;
-}

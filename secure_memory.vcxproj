@@ -104,6 +104,7 @@
     <ClCompile Include="program.c" />
     <ClCompile Include="random.c" />
     <ClCompile Include="random\borosh13.c" />
+    <ClCompile Include="random\pcg32.c" />
     <ClCompile Include="random\cmrg.c" />
     <ClCompile Include="random\coveyou.c" />
     <ClCompile Include="random\fishman18.c" />
@@ -118,11 +119,6 @@
     <ClCompile Include="random\minstd.c" />
     <ClCompile Include="random\mrg.c" />
     <ClCompile Include="random\mt.c" />
-    <ClCompile Include="random\niederreiter.c" />
-    <ClCompile Include="random\pcg-advance-64.c" />
-    <ClCompile Include="random\pcg-output-64.c" />
-    <ClCompile Include="random\pcg-rngs-64.c" />
-    <ClCompile Include="random\pcg.c" />
     <ClCompile Include="random\r250.c" />
     <ClCompile Include="random\ran0.c" />
     <ClCompile Include="random\ran1.c" />
