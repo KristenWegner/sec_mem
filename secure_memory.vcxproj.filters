@@ -50,9 +50,6 @@
     <ClCompile Include="random\knuthran2002.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="random\ldexp.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="random\lecuyer.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -209,7 +206,10 @@
     <ClCompile Include="random\borosh13.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="random\pcg32.c">
+    <ClCompile Include="random\pcg.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\ldexp.h">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -239,12 +239,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="secure_memory.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="random\pcg_entropy.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="random\pcg_variants.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

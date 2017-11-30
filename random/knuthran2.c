@@ -11,7 +11,7 @@
 #define knuthran2_state_size (sizeof(uint64_t) * 2)
 
 
-inline static uint64_t knuthran2_get(void *state)
+static uint64_t knuthran2_get(void *state)
 {
 	uint64_t* s = state;
 	const unsigned long int t = s[1];
@@ -22,10 +22,10 @@ inline static uint64_t knuthran2_get(void *state)
 }
 
 
-inline static void knuthran2_seed(void* state, uint64_t seed)
+static void knuthran2_seed(void* state, uint64_t seed)
 {
 	uint64_t* s = state;
-	if ((seed % 0x7FFFFFFFULL) == 0) seed = 1ULL;
+	if ((seed % 0x7FFFFFFFULL) == 0ULL) seed = 1ULL;
 	s[0] = seed % 0x7FFFFFFFULL;
 	s[1] = seed % 0x7FFFFFFFULL;
 }

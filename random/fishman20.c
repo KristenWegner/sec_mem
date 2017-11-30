@@ -9,7 +9,7 @@
 #define fishman20_state_size sizeof(uint64_t)
 
 
-inline static uint64_t fishman20_get(void* state)
+static uint64_t fishman20_get(void* state)
 {
 	uint64_t* s = state;
 	const uint64_t x = *s;
@@ -21,7 +21,7 @@ inline static uint64_t fishman20_get(void* state)
 }
 
 
-inline static void fishman20_seed(void* state, uint64_t seed)
+static void fishman20_seed(void* state, uint64_t seed)
 {
 	uint64_t* s = state;
 	if ((seed % 0x7FFFFFFFLL) == 0ULL) seed = 1ULL;

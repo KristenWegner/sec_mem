@@ -1,4 +1,4 @@
-// pcg32.c
+// pcg.c
 
 
 #include "../config.h"
@@ -13,7 +13,7 @@ static void pcg_seed(void* state, uint64_t seed)
 {
 	uint64_t* s = state;
 	s[0] = 0ULL;
-	s[1] = (0xDA3E39CB94B95BDBULL << 1U) | 1U;
+	s[1] = 0xB47C73972972B7B6ULL | 1ULL;
 	pcg_get(state);
 	if (seed == 0ULL) seed = 0x853C49E6748FEA9BULL;
 	s[0] += seed;

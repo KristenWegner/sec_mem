@@ -9,7 +9,7 @@
 #define cmrg_state_size (sizeof(int64_t) * 6)
 
 
-inline static uint64_t cmrg_get(void* state)
+static uint64_t cmrg_get(void* state)
 {
 	int64_t h1, h2, h3, p1, p2, p3;
 	int64_t* st = state;
@@ -38,10 +38,10 @@ inline static uint64_t cmrg_get(void* state)
 }
 
 
-inline static void cmrg_seed(void* state, uint64_t seed)
+static void cmrg_seed(void* state, uint64_t seed)
 {
 	int64_t* st = state;
-	if (seed == 0) seed = 1ULL;
+	if (seed == 0ULL) seed = 1ULL;
 	seed = ((0x10DCDULL * seed) & 0xFFFFFFFFULL);
 	st[0] = seed % 0x7FFFFFFFULL;
 	seed = ((0x10DCDULL * seed) & 0xFFFFFFFFULL);

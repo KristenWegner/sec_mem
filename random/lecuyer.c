@@ -9,7 +9,7 @@
 #define lecuyer_state_size sizeof(uint64_t)
 
 
-inline static uint64_t lecuyer_get(void* state)
+static uint64_t lecuyer_get(void* state)
 {
 	uint64_t* x = state;
 	int64_t y = *x, r = 0x0ECFL * (y / 0xCE26L);
@@ -20,10 +20,10 @@ inline static uint64_t lecuyer_get(void* state)
 }
 
 
-inline static void lecuyer_seed(void* state, uint64_t seed)
+static void lecuyer_seed(void* state, uint64_t seed)
 {
 	uint64_t* x = state;
-	if ((seed % 0x7FFFFF07ULL) == 0) seed = 1ULL;
+	if ((seed % 0x7FFFFF07ULL) == 0ULL) seed = 1ULL;
 	*x = seed % 0x7FFFFF07ULL;
 }
 

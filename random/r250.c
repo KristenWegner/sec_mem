@@ -4,57 +4,51 @@
 #include "../config.h"
 
 
-#define pcg32_maximum 0xFFFFFFFFULL
-#define pcg32_minimum 0ULL
-#define pcg32_state_size (sizeof(int32_t) + (sizeof(uint64_t) * 0xFAU))
+#define r250_maximum 0xFFFFFFFFULL
+#define r250_minimum 0ULL
+#define r250_state_size (sizeof(uint32_t) + (sizeof(uint64_t) * 0xFAU))
 
 
-typedef struct
+static uint64_t r250_get(void* state)
 {
-	int i;
-	unsigned long x[250];
-}
-r250_state_t;
+	uint32_t j, *i = state;
+	uint64_t k, *x = (uint64_t*)&i[1];
 
-static inline uint64_t r250_get(void *vstate)
-{
-	r250_state_t *state = (r250_state_t *)vstate;
-	uint64_t k;
-	int j, i = state->i;
+	if (*i >= 0x93U) j = *i - 0x93U;
+	else j = *i + 0x67U;
 
-	if (i >= 147) j = i - 147;
-	else j = i + 103;
+	k = x[*i] ^ x[j];
+	x[*i] = k;
 
-	k = state->x[i] ^ state->x[j];
-	state->x[i] = k;
-
-	if (i >= 0xF9U) state->i = 0U;
-	else state->i = i + 1U;
+	if (i >= 0xF9U) *i = 0U;
+	else *i = *i + 1U;
 
 	return k;
 }
 
-static void r250_seed(void *vstate, uint64_t seed)
+
+static void r250_seed(void* state, uint64_t seed)
 {
-	r250_state_t *state = (r250_state_t *)vstate;
-	uint32_t i, k;
-	uint64_t msb, mask;
+	uint32_t j, k, *i = state;
+	uint64_t b, m, *x = (uint64_t*)&i[1];
 
 	if (seed == 0ULL) seed = 1ULL;
-	state->i = 0;
 
-	for (i = 0; i < 0xFAU; ++i)
-		state->x[i] = (seed = ((0x10DCDULL * seed) & 0xFFFFFFFFULL));
+	*i = 0U;
 
-	msb = 0x80000000ULL;
-	mask = 0xFFFFFFFFULL;
+	for (j = 0U; j < 0xFAU; ++j)
+		x[j] = (seed = ((0x10DCDULL * seed) & 0xFFFFFFFFULL));
 
-	for (i = 0; i < 0x20U; ++i)
+	b = 0x80000000ULL;
+	m = 0xFFFFFFFFULL;
+
+	for (j = 0; j < 0x20U; ++j)
 	{
-		k = 7 * i + 3;
-		state->x[k] &= mask;
-		state->x[k] |= msb;
-		mask >>= 1;
-		msb >>= 1;
+		k = 7U * j + 3U;
+		x[k] &= m;
+		x[k] |= b;
+		m >>= 1;
+		b >>= 1;
 	}
 }
+

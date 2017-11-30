@@ -9,7 +9,7 @@
 #define minstd_state_size sizeof(uint64_t)
 
 
-inline static uint64_t minstd_get(void* state)
+static uint64_t minstd_get(void* state)
 {
 	uint64_t* x = state;
 	const uint64_t y = *x;
@@ -20,7 +20,7 @@ inline static uint64_t minstd_get(void* state)
 }
 
 
-inline static void minstd_seed(void* state, uint64_t seed)
+static void minstd_seed(void* state, uint64_t seed)
 {
 	uint64_t* x = state;
 	if (seed == 0ULL) seed = 1ULL;

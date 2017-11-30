@@ -9,7 +9,7 @@
 #define mrg_state_size (sizeof(int64_t) * 5)
 
 
-inline static uint64_t mrg_get(void* state)
+static uint64_t mrg_get(void* state)
 {
 	int64_t* x = state;
 	int64_t h5 = x[4] / 0x504AL;
@@ -28,7 +28,7 @@ inline static uint64_t mrg_get(void* state)
 }
 
 
-inline static void mrg_seed(void* state, uint64_t seed)
+static void mrg_seed(void* state, uint64_t seed)
 {
 	int64_t* x = state;
 	if (seed == 0ULL) seed = 1ULL;

@@ -104,7 +104,7 @@
     <ClCompile Include="program.c" />
     <ClCompile Include="random.c" />
     <ClCompile Include="random\borosh13.c" />
-    <ClCompile Include="random\pcg32.c" />
+    <ClCompile Include="random\pcg.c" />
     <ClCompile Include="random\cmrg.c" />
     <ClCompile Include="random\coveyou.c" />
     <ClCompile Include="random\fishman18.c" />
@@ -114,7 +114,7 @@
     <ClCompile Include="random\knuthran.c" />
     <ClCompile Include="random\knuthran2.c" />
     <ClCompile Include="random\knuthran2002.c" />
-    <ClCompile Include="random\ldexp.c" />
+    <ClCompile Include="random\ldexp.h" />
     <ClCompile Include="random\lecuyer.c" />
     <ClCompile Include="random\minstd.c" />
     <ClCompile Include="random\mrg.c" />
@@ -175,8 +175,6 @@
     <ClInclude Include="mutex.h" />
     <ClInclude Include="random.h" />
     <ClInclude Include="memory.h" />
-    <ClInclude Include="random\pcg_entropy.h" />
-    <ClInclude Include="random\pcg_variants.h" />
     <ClInclude Include="secure_memory.h" />
   </ItemGroup>
   <ItemGroup>

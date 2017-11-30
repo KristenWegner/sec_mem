@@ -9,7 +9,7 @@
 #define gfsr4_state_size (sizeof(int32_t) + (sizeof(uint64_t) * 0x4000))
 
 
-inline static uint64_t gfsr4_get(void* state)
+static uint64_t gfsr4_get(void* state)
 {
 	int32_t* n = state;
 	uint64_t* a = (uint64_t*)&n[1];
@@ -18,7 +18,7 @@ inline static uint64_t gfsr4_get(void* state)
 }
 
 
-inline static void gfsr4_seed(void* state, uint64_t seed)
+static void gfsr4_seed(void* state, uint64_t seed)
 {
 	int32_t i, j, k, *n = state;
 	uint64_t  t, b, m = 0x80000000UL, s = 0xFFFFFFFFUL, *a = (uint64_t*)&n[1];
