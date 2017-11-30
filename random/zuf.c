@@ -1,71 +1,60 @@
+// zuf.c
 
-#include <stdlib.h>
 
-static inline unsigned long int zuf_get(void *vstate);
-static double zuf_get_double(void *vstate);
-static void zuf_set(void *state, unsigned long int s);
-static const unsigned long int zuf_randmax = 16777216;  // 2^24.
+#include "../config.h"
+
+
+#define zuf_maximum 0x1000000ULL
+#define zuf_minimum 1ULL
+#define zuf_state_size (sizeof(uint32_t) + (sizeof(uint64_t) * 0x025F))
 
 typedef struct
 {
-	int n;
-	unsigned long int u[607];
+	uint32_t n;
+	uint64_t u[0x025F];
 }
 zuf_state_t;
 
-static inline unsigned long int zuf_get(void *vstate)
+
+static uint64_t zuf_get(void* state)
 {
 	zuf_state_t *state = (zuf_state_t *)vstate;
-	const int n = state->n;
-	const int m = (n - 273 + 607) % 607;
-	unsigned long int t = state->u[n] + state->u[m];
+	uint32_t n = state->n;
+	uint32_t m = (n - 0x0370) % 0x025F;
+	uint64_t t = state->u[n] + state->u[m];
 
-	while (t > zuf_randmax)
-		t -= zuf_randmax;
+	while (t > 0x1000000ULL)
+		t -= 0x1000000ULL;
 
 	state->u[n] = t;
 
-	if (n == 606)
-	{
-		state->n = 0;
-	}
-	else
-	{
-		state->n = n + 1;
-	}
+	if (n == 0x025E) state->n = 0U;
+	else state->n = n + 1;
 
 	return t;
 }
 
-static double zuf_get_double(void *vstate)
-{
-	return zuf_get(vstate) / 16777216.0;
-}
 
-static void zuf_set(void *vstate, unsigned long int s)
+static void zuf_set(void *vstate, uint64_t seed)
 {
-	long int kl = 9373;
-	long int ij = 1802;
-
-	/* Local variables */
-	long int i, j, k, l, m;
+	int64_t kl = 9373, ij = 1802;
+	int64_t i, j, k, l, m, ii, jj;
 	double x, y;
-	long int ii, jj;
 
 	zuf_state_t *state = (zuf_state_t*)vstate;
 
 	state->n = 0;
 
-	if (s == 0) s = 1802;
+	if (seed == 0) seed = 1802;
 
-	ij = s;
+	ij = seed;
 
 	i = ij / 177 % 177 + 2;
 	j = ij % 177 + 2;
 	k = kl / 169 % 178 + 1;
 	l = kl % 169;
 
-	for (ii = 0; ii < 607; ++ii)
+	for (ii = 0; ii < 0x025F; ++ii)
 	{
 		x = 0.0;
 		y = 0.5;
@@ -83,6 +72,6 @@ static void zuf_set(void *vstate, unsigned long int s)
 			
 			y *= 0.5;
 		}
-		state->u[ii] = (unsigned long int) (x * zuf_randmax);
+		state->u[ii] = (uint64_t) (x * 0x1000000ULL);
 	}
 }
