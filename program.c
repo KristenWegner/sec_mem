@@ -1,35 +1,52 @@
 // program.c
 
+#include <inttypes.h>
+#include <math.h>
+
 #include "config.h"
 #include "random.h"
 #include "secure_memory.h"
+#include "embedded.h"
 
-#include <inttypes.h>
-
-uint8_t rdrand[] = { 0x48, 0x0F, 0xC7, 0xF0, 0x73, 0xFA, 0xC3 };
-uint8_t hrdrnd[] = { 0x53, 0xB8, 0x01, 0x00, 0x00, 0x00, 0x0F, 0xA2, 0x0F, 0xBA, 0xE1, 0x1E, 0x73, 0x09, 0x48, 0xC7, 0xC0, 0x01, 0x00, 0x00, 0x00, 0x5B, 0xC3, 0x48, 0x2B, 0xC0, 0xEB, 0xF2 };
 
 int main(int argc, char* argv[])
 {
-	DWORD dummy = 0;
+	uint8_t kr02ss[(sizeof(uint32_t) + (sizeof(int64_t) * 0x03F1U) + (sizeof(int64_t) * 0x64U))] = { 0 };
 
-	VirtualProtect(hrdrnd, sizeof(hrdrnd), PAGE_EXECUTE_READWRITE, &dummy);
-	VirtualProtect(rdrand, sizeof(rdrand), PAGE_EXECUTE_READWRITE, &dummy);
-	FlushInstructionCache(GetCurrentProcess(), NULL, 0);
+	//printf("KR02SS = %" PRIu64 "\n", kr02ss);
 
-	void* hrr = (void*)&hrdrnd[0];
-	void* rdr = (void*)&rdrand[0];
+	void* hrr = sec_get_op(SEC_OP_HRDRND);
+	void* rdr = sec_get_op(SEC_OP_RDRAND);
+	void* fss = sec_get_op(SEC_OP_FS20SD);
+	void* fsg = sec_get_op(SEC_OP_FS20RG);
 
 	if (((bool(*)())hrr)())
 	{
 		for (int i = 0; i < 512; ++i)
 		{
 			uint64_t n = ((uint64_t(*)())rdr)();
-			printf("%" PRIu64 "\n", n);
+			printf("RDRAND = %" PRIu64 "\n", n);
 		}
 	}
 
-	//uint8_t* v = sec_random_generate_seed();
+	extern void __stdcall knuthran2002_seed(void *restrict state, uint64_t seed);
+	extern uint64_t __stdcall knuthran2002_rand(void *restrict state);
+
+	knuthran2002_seed(kr02ss, 7777777);
+
+
+
+	uint8_t state[8] = { 0 };
+
+	((void(*)(void*, uint64_t))fss)(state, ((uint64_t(*)())rdr)());
+
+	for (int j = 0; j < 512; ++j)
+	{
+		//uint64_t n = ((uint64_t(*)(void*))fsg)(state);
+		//printf("FS20RG = %" PRIu64 "\n", n);
+
+		printf("knuthran2002_rand = %" PRIu64 "\n", knuthran2002_rand(kr02ss));
+	}
 
 	return 0;
 }

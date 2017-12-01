@@ -14,14 +14,26 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="global.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="program.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="dynamic.c">
+    <ClCompile Include="embedded.c">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="random\fishman20.c">
+      <Filter>Source Files\Random</Filter>
+    </ClCompile>
+    <ClCompile Include="random\coveyou.c">
+      <Filter>Source Files\Random</Filter>
+    </ClCompile>
+    <ClCompile Include="random\lecuyer.c">
+      <Filter>Source Files\Random</Filter>
+    </ClCompile>
+    <ClCompile Include="random\minstd.c">
+      <Filter>Source Files\Random</Filter>
+    </ClCompile>
+    <ClCompile Include="random\knuthran2002.c">
+      <Filter>Source Files\Random</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -50,6 +62,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="secure_memory.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="random\ldexp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="embedded.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

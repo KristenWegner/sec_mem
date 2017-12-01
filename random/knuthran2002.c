@@ -9,11 +9,11 @@
 #define knuthran2002_state_size (sizeof(uint32_t) + (sizeof(int64_t) * 0x03F1U) + (sizeof(int64_t) * 0x64U))
 
 
-inline static uint64_t knuthran2002_get(void* state)
+inline static uint64_t knuthran2002_get(void *restrict state)
 {
-	uint32_t *j = state, i = *j, k, l;
-	int64_t* a = (int64_t*)&j[1U];
-	int64_t* x = &a[0x03F1ULL];
+	register uint32_t *j = state, i = *j, k, l;
+	register int64_t* a = (int64_t*)&j[1U];
+	register int64_t* x = &a[0x03F1ULL];
 	uint64_t v;
 
 	if (i == 0U) 
@@ -31,7 +31,24 @@ inline static uint64_t knuthran2002_get(void* state)
 }
 
 
-static void knuthran2002_seed(void* state, uint64_t seed)
+uint64_t __stdcall knuthran2002_rand(void *restrict state)
+{
+	register union { uint32_t d[2]; uint64_t q; } r;
+
+	r.d[0] = (uint32_t)knuthran2002_get(state);
+	r.d[0] ^= (uint32_t)(knuthran2002_get(state) << 2);
+	r.d[1] = (uint32_t)knuthran2002_get(state);
+	r.d[1] ^= (uint32_t)(knuthran2002_get(state) << 2);
+
+	return r.q >> (r.d[0] % 64);
+
+}
+
+
+const uint64_t SIZEOFKR2002 = knuthran2002_state_size;
+
+
+void __stdcall knuthran2002_seed(void *restrict state, uint64_t seed)
 {
 	uint32_t *i = state;
 	int64_t *a = (int64_t*) & i[1];
