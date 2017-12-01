@@ -27,7 +27,7 @@ sec_rc sec_hash_table_create(sec_hash_table** object, size_t size, sec_hash_tabl
 
 	*object = NULL;
 
-	temp = (sec_hash_table*)sbmalloc(sizeof(sec_hash_table));
+	temp = (sec_hash_table*)malloc(sizeof(sec_hash_table));
 
 	if (temp == NULL) return SEC_RC_ALLOCATION_FAILED;
 

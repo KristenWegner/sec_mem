@@ -1,0 +1,46 @@
+Microsoft (R) COFF/PE Dumper Version 14.11.25547.0
+Copyright (C) Microsoft Corporation.  All rights reserved.
+
+
+Dump of file rdrand.obj
+
+File Type: COFF OBJECT
+
+sec_hrdrnd:
+  0000000000000000: 53                 push        rbx
+  0000000000000001: B8 01 00 00 00     mov         eax,1
+  0000000000000006: 0F A2              cpuid
+  0000000000000008: 0F BA E1 1E        bt          ecx,1Eh
+  000000000000000C: 73 09              jae         0000000000000017
+  000000000000000E: 48 C7 C0 01 00 00  mov         rax,1
+                    00
+  0000000000000015: 5B                 pop         rbx
+  0000000000000016: C3                 ret
+  0000000000000017: 48 2B C0           sub         rax,rax
+  000000000000001A: EB F2              jmp         000000000000000E
+sec_rdrand_step_32:
+  000000000000001C: 33 C0              xor         eax,eax
+  000000000000001E: 0F C7 F2           rdrand      edx
+  0000000000000021: 0F 92 C0           setb        al
+  0000000000000024: 89 11              mov         dword ptr [rcx],edx
+  0000000000000026: C3                 ret
+sec_rdrand_retry_32:
+  0000000000000027: 0F C7 F0           rdrand      eax
+  000000000000002A: 73 FB              jae         sec_rdrand_retry_32
+  000000000000002C: C3                 ret
+sec_rdrand_step_64:
+  000000000000002D: 33 C0              xor         eax,eax
+  000000000000002F: 48 0F C7 F2        rdrand      rdx
+  0000000000000033: 0F 92 C0           setb        al
+  0000000000000036: 89 11              mov         dword ptr [rcx],edx
+  0000000000000038: C3                 ret
+sec_rdrand_retry_64:
+  0000000000000039: 48 0F C7 F0        rdrand      rax
+  000000000000003D: 73 FA              jae         sec_rdrand_retry_64
+  000000000000003F: C3                 ret
+
+  Summary
+
+           0 .data
+          8C .debug$S
+          40 .text$mn

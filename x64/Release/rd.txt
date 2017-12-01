@@ -1,0 +1,50 @@
+Microsoft (R) COFF/PE Dumper Version 14.11.25547.0
+Copyright (C) Microsoft Corporation.  All rights reserved.
+
+
+Dump of file program.obj
+
+File Type: COFF OBJECT
+
+have_rdrand:
+  0000000000000000: 40 53              push        rbx
+  0000000000000002: 48 83 EC 10        sub         rsp,10h
+  0000000000000006: 33 C0              xor         eax,eax
+  0000000000000008: 33 C9              xor         ecx,ecx
+  000000000000000A: 0F A2              cpuid
+  000000000000000C: 81 FB 47 65 6E 75  cmp         ebx,756E6547h
+  0000000000000012: 75 18              jne         000000000000002C
+  0000000000000014: 81 F9 6E 74 65 6C  cmp         ecx,6C65746Eh
+  000000000000001A: 75 08              jne         0000000000000024
+  000000000000001C: 81 FA 69 6E 65 49  cmp         edx,49656E69h
+  0000000000000022: 74 20              je          0000000000000044
+  0000000000000024: 32 C0              xor         al,al
+  0000000000000026: 48 83 C4 10        add         rsp,10h
+  000000000000002A: 5B                 pop         rbx
+  000000000000002B: C3                 ret
+  000000000000002C: 81 FB 68 74 75 41  cmp         ebx,41757468h
+  0000000000000032: 75 F0              jne         0000000000000024
+  0000000000000034: 81 F9 69 74 6E 64  cmp         ecx,646E7469h
+  000000000000003A: 75 E8              jne         0000000000000024
+  000000000000003C: 81 FA 44 4D 41 63  cmp         edx,63414D44h
+  0000000000000042: 75 E0              jne         0000000000000024
+  0000000000000044: 33 C9              xor         ecx,ecx
+  0000000000000046: B8 01 00 00 00     mov         eax,1
+  000000000000004B: 0F A2              cpuid
+  000000000000004D: 0F BA E1 1E        bt          ecx,1Eh
+  0000000000000051: 73 D1              jae         0000000000000024
+  0000000000000053: B0 01              mov         al,1
+  0000000000000055: 48 83 C4 10        add         rsp,10h
+  0000000000000059: 5B                 pop         rbx
+  000000000000005A: C3                 ret
+
+  Summary
+
+           7 .data
+         F2C .debug$S
+          5C .debug$T
+          2F .drectve
+           C .pdata
+          80 .rdata
+          5B .text$mn
+           8 .xdata

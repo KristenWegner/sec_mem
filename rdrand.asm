@@ -5,6 +5,24 @@ _TEXT SEGMENT
     PUBLIC sec_rdrand_retry_32
     PUBLIC sec_rdrand_step_64
     PUBLIC sec_rdrand_retry_64
+	PUBLIC sec_hrdrnd
+
+
+; uint64_t sec_hrdrnd(void)
+sec_hrdrnd PROC
+        push rbx
+        mov eax, 1
+        cpuid
+        bt ecx, 30
+        jnc failed
+done:
+        mov rax, 1
+        pop rbx
+        ret
+failed:
+        sub rax, rax
+        jmp short done
+sec_hrdrnd ENDP
 
 
 ; int32_t sec_rdrand_step_32(uint32_t*)
