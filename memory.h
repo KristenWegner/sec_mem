@@ -42,6 +42,18 @@ inline static void* sec_memxor(void *restrict p, const void *restrict q, registe
 }
 
 
+// Performs p = p ^ f(s), for the given count of bytes. Returns p.
+inline static void* sec_memxor_gen(void *restrict p, register size_t n, uint64_t (*f)(void*), void* s)
+{
+	register uint8_t* d = (uint8_t*)p;
+
+	for (; n > 0U; --n)
+		*d++ ^= (uint8_t)f(s);
+
+	return p;
+}
+
+
 #define MEMXOR(P, Q, N) { \
 	register const uint8_t* mx_s__ = (const uint8_t*)(Q); \
 	register uint8_t* mx_d__ = (uint8_t*)(P); \

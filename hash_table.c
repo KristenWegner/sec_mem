@@ -40,7 +40,7 @@ sec_rc sec_hash_table_create(sec_hash_table** object, size_t size, sec_hash_tabl
 	{
 		if ((rc = sb_mutex_create(&(temp->mutex))) != SEC_RC_NO_ERROR)
 		{
-			sbfree(temp);
+			free(temp);
 			return rc;
 		}
 	}
@@ -64,13 +64,13 @@ sec_rc sec_hash_table_destroy(sec_hash_table** object)
 
 	*object = NULL;
 
-	sbfree(temp->keys);
+	free(temp->keys);
 	temp->keys = NULL;
 
-	sbfree(temp->flags);
+	free(temp->flags);
 	temp->flags = NULL;
 
-	sbfree(temp->values);
+	free(temp->values);
 	temp->values = NULL;
 
 	if (temp->mutex != NULL)
@@ -79,7 +79,7 @@ sec_rc sec_hash_table_destroy(sec_hash_table** object)
 		sb_mutex_destroy(&(temp->mutex));
 	}
 
-	sbfree(temp);
+	free(temp);
 
 	return SEC_RC_NO_ERROR;
 }
@@ -544,7 +544,7 @@ static bool sec_hash_table_resize__(sec_hash_table *restrict object, uint64_t bu
 	{
 		nnb = (buckets < 16 ? 1 : buckets >> 4ULL);
 
-		flags = (uint32_t*)sbmalloc(nnb * sizeof(uint32_t));
+		flags = (uint32_t*)malloc(nnb * sizeof(uint32_t));
 
 		if (flags == NULL) return false;
 
@@ -552,22 +552,22 @@ static bool sec_hash_table_resize__(sec_hash_table *restrict object, uint64_t bu
 
 		if (object->buckets < buckets)
 		{
-			keys = (void**)sbrealloc(object->keys, buckets * sizeof(void*));
+			keys = (void**)realloc(object->keys, buckets * sizeof(void*));
 
 			if (keys == NULL)
 			{
-				sbfree(flags);
+				free(flags);
 
 				return false;
 			}
 
 			object->keys = keys;
 
-			vals = (void**)sbrealloc(object->values, buckets * sizeof(void*));
+			vals = (void**)realloc(object->values, buckets * sizeof(void*));
 
 			if (vals == NULL)
 			{
-				sbfree(flags);
+				free(flags);
 
 				return false;
 			}
@@ -626,20 +626,20 @@ static bool sec_hash_table_resize__(sec_hash_table *restrict object, uint64_t bu
 
 		if (object->buckets > buckets) // Shrink.
 		{
-			ppt = (void**)sbrealloc(object->keys, buckets * sizeof(void*));
+			ppt = (void**)realloc(object->keys, buckets * sizeof(void*));
 
 			if (ppt == NULL) return false;
 
 			object->keys = ppt;
 
-			ppt = (void**)sbrealloc(object->values, buckets * sizeof(void*));
+			ppt = (void**)realloc(object->values, buckets * sizeof(void*));
 
 			if (ppt == NULL) return false;
 
 			object->values = ppt;
 		}
 
-		sbfree(object->flags);
+		free(object->flags);
 
 		object->flags = flags;
 		object->buckets = buckets;

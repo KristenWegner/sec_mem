@@ -60,7 +60,7 @@ typedef struct sec_hash_table
 
 	// Object mutex for safer threading.
 	mutex_t* mutex;
-} 
+}
 sec_hash_table;
 
 

@@ -11,42 +11,48 @@
 
 int main(int argc, char* argv[])
 {
-	uint8_t kr02ss[(sizeof(uint32_t) + (sizeof(int64_t) * 0x03F1U) + (sizeof(int64_t) * 0x64U))] = { 0 };
+	sec_g64_f hrr = sec_op(SEC_OP_HRDRND64);
+	sec_g64_f rdr = sec_op(SEC_OP_RDRAND64);
+	sec_srs_f fss = sec_op(SEC_OP_FS20SD64);
+	sec_r64_f fsg = sec_op(SEC_OP_FS20RG64);
+	sec_srs_f krs = sec_op(SEC_OP_KN02SD64);
+	sec_r64_f krg = sec_op(SEC_OP_KN02RG64);
+	sec_srs_f xrs = sec_op(SEC_OP_MERSSR64);
+	sec_r64_f xrg = sec_op(SEC_OP_MERSRG64);
 
-	//printf("KR02SS = %" PRIu64 "\n", kr02ss);
-
-	void* hrr = sec_get_op(SEC_OP_HRDRND);
-	void* rdr = sec_get_op(SEC_OP_RDRAND);
-	void* fss = sec_get_op(SEC_OP_FS20SD);
-	void* fsg = sec_get_op(SEC_OP_FS20RG);
-
-	if (((bool(*)())hrr)())
+	if (hrr())
 	{
 		for (int i = 0; i < 512; ++i)
 		{
-			uint64_t n = ((uint64_t(*)())rdr)();
+			uint64_t n = rdr();
 			printf("RDRAND = %" PRIu64 "\n", n);
 		}
 	}
 
-	extern void __stdcall knuthran2002_seed(void *restrict state, uint64_t seed);
-	extern uint64_t __stdcall knuthran2002_rand(void *restrict state);
+	uint8_t fs20ss[8] = { 0 };
+	fss(fs20ss, rdr());
 
-	knuthran2002_seed(kr02ss, 7777777);
+	uint8_t kr02ss[0x22AC] = { 0 };
+	krs(kr02ss, rdr());
 
+	uint8_t xsrs[0x009C8U] = { 0 };
+	xrs(xsrs, rdr());
 
+	printf("RDRAND64,KR02RG64,FS20RG64,MERSRG64\n");
 
-	uint8_t state[8] = { 0 };
-
-	((void(*)(void*, uint64_t))fss)(state, ((uint64_t(*)())rdr)());
-
-	for (int j = 0; j < 512; ++j)
+	for (uint32_t j = 0; j < 0xFFFF; ++j)
 	{
-		//uint64_t n = ((uint64_t(*)(void*))fsg)(state);
-		//printf("FS20RG = %" PRIu64 "\n", n);
-
-		printf("knuthran2002_rand = %" PRIu64 "\n", knuthran2002_rand(kr02ss));
+		printf("%" PRIu64 ",%" PRIu64 ",%" PRIu64 ",%" PRIu64 "\n", rdr(), krg(kr02ss), fsg(fs20ss), xrg(xsrs));
 	}
+
+	free(hrr);
+	free(rdr);
+	free(fss);
+	free(fsg);
+	free(krs);
+	free(krg);
+	free(xrs);
+	free(xrg);
 
 	return 0;
 }

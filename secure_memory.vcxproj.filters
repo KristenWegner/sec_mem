@@ -9,31 +9,13 @@
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
       <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
     </Filter>
-    <Filter Include="Source Files\Random">
-      <UniqueIdentifier>{dfd046d3-3637-49ba-9c8c-baa74f7215fc}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="program.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="embedded.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="random\fishman20.c">
-      <Filter>Source Files\Random</Filter>
-    </ClCompile>
-    <ClCompile Include="random\coveyou.c">
-      <Filter>Source Files\Random</Filter>
-    </ClCompile>
-    <ClCompile Include="random\lecuyer.c">
-      <Filter>Source Files\Random</Filter>
-    </ClCompile>
-    <ClCompile Include="random\minstd.c">
-      <Filter>Source Files\Random</Filter>
-    </ClCompile>
-    <ClCompile Include="random\knuthran2002.c">
-      <Filter>Source Files\Random</Filter>
+    <ClCompile Include="program.c">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -70,10 +52,8 @@
     <ClInclude Include="embedded.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <CustomBuild Include="rdrand.asm">
-      <Filter>Source Files</Filter>
-    </CustomBuild>
+    <ClInclude Include="crctab.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

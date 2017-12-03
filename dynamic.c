@@ -1,6 +1,0 @@
-// dynamic.c
-
-
-
-// VirtualProtect
-// FlushInstructionCache

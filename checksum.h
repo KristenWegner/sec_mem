@@ -55,7 +55,9 @@ uint32_t sec_crc_compute(const void *restrict s, const uint8_t *restrict v, size
 			g_crc_precalc[0][(r >> 24) & 0xFF];
 		v += sizeof(uint32_t);
 	}
-	if (n & sizeof(uint16_t)) {
+
+	if (n & sizeof(uint16_t)) 
+	{
 		c = r ^ *(uint16_t*)v;
 		r = g_crc_precalc[1][(c) & 0xFF] ^
 			g_crc_precalc[0][(c >> 8) & 0xFF] ^ (r >> 16);
