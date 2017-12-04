@@ -48,6 +48,8 @@
 #define SEC_OP_MERSRG64 (0x403EU) // Mersenne Twister 19937 64 RNG generate: sec_r64_f.
 #define SEC_OP_MERSSS64 (0x1843U) // Mersenne Twister 19937 64 RNG state size, uint64_t.
 
+#define SEC_OP_RD48SS32 (0x9E34U) // Rand 48 32 RNG state size, uint64_t.
+
 #define SEC_OP_COMPHTAB (0xDBCBU) // Get the HTAB size needed by SEC_OP_COMPRESS: uint64_t.
 #define SEC_OP_COMPRESS (0x22E8U) // Compress data: sec_cpr_f.
 #define SEC_OP_DECOMPRS (0x7EE1U) // Decompress data: sec_dcp_f.
