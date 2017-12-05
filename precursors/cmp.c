@@ -1,15 +1,26 @@
-// cmp.c
+// cmp.c - Compression.
 
 
 #include "../config.h"
-#include "cmp.h"
 
 
-__forceinline static uint8_t compute_size__(const void* src, uint64_t slen, uint64_t* dlen)
+#define EXPORTED // Just to identify exported functions.
+
+
+#if defined(SEC_OS_WINDOWS)
+#define CALLCONV __stdcall // Do not emit extra prologue instructions.
+#elif defined(SEC_OS_LINUX)
+#define CALLCONV __attribute__((stdcall))
+#else
+#define CALLCONV
+#endif
+
+
+inline static uint8_t compute_size__(const void* src, uint64_t slen, uint64_t* dlen)
 {
 	uint8_t const *ip = (const uint8_t*)src;
 	uint8_t const *const ie = ip + slen;
-	int32_t tl = 0;
+	uint64_t tl = 0;
 
 	while (ip < ie)
 	{
@@ -49,7 +60,7 @@ __forceinline static uint8_t compute_size__(const void* src, uint64_t slen, uint
 }
 
 
-uint8_t __stdcall sec_compress(const void *const src, const uint64_t slen, void *dst, uint64_t *const dlen, void* htab)
+EXPORTED uint8_t CALLCONV sec_compress(const void *const src, const uint64_t slen, void *dst, uint64_t *const dlen, void* htab)
 {
 	const uint8_t** hs;
 	uint64_t hv;
@@ -79,7 +90,7 @@ uint8_t __stdcall sec_compress(const void *const src, const uint64_t slen, void 
 	}
 
 	register uint8_t* p = (uint8_t*)ht;
-	register size_t n = sizeof(uint8_t*[0x10000]);
+	register size_t n = sizeof(uint8_t*) * 0x10000U;
 	while (n-- > 0U) *p++ = 0;
 
 	lt = 0;
@@ -177,7 +188,7 @@ uint8_t __stdcall sec_compress(const void *const src, const uint64_t slen, void 
 }
 
 
-uint8_t __stdcall sec_decompress(const void* src, uint64_t slen, void* dst, uint64_t* dlen)
+EXPORTED uint8_t CALLCONV sec_decompress(const void* src, uint64_t slen, void* dst, uint64_t* dlen)
 {
 	uint8_t const *ip = (const uint8_t*)src;
 	uint8_t const *const ie = ip + slen;

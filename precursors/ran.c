@@ -280,7 +280,7 @@ EXPORTED uint64_t CALLCONV MERSRG64(void *s) {
 
 	if (*i >= 0x0138) {
 		if (*i == 0x0139)
-			mt_seed(s, 5489ULL);
+			MERSSR64(s, 5489ULL);
 
 		for (j = 0; j < 0x9C; ++j) {
 			x = (m[j] & 0xFFFFFFFF80000000ULL) | (m[j + 1] & 0x7FFFFFFFULL);
