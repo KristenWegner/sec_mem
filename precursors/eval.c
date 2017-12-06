@@ -1,4 +1,4 @@
-// eval.c
+// eval.c - Simple unsigned arithmetic evaluator.
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -6,172 +6,103 @@
 #include <ctype.h>
 #include <stdint.h>
 
-typedef enum { R_ERROR = -2 /* range */, ERROR /* syntax */, SUCCESS } STATUS;
+static char sym[] = "+-*/^<>|&)(", ops[256], tok[256];
+static int opp, asp, par, sta = 0;
+static uint64_t arg[256];
 
-static char delims[] = "+-*/^)("; /* Tokens */
-static char op_stack[256]; /* Operator stack */
-static uint64_t arg_stack[256]; /* Argument stack */
-static char token[256]; /* Token buffer */
-static int op_sptr, /* op_stack pointer */
-arg_sptr, /* arg_stack pointer */
-parens, /* Nesting level */
-state = 0; /* 0 = Awaiting expression, 1 = Awaiting operator */
+static void opsh(char), apsh(uint64_t);
+static int apop(uint64_t*), opop(int*);
+static char *eget(char*), *oget(char*);
+static int oeva(), peva();
 
-int eval(char*, uint64_t*);
-
-static int do_op(void);
-static int do_paren(void);
-static void push_op(char);
-static void push_arg(uint64_t);
-static STATUS pop_arg(uint64_t*);
-static STATUS pop_op(int*);
-static char *getexp(char*);
-static char *getop(char*);
-static void pack(char*);
-
-#ifdef TEST
-
-void main(int argc, char *argv[])
+int eval(char* str, uint64_t* val)
 {
-	double val;
-
-	printf("evaluate(%s) ", argv[1]);
-	printf("returned %d\n", evaluate(argv[1], &val));
-	printf("val = %f\n", val);
-}
-
-#endif
-
-
-int eval(char* line, uint64_t* val)
-{
-	uint64_t arg;
-	char *ptr = line, *str, *endptr;
-	int ercode;
-
-	pack(line);
-
-	while (*ptr)
+	int r;
+	uint64_t a;
+	char *p, *s, *e, *t = str;
+	str = strupr(str);
+	for (; *t; ++t) { p = t; while (*p && isspace(*p)) ++p; if (t != p) strcpy(t, p); }
+	p = str;
+	while (*p)
 	{
-		switch (state)
+		if (sta == 0)
 		{
-		case 0:
-			if (NULL != (str = getexp(ptr)))
+			if (NULL != (s = eget(p)))
 			{
-				if ('(' == *str) { push_op(*str), ptr += strlen(str); break; }
-				if (0ULL == (arg = strtoul(str, &endptr, 10)) && NULL == strchr(str, '0')) return ERROR;
-				push_arg(arg);
-				ptr += strlen(str);
+				if ('(' == *s) { opsh(*s), p += strlen(s); break; }
+				if (0ULL == (a = strtoul(s, &e, 10)) && NULL == strchr(s, '0')) return -1;
+				apsh(a);
+				p += strlen(s);
 			}
-			else return ERROR;
-			state = 1;
+			else return -1;
+			sta = 1;
 			break;
-		case 1:
-			if (NULL == (str = getop(ptr))) return ERROR;
-			if (strchr(delims, *str))
+		}
+		else
+		{
+			if (NULL == (s = oget(p))) return -1;
+			if (strchr(sym, *s))
 			{
-				if (')' == *str) { if (SUCCESS > (ercode = do_paren())) return ercode; }
-				else push_op(*str), state = 0; 
-				ptr += strlen(str);
+				if (')' == *s) { if (0 > (r = peva())) return r; }
+				else opsh(*s), sta = 0; 
+				p += strlen(s);
 			}
-			else return ERROR;
+			else return -1;
 			break;
 		}
 	}
-	while (1 < arg_sptr)
-		if (SUCCESS > (ercode = do_op()))
-			return ercode;
-	if (!op_sptr) return pop_arg(val);
-	else return ERROR;
+	while (1 < asp) if (0 > (r = oeva())) return r;
+	if (!opp) return apop(val);
+	else return -1;
 }
 
-static int do_op()
+static int peva() { int o; if (1 > par--) return -1; do if (0 > (o = oeva())) break; while ('(' != o); return o; }
+static void opsh(char o) { if ('(' == o) ++par; ops[opp++] = o; }
+static void apsh(uint64_t a) { arg[asp++] = a; }
+static int apop(uint64_t* a) { *a = arg[--asp]; return (0 > asp) ? -1 : 0; }
+static int opop(int* o) { if (!opp) return -1; *o = ops[--opp]; return 0; }
+static char* oget(char* s) { *tok = *s; tok[1] = '\0'; return tok; }
+
+static char* eget(char* s)
 {
-	uint64_t arg1, arg2;
-	int op;
-	if (ERROR == pop_op(&op)) return ERROR;
-	pop_arg(&arg1);
-	pop_arg(&arg2);
-	switch (op)
+	char *p = s, *t = tok;
+	while (*p)
 	{
-	case '+': push_arg(arg2 + arg1); break;
-	case '-': push_arg(arg2 - arg1); break;
-	case '*': push_arg(arg2 * arg1); break;
-	case '/': push_arg(arg2 / arg1); break;
-	case '(': arg_sptr += 2; break;
-	default: return ERROR;
-	}
-	if (1 > arg_sptr) return ERROR;
-	else return op;
-}
-
-static int do_paren()
-{
-	int op;
-	if (1 > parens--) return ERROR;
-	do if (SUCCESS > (op = do_op())) break;
-	while ('(' != op);
-	return op;
-}
-
-static void push_op(char op)
-{
-	if ('(' == op) ++parens;
-	op_stack[op_sptr++] = op;
-}
-
-static void push_arg(uint64_t arg)
-{
-	arg_stack[arg_sptr++] = arg;
-}
-
-static STATUS pop_arg(uint64_t* arg)
-{
-	*arg = arg_stack[--arg_sptr];
-	if (0 > arg_sptr) return ERROR;
-	else return SUCCESS;
-}
-
-static STATUS pop_op(int* op)
-{
-	if (!op_sptr) return ERROR;
-	*op = op_stack[--op_sptr];
-	return SUCCESS;
-}
-
-static char* getexp(char* str)
-{
-	char *ptr = str, *tptr = token;
-	while (*ptr)
-	{
-		if (strchr(delims, *ptr))
+		if (strchr(sym, *p))
 		{
-			if ('-' == *ptr) { if (str != ptr && 'E' != ptr[-1]) break; }
-			else if (str == ptr) return getop(str);
-			else if ('E' == *ptr) { if (!isdigit(ptr[1]) && '-' != ptr[1]) return NULL; }
+			if ('-' == *p) { if (s != p && 'E' != p[-1]) break; }
+			else if (s == p) return oget(s);
+			else if ('E' == *p) { if (!isdigit(p[1]) && '-' != p[1]) return NULL; }
 			else break;
 		}
-		*tptr++ = *ptr++;
+		*t++ = *p++;
 	}
-	*tptr = '\0';
-	return token;
+	*t = '\0';
+	return tok;
 }
 
-static char* getop(char* str)
+static int oeva()
 {
-	*token = *str;
-	token[1] = '\0';
-	return token;
-}
-
-static void pack(char* str)
-{
-	char *ptr = str, *p;
-	strupr(str);
-	for (; *ptr; ++ptr)
+	uint64_t a, b;
+	int o;
+	if (-1 == opop(&o)) return -1;
+	apop(&a);
+	apop(&b);
+	switch (o)
 	{
-		p = ptr;
-		while (*p && isspace(*p)) ++p;
-		if (ptr != p) strcpy(ptr, p);
+	case '+': apsh(b + a); break;
+	case '-': apsh(b - a); break;
+	case '*': apsh(b * a); break;
+	case '/': apsh(b / a); break;
+	case '<': apsh(b << a); break;
+	case '>': apsh(b >> a); break;
+	case '|': apsh(b | a); break;
+	case '&': apsh(b & a); break;
+	case '^': apsh(b ^ a); break;
+	case '(': asp += 2; break;
+	default: return -1;
 	}
+	if (1 > asp) return -1;
+	else return o;
 }
+
