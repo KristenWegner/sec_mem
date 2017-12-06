@@ -4,9 +4,12 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <ctype.h>
 #include <stdint.h>
 #include <inttypes.h>
 #include <limits.h>
+#include <sys/types.h> 
+
 
 #include "../config.h"
 
@@ -62,7 +65,6 @@ static uint8_t HMURMU64[] = { 0x48, 0x89, 0x74, 0x24, 0x10, 0x57, 0x4C, 0x8B, 0x
 #define rnext RANDRG48
 
 
-extern int eval(char*, uint64_t*);
 extern void rseed(void* state, uint64_t seed);
 extern uint32_t rnext(void* state);
 
@@ -117,8 +119,9 @@ char* trim(char* s)
 
 
 // Replace m in s with r.
-char* replace(char* s, const char* m, const char* r)
+int replace(char* s, const char* m, const char* r)
 {
+	int rc = 0;
 	char b[0x4000] = { 0 };
 	char* i = &b[0];
 	const char *p, *t = s;
@@ -136,10 +139,15 @@ char* replace(char* s, const char* m, const char* r)
 		memcpy(i, r, rl);
 		i += rl;
 		t = p + ml;
+		rc++;
 	}
 	strcpy(s, b);
-	return s;
+	return rc;
 }
+
+
+int evaluate_size(char* entity_size, uint64_t* result);
+
 
 /*
 Input Format: 
@@ -161,11 +169,7 @@ SZ: NAME = EXPR;\n
 
 */
 
-char* to_size_string(char* buf, uint64_t size)
-{
-	sprintf(buf, "%" PRIu64, size);
-	return buf;
-}
+
 
 
 int main(int argc, char* argv[])
@@ -316,7 +320,16 @@ int main(int argc, char* argv[])
 				}
 				else
 				{
-					
+					uint64_t entity_size_value = 0ULL;
+					if (evaluate_size(entity_size, &entity_size_value) >= 0)
+						sprintf(entity_size, "UINT64_C(0x%016" PRIX64 ")", entity_size_value);
+					else
+					{
+						printf("Error: Failed to evaluate size expression \"%s\" (condensed).\n", entity_size);
+						return -1;
+					}
+					if (entity_size_value == 0)
+						printf("Warning: Entity size \"%s\" (condensed) evaluates to zero.\n", entity_size);
 				}
 
 				if (strlen(comment))
@@ -325,14 +338,14 @@ int main(int argc, char* argv[])
 
 				if (kind < 3)
 					fprintf(target_op_impl_file, "case SEC_OP_%s: return (uint64_t)LOAD%s(%s);\n", entity_name, kind == 1 ? "DATA" : "FUNC", entity_name);
-				else fprintf(target_op_impl_file, "case SEC_OP_%s: return (uint64_t)(%s);\n", entity_name, entity_size);
+				else fprintf(target_op_impl_file, "case SEC_OP_%s: return %s;\n", entity_name, entity_size);
 
 				comment[0] = '\0';
 				line_buffer[0] = '\0';
 				entity_size[0] = '\0';
 			}
 
-			comment[0] = '\0';
+			//comment[0] = '\0';
 			line_buffer[0] = '\0';
 		}
 
@@ -353,11 +366,37 @@ int main(int argc, char* argv[])
 	return 0;
 }
 
+
+char* to_size_string(char* buf, uint64_t size)
+{
+	sprintf(buf, "%" PRIu64, size);
+	return buf;
+}
+
+
+int eval(char*, uint64_t*);
+
+
+// Evaluate size expressions.
 int evaluate_size(char* entity_size, uint64_t* result)
 {
+	int i = 0, n, b = 10, q = 0;
+	char buf[256], *d;
+
+	entity_size = trim(entity_size);
+
+	// Eliminate multi-pointer expressions.
+
+	while (replace(entity_size, "**)", "*)"));
+
+	// We're just using single-char operator tokens.
+
+	replace(entity_size, ">>", ">");
+	replace(entity_size, "<<", "<");
+
 #define REP(X) replace(entity_size, #X, to_size_string(buf, X))
 
-	char buf[128];
+	// Replace sizeof expressions with their values.
 
 	REP(sizeof(char));
 	REP(sizeof(unsigned char));
@@ -377,6 +416,7 @@ int evaluate_size(char* entity_size, uint64_t* result)
 	REP(sizeof(float));
 	REP(sizeof(double));
 	REP(sizeof(long double));
+
 	REP(sizeof(char*));
 	REP(sizeof(unsigned char*));
 	REP(sizeof(short*));
@@ -396,6 +436,7 @@ int evaluate_size(char* entity_size, uint64_t* result)
 	REP(sizeof(double*));
 	REP(sizeof(long double*));
 	REP(sizeof(void*));
+
 	REP(sizeof(int8_t));
 	REP(sizeof(int16_t));
 	REP(sizeof(int32_t));
@@ -405,6 +446,21 @@ int evaluate_size(char* entity_size, uint64_t* result)
 	REP(sizeof(uint32_t));
 	REP(sizeof(uint64_t));
 	REP(sizeof(size_t));
+	REP(sizeof(off_t));
+	REP(sizeof(ptrdiff_t));
+
+	REP(sizeof(int8_t*));
+	REP(sizeof(int16_t*));
+	REP(sizeof(int32_t*));
+	REP(sizeof(int64_t*));
+	REP(sizeof(uint8_t*));
+	REP(sizeof(uint16_t*));
+	REP(sizeof(uint32_t*));
+	REP(sizeof(uint64_t*));
+	REP(sizeof(size_t*));
+	REP(sizeof(off_t*));
+	REP(sizeof(ptrdiff_t*));
+
 	REP(CHAR_BIT);
 	REP(SHRT_MAX);
 	REP(USHRT_MAX);
@@ -414,8 +470,140 @@ int evaluate_size(char* entity_size, uint64_t* result)
 	REP(ULONG_MAX);
 	REP(LLONG_MAX);
 	REP(ULLONG_MAX);
+	REP(INT8_MAX);
+	REP(INT16_MAX);
+	REP(INT32_MAX);
+	REP(INT64_MAX);
+	REP(UINT8_MAX);
+	REP(UINT16_MAX);
+	REP(UINT32_MAX);
+	REP(UINT64_MAX);
 
 #undef REP
 
+	n = strlen(entity_size);
 
+	if (n > 2 && entity_size[0] == '0' && entity_size[1] == 'x')
+	{
+		entity_size += 2;
+		b = 16;
+	}
+
+	q = 1;
+	for (i = 0; i < n; ++i)
+		if (!isxdigit(entity_size[i])) { q = 0; break; }
+
+	if (q)
+	{
+		*result = strtoull(entity_size, &d, b);
+		return 0;
+	}
+
+	*result = 0;
+	return eval(entity_size, result);
 }
+
+
+static char sym[] = "+-*/^<>|&)(", ops[256], tok[256];
+static int opp, asp, par, sta = 0;
+static uint64_t arg[256];
+static void opsh(char), apsh(uint64_t);
+static int apop(uint64_t*), opop(int*);
+static char *eget(char*), *oget(char*);
+static int oeva(), peva();
+
+
+// Simple expression evaluator. Evaluates str and returns the computed value in *val. Returns 0 on success, else -1.
+int eval(char* str, uint64_t* val)
+{
+	int r = 0;
+	uint64_t a;
+	char *p, *s, *e, *t = str;
+	for (; *t; ++t) { p = t; while (*p && isspace(*p)) ++p; if (t != p) strcpy(t, p); }
+	p = str;
+	*val = 0;
+
+	while (*p)
+	{
+		if (sta == 0)
+		{
+			if (NULL != (s = eget(p)))
+			{
+				if ('(' == *s) { opsh(*s), p += strlen(s); continue; }
+				if (s[0] == '0' && s[1] == 'x') a = strtoull(s + 2, &e, 16);
+				else a = strtoull(s, &e, 10);
+				apsh(a);
+				p += strlen(s);
+			}
+			else return -1;
+			sta = 1;
+		}
+		else
+		{
+			if (NULL == (s = oget(p))) return -1;
+			if (strchr(sym, *s))
+			{
+				if (')' == *s) { if (0 > (r = peva())) return r; }
+				else opsh(*s), sta = 0;
+				p += strlen(s);
+			}
+			else return -1;
+		}
+	}
+
+	while (1 < asp) 
+		if (0 > (r = oeva())) 
+			return r;
+
+	if (!opp) return apop(val);
+	else return -1;
+}
+
+static int peva() { int o; if (1 > par--) return -1; do if (0 > (o = oeva())) break; while ('(' != o); return o; }
+static void opsh(char o) { if ('(' == o) ++par; ops[opp++] = o; }
+static void apsh(uint64_t a) { arg[asp++] = a; }
+static int apop(uint64_t* a) { *a = arg[--asp]; return (0 > asp) ? -1 : 0; }
+static int opop(int* o) { if (!opp) return -1; *o = ops[--opp]; return 0; }
+static char* oget(char* s) { *tok = *s; tok[1] = '\0'; return tok; }
+
+static char* eget(char* s)
+{
+	char *p = s, *t = tok;
+	while (*p)
+	{
+		if (strchr(sym, *p))
+		{
+			if (s == p) return oget(s);
+			else break;
+		}
+		*t++ = *p++;
+	}
+	*t = '\0';
+	return tok;
+}
+
+static int oeva()
+{
+	uint64_t a, b;
+	int o;
+	if (opop(&o) == -1) return -1;
+	apop(&a);
+	apop(&b);
+	switch (o)
+	{
+	case '+': apsh(b + a); break;
+	case '-': apsh(b - a); break;
+	case '*': apsh(b * a); break;
+	case '/': if (a && b) apsh(b / a); else apsh(0); break;
+	case '<': apsh(b << a); break;
+	case '>': apsh(b >> a); break;
+	case '|': apsh(b | a); break;
+	case '&': apsh(b & a); break;
+	case '^': apsh(b ^ a); break;
+	case '(': asp += 2; break;
+	default: return -1;
+	}
+	if (asp < 1) return -1;
+	return o;
+}
+

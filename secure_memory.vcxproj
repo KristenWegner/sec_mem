@@ -69,7 +69,8 @@
     <LinkIncremental>true</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <CustomBuildAfterTargets>Build</CustomBuildAfterTargets>
+    <CustomBuildAfterTargets>
+    </CustomBuildAfterTargets>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -127,10 +128,13 @@
       <ExceptionHandling>false</ExceptionHandling>
     </ClCompile>
     <CustomBuildStep>
-      <Command>$(MSBuildProjectDirectory)\mkmcode.exe $(IntDir)knuthran2002.obj</Command>
+      <Command>
+      </Command>
     </CustomBuildStep>
     <CustomBuildStep>
-      <Outputs>$(IntDir)knuthran2002.obj.c</Outputs>
+      <Outputs>
+      </Outputs>
+      <Message />
     </CustomBuildStep>
     <Link>
       <GenerateDebugInformation>false</GenerateDebugInformation>

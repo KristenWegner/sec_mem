@@ -33,9 +33,6 @@
     <ClCompile Include="ran.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="eval.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="rdr.asm">
