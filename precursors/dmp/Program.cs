@@ -33,10 +33,19 @@ namespace dmp
 						return -1;
 					}
 
-					if (File.Exists(stem + ".dump"))
-						File.Delete(stem + ".dump");
+					bool isdb = false;
+					Process p = null;
 
-					string argument = string.Format("/DISASM:BYTES /OUT:{0}.dump \"{1}\"", stem, file);
+					if (file.EndsWith(".dumpbin"))
+					{
+						isdb = true;
+						goto LOC_LOAD;
+					}
+
+					if (File.Exists(file + ".dumpbin"))
+						File.Delete(file + ".dumpbin");
+
+					string argument = string.Format("/DISASM:BYTES \"{0}\"", file);
 
 					Console.WriteLine("dmp: Calling: {0} {1}", dumper, argument);
 
@@ -46,18 +55,26 @@ namespace dmp
 					psi.UseShellExecute = false;
 					psi.RedirectStandardOutput = true;
 
-					Process p = Process.Start(psi);
+					p = Process.Start(psi);
 
 					while (!p.HasExited)
 						Thread.Sleep(64);
 
-					if (File.Exists(stem + ".dump"))
-						File.Delete(stem + ".code");
+					if (File.Exists(file + ".code"))
+						File.Delete(file + ".code");
 
-					Console.WriteLine("dmp: Generating: {0}.code", stem);
+					LOC_LOAD:
 
-					StreamReader sr = new StreamReader(stem + ".dump");
-					StreamWriter sw = new StreamWriter(stem + ".code");
+					string target = Path.ChangeExtension(file, "code");
+					Console.WriteLine("dmp: Generating: {0}...", target);
+
+					StreamReader sr;
+
+					if (isdb)
+						sr = new StreamReader(file);
+					else sr = p.StandardOutput;
+
+					StreamWriter sw = new StreamWriter(target);
 
 					sw.WriteLine("# {0}.code", stem);
 					sw.WriteLine();
@@ -69,6 +86,8 @@ namespace dmp
 					while (!sr.EndOfStream)
 					{
 						string line = sr.ReadLine();
+
+						Console.WriteLine(line);
 
 						if (string.IsNullOrEmpty(line) || line.Trim().Length == 0) continue;
 						if (line.StartsWith("Microsoft")) continue;
@@ -82,7 +101,7 @@ namespace dmp
 						{
 							if (proc.Length > 0 && bytes.Count > 0)
 							{
-								sw.WriteLine("# {0} {1}.", stem, proc);
+								sw.WriteLine("# {0}: {1}.", stem.ToUpper(), proc);
 								sw.Write("FN: {0} = ", proc);
 								for (int i = 0; i < bytes.Count; ++i)
 								{
@@ -99,7 +118,7 @@ namespace dmp
 							continue;
 						}
 
-						if (line.Contains("int         3")) continue;
+						if (line.Contains("int         3")) continue; // Remove any "int 3" that occurs after a final "ret".
 
 						if (line.StartsWith("  0"))
 						{
@@ -122,7 +141,7 @@ namespace dmp
 
 					if (proc.Length > 0 && bytes.Count > 0)
 					{
-						sw.WriteLine("# {0}.", proc);
+						sw.WriteLine("# {0}: {1}.", stem.ToUpper(), proc);
 						sw.Write("FN: {0} = ", proc);
 						for (int i = 0; i < bytes.Count; ++i)
 						{
