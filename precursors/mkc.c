@@ -307,7 +307,14 @@ int main(int argc, char* argv[])
 					else fprintf(target_op_data_file, "// %s.\n", kind == 1 ? "Data" :"Function");
 
 					fprintf(target_op_data_file, "#define %s %s\n", entity_name, entity_alias_name);
-					fprintf(target_op_data_file, "#define %s_KEY (0x%08XU)\n", entity_name, entity_xor_key);
+
+					entity_alias_id = (rnext(random_state) ^ rnext(random_state));
+					entity_alias_prefix_index = (rnext(random_state) + 1) % sizeof(hex_letter_prefixes);
+					sprintf(entity_alias_name, "%c%07x", hex_letter_prefixes[entity_alias_prefix_index], entity_alias_id);
+
+					fprintf(target_op_data_file, "#define %s_KEY %s\n", entity_name, entity_alias_name);
+
+					fprintf(target_op_data_file, "static uint64_t %s_KEY = (0x%08XU);\n", entity_name, entity_xor_key);
 					fprintf(target_op_data_file, "static uint8_t %s[] = { ", entity_name);
 
 					for (j = 0; j < code_len; ++j)
