@@ -144,6 +144,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="discontinuous_array.c" />
     <ClCompile Include="embedded.c">
       <DebugInformationFormat Condition="'$(Configuration)|$(Platform)'=='Release|x64'">None</DebugInformationFormat>
       <SDLCheck Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</SDLCheck>
@@ -165,6 +166,7 @@
     <ClInclude Include="checksum.h" />
     <ClInclude Include="config.h" />
     <ClInclude Include="crctab.h" />
+    <ClInclude Include="discontinuous_array.h" />
     <ClInclude Include="embedded.h" />
     <ClInclude Include="hashing.h" />
     <ClInclude Include="allocator.h" />

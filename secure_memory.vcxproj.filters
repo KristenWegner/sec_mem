@@ -17,6 +17,9 @@
     <ClCompile Include="program.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="discontinuous_array.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="mutex.h">
@@ -53,6 +56,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="crctab.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="discontinuous_array.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

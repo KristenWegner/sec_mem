@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include <limits.h>
+#include <float.h>
 #include <sys/types.h> 
 
 
@@ -170,13 +171,21 @@ SZ: NAME = EXPR;\n
 */
 
 
+// Makes an 8-character hex alias name, where the initial char is an hex letter digit.
+char* make_alias(char* buffer, void* rnd_state)
+{
+	const char prefixes[6] = { 'a', 'b', 'c', 'd', 'e', 'f' };
+	uint16_t code = (uint16_t)(rnext(rnd_state) ^ rnext(rnd_state));
+	sprintf(buffer, "%c%07x", prefixes[(rnext(rnd_state) + 1) % sizeof(prefixes)], code);
+	buffer[8] = '\0';
+	return buffer;
+}
 
 
 int main(int argc, char* argv[])
 {
-	const char hex_letter_prefixes[6] = { 'a', 'b', 'c', 'd', 'e', 'f' };
-
 	printf("MKC Code Generator for Secure Memory Library\n");
+	printf("Copyright (C) 2017 by the Secure Memory Project, All rights Reserved\n");
 
 	if (argc < 3)
 	{
@@ -197,11 +206,11 @@ int main(int argc, char* argv[])
 	target_op_data_file = open_file(target_op_data_name);
 	target_op_impl_file = open_file(target_op_impl_name);
 
-	if (!target_op_decl_file) { printf("Error: Failed to open decl file \"%s\" for output.\n", target_op_decl_name); return -1; }
-	if (!target_op_data_file) { printf("Error: Failed to open data file \"%s\" for output.\n", target_op_data_name); return -1; }
-	if (!target_op_impl_file) { printf("Error: Failed to open impl file \"%s\" for output.\n", target_op_impl_name); return -1; }
+	if (!target_op_decl_file) { printf("mkc: Error: Failed to open decl file \"%s\" for output.\n", target_op_decl_name); return -1; }
+	if (!target_op_data_file) { printf("mkc: Error: Failed to open data file \"%s\" for output.\n", target_op_data_name); return -1; }
+	if (!target_op_impl_file) { printf("mkc: Error: Failed to open impl file \"%s\" for output.\n", target_op_impl_name); return -1; }
 
-	uint32_t entity_xor_key, entity_alias_id, entity_alias_prefix_index;
+	uint64_t entity_xor_key, entity_alias_id, entity_alias_prefix_index;
 	uint16_t entity_op_code;
 
 	char entity_alias_name[128];
@@ -217,7 +226,7 @@ int main(int argc, char* argv[])
 
 		if (input == NULL)
 		{
-			printf("Error: Failed to open source file \"%s\" for input. Skipping.\n", argv[i]);
+			printf("mkc: Warning: Failed to open source file \"%s\" for input. Skipping.\n", argv[i]);
 			continue;
 		}
 
@@ -240,7 +249,7 @@ int main(int argc, char* argv[])
 			}
 			else if (strlen(line) > 12 && line[0] == 'D' || line[0] == 'F' || line[0] == 'S')
 			{
-				kind = (line[0] == 'D') ? 1 : (line[0] == 'F') ? 2 : 3; // Data,Function,Size
+				kind = (line[0] == 'D') ? 1 : (line[0] == 'F') ? 2 : 3; // Data, Function, Size.
 
 				char* working = trim(line + 2);
 				char* tok = strtok(working, " :,=;");
@@ -292,12 +301,12 @@ int main(int argc, char* argv[])
 					strcpy(entity_size, tok);
 				}
 
-				entity_xor_key = (rnext(random_state) ^ rnext(random_state));
-				entity_alias_id = (rnext(random_state) ^ rnext(random_state));
-				entity_alias_prefix_index = (rnext(random_state) + 1) % sizeof(hex_letter_prefixes);
-				entity_op_code = (uint16_t)(rnext(random_state) ^ rnext(random_state));
-				sprintf(entity_alias_name, "%c%07x", hex_letter_prefixes[entity_alias_prefix_index], entity_alias_id);
-				entity_alias_name[8] = '\0';
+				entity_xor_key = ((rnext(random_state) << 32) ^ rnext(random_state));
+				entity_alias_id = ((rnext(random_state) << 32) ^ rnext(random_state));
+
+				make_alias(entity_alias_name, random_state);
+
+				printf("mkc: Generating code for \"%s\" (%s type)...\n", entity_name, kind == 1 ? "data" : kind == 2 ? "function" : "size");
 
 				if (kind < 3)
 				{
@@ -308,13 +317,10 @@ int main(int argc, char* argv[])
 
 					fprintf(target_op_data_file, "#define %s %s\n", entity_name, entity_alias_name);
 
-					entity_alias_id = (rnext(random_state) ^ rnext(random_state));
-					entity_alias_prefix_index = (rnext(random_state) + 1) % sizeof(hex_letter_prefixes);
-					sprintf(entity_alias_name, "%c%07x", hex_letter_prefixes[entity_alias_prefix_index], entity_alias_id);
+					make_alias(entity_alias_name, random_state);
 
 					fprintf(target_op_data_file, "#define %s_KEY %s\n", entity_name, entity_alias_name);
-
-					fprintf(target_op_data_file, "static uint64_t %s_KEY = (0x%08XU);\n", entity_name, entity_xor_key);
+					fprintf(target_op_data_file, "static uint64_t %s_KEY = UINT64_C(0x%" PRIX64 ");\n", entity_name, entity_xor_key);
 					fprintf(target_op_data_file, "static uint8_t %s[] = { ", entity_name);
 
 					for (j = 0; j < code_len; ++j)
@@ -329,7 +335,7 @@ int main(int argc, char* argv[])
 				{
 					uint64_t entity_size_value = 0ULL;
 					if (evaluate_size(entity_size, &entity_size_value) >= 0)
-						sprintf(entity_size, "UINT64_C(0x%016" PRIX64 ")", entity_size_value);
+						sprintf(entity_size, "0x%" PRIX64 "", entity_size_value);
 					else
 					{
 						printf("Error: Failed to evaluate size expression \"%s\" (condensed).\n", entity_size);
@@ -352,7 +358,6 @@ int main(int argc, char* argv[])
 				entity_size[0] = '\0';
 			}
 
-			//comment[0] = '\0';
 			line_buffer[0] = '\0';
 		}
 
@@ -369,6 +374,9 @@ int main(int argc, char* argv[])
 
 	fflush(target_op_impl_file);
 	fclose(target_op_impl_file);
+
+	printf("mkc: Generated: %s_op_decl.h, %s_op_data.h, and %s_op_impl.h.\n", target_stem, target_stem, target_stem);
+	printf("mkc: Done.\n");
 
 	return 0;
 }
@@ -392,7 +400,7 @@ int evaluate_size(char* entity_size, uint64_t* result)
 
 	entity_size = trim(entity_size);
 
-	// Eliminate multi-pointer expressions.
+	// Eliminate multi-pointer expressions since they are likely of the same size.
 
 	while (replace(entity_size, "**)", "*)"));
 
@@ -403,90 +411,64 @@ int evaluate_size(char* entity_size, uint64_t* result)
 
 #define REP(X) replace(entity_size, #X, to_size_string(buf, X))
 
-	// Replace sizeof expressions with their values.
+	// Speculatively replace sizeof expressions with their values.
 
-	REP(sizeof(char));
-	REP(sizeof(unsigned char));
-	REP(sizeof(short));
-	REP(sizeof(short int));
-	REP(sizeof(unsigned short));
-	REP(sizeof(unsigned short int));
-	REP(sizeof(int));
-	REP(sizeof(unsigned int));
-	REP(sizeof(long));
-	REP(sizeof(unsigned long));
-	REP(sizeof(unsigned long int));
-	REP(sizeof(long long));
-	REP(sizeof(long long int));
-	REP(sizeof(unsigned long long));
-	REP(sizeof(unsigned long long int));
-	REP(sizeof(float));
-	REP(sizeof(double));
-	REP(sizeof(long double));
+	// PODs & their pointers.
 
-	REP(sizeof(char*));
-	REP(sizeof(unsigned char*));
-	REP(sizeof(short*));
-	REP(sizeof(short int*));
-	REP(sizeof(unsigned short*));
-	REP(sizeof(unsigned short int*));
-	REP(sizeof(int*));
-	REP(sizeof(unsigned int*));
-	REP(sizeof(long*));
-	REP(sizeof(unsigned long*));
-	REP(sizeof(unsigned long int*));
-	REP(sizeof(long long*));
-	REP(sizeof(long long int*));
-	REP(sizeof(unsigned long long*));
-	REP(sizeof(unsigned long long int*));
-	REP(sizeof(float*));
-	REP(sizeof(double*));
-	REP(sizeof(long double*));
+	REP(sizeof(char));                   REP(sizeof(char*));
+	REP(sizeof(unsigned char));          REP(sizeof(unsigned char*));
+	REP(sizeof(short));                  REP(sizeof(short*));
+	REP(sizeof(short int));              REP(sizeof(short int*));
+	REP(sizeof(unsigned short));         REP(sizeof(unsigned short*));
+	REP(sizeof(unsigned short int));     REP(sizeof(unsigned short int*));
+	REP(sizeof(int));                    REP(sizeof(int*));
+	REP(sizeof(unsigned int));           REP(sizeof(unsigned int*));
+	REP(sizeof(long));                   REP(sizeof(long*));
+	REP(sizeof(unsigned long));          REP(sizeof(unsigned long*));
+	REP(sizeof(unsigned long int));      REP(sizeof(unsigned long int*));
+	REP(sizeof(long long));              REP(sizeof(long long*));
+	REP(sizeof(long long int));          REP(sizeof(long long int*));
+	REP(sizeof(unsigned long long));     REP(sizeof(unsigned long long*));
+	REP(sizeof(unsigned long long int)); REP(sizeof(unsigned long long int*));
+	REP(sizeof(float));                  REP(sizeof(float*));
+	REP(sizeof(double));                 REP(sizeof(double*));
+	REP(sizeof(long double));            REP(sizeof(long double*));
 	REP(sizeof(void*));
 
-	REP(sizeof(int8_t));
-	REP(sizeof(int16_t));
-	REP(sizeof(int32_t));
-	REP(sizeof(int64_t));
-	REP(sizeof(uint8_t));
-	REP(sizeof(uint16_t));
-	REP(sizeof(uint32_t));
-	REP(sizeof(uint64_t));
-	REP(sizeof(size_t));
-	REP(sizeof(off_t));
-	REP(sizeof(ptrdiff_t));
+	// Well-know types & their pointers.
 
-	REP(sizeof(int8_t*));
-	REP(sizeof(int16_t*));
-	REP(sizeof(int32_t*));
-	REP(sizeof(int64_t*));
-	REP(sizeof(uint8_t*));
-	REP(sizeof(uint16_t*));
-	REP(sizeof(uint32_t*));
-	REP(sizeof(uint64_t*));
-	REP(sizeof(size_t*));
-	REP(sizeof(off_t*));
-	REP(sizeof(ptrdiff_t*));
+	REP(sizeof(int8_t));    REP(sizeof(int8_t*));
+	REP(sizeof(int16_t));   REP(sizeof(int16_t*));
+	REP(sizeof(int32_t));   REP(sizeof(int32_t*));
+	REP(sizeof(int64_t));   REP(sizeof(int64_t*));
+	REP(sizeof(uint8_t));   REP(sizeof(uint8_t*));
+	REP(sizeof(uint16_t));  REP(sizeof(uint16_t*));
+	REP(sizeof(uint32_t));  REP(sizeof(uint32_t*));
+	REP(sizeof(uint64_t));  REP(sizeof(uint64_t*));
+	REP(sizeof(size_t));    REP(sizeof(size_t*));
+	REP(sizeof(off_t));     REP(sizeof(off_t*));
+	REP(sizeof(ptrdiff_t)); REP(sizeof(ptrdiff_t*));
+
+
+	// Constants from limits.h, stdint.h, and float.h.
 
 	REP(CHAR_BIT);
-	REP(SHRT_MAX);
-	REP(USHRT_MAX);
-	REP(INT_MAX);
-	REP(UINT_MAX);
-	REP(LONG_MAX);
-	REP(ULONG_MAX);
-	REP(LLONG_MAX);
-	REP(ULLONG_MAX);
-	REP(INT8_MAX);
-	REP(INT16_MAX);
-	REP(INT32_MAX);
-	REP(INT64_MAX);
-	REP(UINT8_MAX);
-	REP(UINT16_MAX);
-	REP(UINT32_MAX);
-	REP(UINT64_MAX);
+	REP(SCHAR_MAX);     REP(UCHAR_MAX);
+	REP(SHRT_MAX);      REP(USHRT_MAX);
+	REP(INT_MAX);       REP(UINT_MAX);
+	REP(LONG_MAX);      REP(ULONG_MAX);
+	REP(LLONG_MAX);     REP(ULLONG_MAX);
+	REP(INT8_MAX);	    REP(UINT8_MAX);
+	REP(INT16_MAX);	    REP(UINT16_MAX);
+	REP(INT32_MAX);	    REP(UINT32_MAX);
+	REP(INT64_MAX);	    REP(UINT64_MAX);
+	REP(FLT_MANT_DIG);  REP(FLT_MAX_EXP);
+	REP(DBL_MANT_DIG);  REP(DBL_MAX_EXP);
+	REP(LDBL_MANT_DIG); REP(LDBL_MAX_EXP);
 
 #undef REP
+
+	// Test for expressions of a single numerical value with no parens or operators.
 
 	n = strlen(entity_size);
 
@@ -497,8 +479,11 @@ int evaluate_size(char* entity_size, uint64_t* result)
 	}
 
 	q = 1;
-	for (i = 0; i < n; ++i)
+
+	for (i = 0; i < n; ++i) // Look for non-numeric characters.
 		if (!isxdigit(entity_size[i])) { q = 0; break; }
+
+	// Just one number, so we don't need to evaluate.
 
 	if (q)
 	{
@@ -507,21 +492,22 @@ int evaluate_size(char* entity_size, uint64_t* result)
 	}
 
 	*result = 0;
+
 	return eval(entity_size, result);
 }
 
 
-static char sym[] = "+-*/^<>|&)(", ops[256], tok[256];
+// Dynamic evaluation support.
+static char sym[] = "+-*/^<>|&%#)(", ops[256], tok[256];
 static int opp, asp, par, sta = 0;
-static uint64_t arg[256];
-static void opsh(char), apsh(uint64_t);
-static int apop(uint64_t*), opop(int*);
+static uint64_t arg[256];static void opsh(char), apsh(uint64_t);
+static int apop(uint64_t*), opop(int*), oeva(), peva();
 static char *eget(char*), *oget(char*);
-static int oeva(), peva();
 
 
-// Simple expression evaluator. Evaluates str and returns the computed value in *val. Returns 0 on success, else -1.
-int eval(char* str, uint64_t* val)
+// Primitive unsigned 64-bit expression evaluator. Evaluates str and returns the computed value in *val. Returns 0 on success, else -1.
+// Supports the following infix operators: +, -, *, /, < (left-shift), > (right-shift), |, &, ^, %, and # (exponentiation).
+static int eval(char* str, uint64_t* val)
 {
 	int r = 0;
 	uint64_t a;
@@ -566,12 +552,14 @@ int eval(char* str, uint64_t* val)
 	else return -1;
 }
 
+
 static int peva() { int o; if (1 > par--) return -1; do if (0 > (o = oeva())) break; while ('(' != o); return o; }
 static void opsh(char o) { if ('(' == o) ++par; ops[opp++] = o; }
 static void apsh(uint64_t a) { arg[asp++] = a; }
 static int apop(uint64_t* a) { *a = arg[--asp]; return (0 > asp) ? -1 : 0; }
 static int opop(int* o) { if (!opp) return -1; *o = ops[--opp]; return 0; }
 static char* oget(char* s) { *tok = *s; tok[1] = '\0'; return tok; }
+
 
 static char* eget(char* s)
 {
@@ -589,6 +577,20 @@ static char* eget(char* s)
 	return tok;
 }
 
+
+static uint64_t upow(uint64_t b, uint64_t e)
+{
+	uint64_t r = UINT64_C(1);
+	while (e)
+	{
+		if (e & UINT64_C(1)) r *= b;
+		e >>= 1;
+		b *= b;
+	}
+	return r;
+}
+
+
 static int oeva()
 {
 	uint64_t a, b;
@@ -601,12 +603,14 @@ static int oeva()
 	case '+': apsh(b + a); break;
 	case '-': apsh(b - a); break;
 	case '*': apsh(b * a); break;
-	case '/': if (a && b) apsh(b / a); else apsh(0); break;
+	case '/': if (a && b) apsh(b / a); else return -1; break;
 	case '<': apsh(b << a); break;
 	case '>': apsh(b >> a); break;
 	case '|': apsh(b | a); break;
 	case '&': apsh(b & a); break;
 	case '^': apsh(b ^ a); break;
+	case '%':  if (a && b) apsh(b % a); else return -1; break;
+	case '#':  apsh(upow(b, a)); break;
 	case '(': asp += 2; break;
 	default: return -1;
 	}

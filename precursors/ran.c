@@ -434,9 +434,6 @@ EXPORTED void CALLCONV XSFSSR64(void *state, uint64_t seed) {
 	register uint8_t i;
 	register uint64_t z;
 
-	if (state == NULL)
-		return;
-
 	*p = 0;
 
 	for (i = 0; i < 16; ++i) {
