@@ -5,13 +5,15 @@
 #include "discontinuous_array.h"
 
 
+extern uint64_t sec_random_master_next(void*);
+
 
 inline static uint8_t fold64to8(uint64_t value)
 {
 	union { uint8_t b[sizeof(uint64_t)]; uint64_t u; } v = { .u = value };
 	uint8_t r = v.b[0];
 	for (uint8_t i = 1; i < sizeof(v.b); ++i) r ^= v.b[i];
-	return (!r) ? 1U : r;
+	return r;
 }
 
 
@@ -87,9 +89,20 @@ bool sec_discontinuous_array_create(sec_discontinuous_array** object, size_t spa
 		return false;
 	}
 
+	size_t i;
+
+	for (i = 0; i < total; ++i)
+		result->data[i] = fold64to8(sec_random_master_next(NULL));
+
+	result->index = 0;
+	result->pointer = NULL;
+
 	mutex_unlock(&result->mutex);
 
 	*object = result;
 
 	return true;
 }
+
+
+
