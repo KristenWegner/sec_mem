@@ -45,11 +45,17 @@
 #define restrict restrict
 #else
 #if defined(SEC_OS_WINDOWS)
+typedef uint32_t uid_t;
+extern uid_t getuid();
 #define inline __forceinline
 #define restrict __restrict
+#define HALIGN1 __declspec(align(1))
+#define TALIGN1
 #elif defined(SEC_OS_LINUX)
 #define inline __inline__
 #define restrict __restrict
+#define HALIGN1
+#define TALIGN1 __attribute__((aligned(1),packed))
 #else
 #define inline
 #define restrict

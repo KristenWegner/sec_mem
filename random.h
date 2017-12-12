@@ -99,34 +99,41 @@ inline static uint32_t sec_reduce_32(uint32_t x, uint32_t n)
 #endif
 
 
+#define sec_sha512_state_size ((sizeof(uint64_t) * 10) + (sizeof(uint8_t) * 128))
+
+
 inline static void sec_sha512_create(void *restrict c)
 {
-	struct x { uint64_t t[2]; uint64_t s[8]; uint8_t b[128]; };
-	sec_memzer(c, sizeof(struct x));
+	register uint8_t* d = (uint8_t*)c;
+	register size_t n = sec_sha512_state_size;
+	while (n-- > 0U) *d++ = 0;
 }
 
 
 inline static void sec_sha512_destroy(void *restrict c)
 {
-	struct x { uint64_t t[2]; uint64_t s[8]; uint8_t b[128]; };
-	sec_memzer(c, sizeof(struct x));
+	register uint8_t* d = (uint8_t*)c;
+	register size_t n = sec_sha512_state_size;
+	while (n-- > 0U) *d++ = 0;
 }
 
 
 inline static void sec_sha512_start(void *restrict c)
 {
-	struct x { uint64_t t[2]; uint64_t s[8]; uint8_t b[128]; } *q = (struct x*)c;
+	uint64_t* t = (uint64_t*)c;
+	uint64_t* s = &t[2];
+	uint8_t* v = (uint8_t*)&s[8];
 
-	q->t[0] = UINT64_C(0);
-	q->t[1] = UINT64_C(0);
-	q->s[0] = UINT64_C(0x6A09E667F3BCC908);
-	q->s[1] = UINT64_C(0xBB67AE8584CAA73B);
-	q->s[2] = UINT64_C(0x3C6EF372FE94F82B);
-	q->s[3] = UINT64_C(0xA54FF53A5F1D36F1);
-	q->s[4] = UINT64_C(0x510E527FADE682D1);
-	q->s[5] = UINT64_C(0x9B05688C2B3E6C1F);
-	q->s[6] = UINT64_C(0x1F83D9ABFB41BD6B);
-	q->s[7] = UINT64_C(0x5BE0CD19137E2179);
+	t[0] = UINT64_C(0);
+	t[1] = UINT64_C(0);
+	s[0] = UINT64_C(0x6A09E667F3BCC908);
+	s[1] = UINT64_C(0xBB67AE8584CAA73B);
+	s[2] = UINT64_C(0x3C6EF372FE94F82B);
+	s[3] = UINT64_C(0xA54FF53A5F1D36F1);
+	s[4] = UINT64_C(0x510E527FADE682D1);
+	s[5] = UINT64_C(0x9B05688C2B3E6C1F);
+	s[6] = UINT64_C(0x1F83D9ABFB41BD6B);
+	s[7] = UINT64_C(0x5BE0CD19137E2179);
 }
 
 
@@ -145,7 +152,9 @@ inline static void sec_sha512_process(void *restrict z, const uint8_t p[128])
 #define f1(x, y, z) (z ^ (x & (y ^ z)))
 #define p(a, b, c, d, e, f, g, h, x, k) { ta = h + s3(e) + f1(e, f, g) + k + x; tb = s2(a) + f0(a, b, c); d += ta; h = ta + tb; }
 
-	struct x { uint64_t t[2]; uint64_t s[8]; uint8_t b[128]; } *q = (struct x*)z;
+	uint64_t* t = (uint64_t*)z;
+	uint64_t* s = &t[2];
+	uint8_t* v = (uint8_t*)&s[8];
 
 	int i;
 	uint64_t ta, tb, w[80];
@@ -172,14 +181,14 @@ inline static void sec_sha512_process(void *restrict z, const uint8_t p[128])
 	for (i = 16; i < 80; ++i)
 		w[i] = s1(w[i - 2]) + w[i - 7] + s0(w[i - 15]) + w[i - 16];
 
-	a = q->s[0];
-	b = q->s[1];
-	c = q->s[2];
-	d = q->s[3];
-	e = q->s[4];
-	f = q->s[5];
-	g = q->s[6];
-	h = q->s[7];
+	a = s[0];
+	b = s[1];
+	c = s[2];
+	d = s[3];
+	e = s[4];
+	f = s[5];
+	g = s[6];
+	h = s[7];
 
 	i = 0;
 
@@ -196,14 +205,14 @@ inline static void sec_sha512_process(void *restrict z, const uint8_t p[128])
 	} 
 	while (i < 80);
 
-	q->s[0] += a;
-	q->s[1] += b;
-	q->s[2] += c;
-	q->s[3] += d;
-	q->s[4] += e;
-	q->s[5] += f;
-	q->s[6] += g;
-	q->s[7] += h;
+	s[0] += a;
+	s[1] += b;
+	s[2] += c;
+	s[3] += d;
+	s[4] += e;
+	s[5] += f;
+	s[6] += g;
+	s[7] += h;
 
 #undef shr
 #undef rotr
@@ -222,21 +231,23 @@ inline static void sec_sha512_update(void *restrict c, const uint8_t* b, size_t 
 	size_t f;
 	uint32_t l;
 
-	struct x { uint64_t t[2]; uint64_t s[8]; uint8_t b[128]; } *q = (struct x*)c;
+	uint64_t* t = (uint64_t*)c;
+	uint64_t* s = &t[2];
+	uint8_t* v = (uint8_t*)&s[8];
 
 	if (n == 0) return;
 
-	l = (uint32_t)(q->t[0] & 0x7F);
+	l = (uint32_t)(t[0] & 0x7F);
 	f = 128 - l;
 
-	q->t[0] += (uint64_t)n;
+	t[0] += (uint64_t)n;
 
-	if (q->t[0] < (uint64_t)n) q->t[1]++;
+	if (t[0] < (uint64_t)n) t[1]++;
 
 	if (l && n >= f)
 	{
-		sec_memcpy((void*)(q->b + l), b, f);
-		sec_sha512_process(c, q->b);
+		sec_memcpy((void*)(v + l), b, f);
+		sec_sha512_process(c, v);
 		b += f;
 		n -= f;
 		l = 0;
@@ -250,7 +261,7 @@ inline static void sec_sha512_update(void *restrict c, const uint8_t* b, size_t 
 	}
 
 	if (n > 0)
-		sec_memcpy((void*)(q->b + l), b, n);
+		sec_memcpy((void*)(v + l), b, n);
 }
 
 
@@ -264,32 +275,34 @@ inline static void sec_sha512_finish(void *restrict c, uint8_t o[64])
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 	};
 
-	struct x { uint64_t t[2]; uint64_t s[8]; uint8_t b[128]; } *q = (struct x*)c;
+	uint64_t* t = (uint64_t*)c;
+	uint64_t* s = &t[2];
+	uint8_t* v = (uint8_t*)&s[8];
 
 	size_t f, z;
 	uint64_t h, l;
 	uint8_t m[16];
 
-	h = (q->t[0] >> 61) | (q->t[1] << 3);
-	l = (q->t[0] << 3);
+	h = (t[0] >> 61) | (t[1] << 3);
+	l = (t[0] << 3);
 
 	put_uint64_be(h, m, 0);
 	put_uint64_be(l, m, 8);
 
-	f = (size_t)(q->t[0] & 0x7F);
+	f = (size_t)(t[0] & 0x7F);
 	z = (f < 112) ? (112 - f) : (240 - f);
 
 	sec_sha512_update(q, p, z);
 	sec_sha512_update(q, m, 16);
 
-	put_uint64_be(q->s[0], o, 0);
-	put_uint64_be(q->s[1], o, 8);
-	put_uint64_be(q->s[2], o, 16);
-	put_uint64_be(q->s[3], o, 24);
-	put_uint64_be(q->s[4], o, 32);
-	put_uint64_be(q->s[5], o, 40);
-	put_uint64_be(q->s[6], o, 48);
-	put_uint64_be(q->s[7], o, 56);
+	put_uint64_be(s[0], o, 0);
+	put_uint64_be(s[1], o, 8);
+	put_uint64_be(s[2], o, 16);
+	put_uint64_be(s[3], o, 24);
+	put_uint64_be(s[4], o, 32);
+	put_uint64_be(s[5], o, 40);
+	put_uint64_be(s[6], o, 48);
+	put_uint64_be(s[7], o, 56);
 }
 
 
@@ -299,12 +312,12 @@ inline static void sec_sha512_finish(void *restrict c, uint8_t o[64])
 
 inline static void sec_sha512_hash(const uint8_t* p, size_t n, uint8_t* o /*64*/)
 {
-	struct x { uint64_t t[2]; uint64_t s[8]; uint8_t b[128]; } c;
-	sec_sha512_create(&c);
-	sec_sha512_start(&c);
-	sec_sha512_update(&c, p, n);
-	sec_sha512_finish(&c, o);
-	sec_sha512_destroy(&c);
+	uint8_t c[sec_sha512_state_size];
+	sec_sha512_create(c);
+	sec_sha512_start(c);
+	sec_sha512_update(c, p, n);
+	sec_sha512_finish(c, o);
+	sec_sha512_destroy(c);
 }
 
 
@@ -421,7 +434,16 @@ inline static uint8_t* sec_random_generate_seed(void)
 	uint64_t t = (uint64_t)time(NULL);
 	uint64_t p = (uint64_t)getpid();
 	uint64_t h = (uint64_t)gettid();
-	uint64_t s = (t ^ (p << 32) ^ h);
+	uint64_t u = (uint64_t)getuid();
+	uint64_t s = (t ^ (p << 32) ^ h) ^ (u << 16);
+
+#if defined(SEC_OS_WINDOWS)
+	s ^= GetTickCount();
+#elif defined(SEC_OS_LINUX)
+	struct timeval tv;
+	gettimeofday(&tv, 0);
+	s ^= (((uint64_t)tv.tv_sec << 32) ^ ((uint64_t)tv.tv_usec);
+#endif
 
 	if (sec_have_rdrand())
 	{
@@ -437,13 +459,7 @@ inline static uint8_t* sec_random_generate_seed(void)
 
 	srand(s);
 
-#if defined(SEC_OS_WINDOWS)
-	s ^= GetTickCount();
-#elif defined(SEC_OS_LINUX)
-	struct timeval tv;
-	gettimeofday(&tv, 0);
-	s ^= ((uint64_t)tv.tv_sec ^ ((uint64_t)tv.tv_usec);
-#endif
+
 
 	return sec_random_read_entropy();
 }

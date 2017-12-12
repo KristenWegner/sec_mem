@@ -9,6 +9,9 @@
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
       <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
     </Filter>
+    <Filter Include="Source Files\compatibility">
+      <UniqueIdentifier>{1a51b2d7-dc3a-40c1-a52d-4b5b8d43b6b3}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="embedded.c">
@@ -19,6 +22,9 @@
     </ClCompile>
     <ClCompile Include="discontinuous_array.c">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="compatibility\getuid.c">
+      <Filter>Source Files\compatibility</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

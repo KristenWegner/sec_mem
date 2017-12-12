@@ -319,8 +319,8 @@ int main(int argc, char* argv[])
 
 					make_alias(entity_alias_name, random_state);
 
-					fprintf(target_op_data_file, "#define %s_KEY %s\n", entity_name, entity_alias_name);
-					fprintf(target_op_data_file, "static uint64_t %s_KEY = UINT64_C(0x%" PRIX64 ");\n", entity_name, entity_xor_key);
+					fprintf(target_op_data_file, "#define %s_key %s\n", entity_name, entity_alias_name);
+					fprintf(target_op_data_file, "static uint64_t %s_key = UINT64_C(0x%" PRIX64 ");\n", entity_name, entity_xor_key);
 					fprintf(target_op_data_file, "static uint8_t %s[] = { ", entity_name);
 
 					for (j = 0; j < code_len; ++j)
@@ -346,12 +346,12 @@ int main(int argc, char* argv[])
 				}
 
 				if (strlen(comment))
-					fprintf(target_op_decl_file, "#define SEC_OP_%s (0x%04XU) // %s: %s\n", entity_name, entity_op_code, kind == 1 ? "Data" : kind == 2 ? "Function" : "Size", comment);
-				else fprintf(target_op_decl_file, "#define SEC_OP_%s (0x%04XU) // %s.\n", entity_name, entity_op_code, kind == 1 ? "Data" : kind == 2 ? "Function" : "Size");
+					fprintf(target_op_decl_file, "#define sec_op_%s (0x%04XU) // %s: %s\n", entity_name, entity_op_code, kind == 1 ? "Data" : kind == 2 ? "Function" : "Size", comment);
+				else fprintf(target_op_decl_file, "#define sec_op_%s (0x%04XU) // %s.\n", entity_name, entity_op_code, kind == 1 ? "Data" : kind == 2 ? "Function" : "Size");
 
 				if (kind < 3)
-					fprintf(target_op_impl_file, "case SEC_OP_%s: return (uint64_t)LOAD%s(%s);\n", entity_name, kind == 1 ? "DATA" : "FUNC", entity_name);
-				else fprintf(target_op_impl_file, "case SEC_OP_%s: return %s;\n", entity_name, entity_size);
+					fprintf(target_op_impl_file, "case sec_op_%s: return (uint64_t)sec_op_load_%s(%s);\n", entity_name, kind == 1 ? "data" : "function", entity_name);
+				else fprintf(target_op_impl_file, "case sec_op_%s: return %s;\n", entity_name, entity_size);
 
 				comment[0] = '\0';
 				line_buffer[0] = '\0';
@@ -404,7 +404,7 @@ int evaluate_size(char* entity_size, uint64_t* result)
 
 	while (replace(entity_size, "**)", "*)"));
 
-	// We're just using single-char operator tokens.
+	// We're using single-char operator tokens.
 
 	replace(entity_size, ">>", ">");
 	replace(entity_size, "<<", "<");
@@ -578,6 +578,7 @@ static char* eget(char* s)
 }
 
 
+// Unsigned exponentiation.
 static uint64_t upow(uint64_t b, uint64_t e)
 {
 	uint64_t r = UINT64_C(1);
@@ -591,6 +592,7 @@ static uint64_t upow(uint64_t b, uint64_t e)
 }
 
 
+// Eval operators.
 static int oeva()
 {
 	uint64_t a, b;
