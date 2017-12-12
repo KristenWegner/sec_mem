@@ -11,6 +11,9 @@
 
 int main(int argc, char* argv[])
 {
+	uint64_t hash = 0;
+	uid_t uid = getuid();
+
 	sec_g64_f hrr = sec_op(SEC_OP_HRDRND64);
 	sec_g64_f rdr = sec_op(SEC_OP_RDRAND64);
 	sec_srs_f fss = sec_op(SEC_OP_FS20SD64);

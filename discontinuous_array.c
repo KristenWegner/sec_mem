@@ -5,7 +5,7 @@
 #include "discontinuous_array.h"
 
 
-extern uint64_t sec_random_master_next(void*);
+uint64_t sec_random_master_next(void* state) { return 0; }
 
 
 inline static uint8_t fold64to8(uint64_t value)

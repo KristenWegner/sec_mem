@@ -292,8 +292,8 @@ inline static void sec_sha512_finish(void *restrict c, uint8_t o[64])
 	f = (size_t)(t[0] & 0x7F);
 	z = (f < 112) ? (112 - f) : (240 - f);
 
-	sec_sha512_update(q, p, z);
-	sec_sha512_update(q, m, 16);
+	sec_sha512_update(c, p, z);
+	sec_sha512_update(c, m, 16);
 
 	put_uint64_be(s[0], o, 0);
 	put_uint64_be(s[1], o, 8);
@@ -434,8 +434,9 @@ inline static uint8_t* sec_random_generate_seed(void)
 	uint64_t t = (uint64_t)time(NULL);
 	uint64_t p = (uint64_t)getpid();
 	uint64_t h = (uint64_t)gettid();
-	uint64_t u = (uint64_t)getuid();
-	uint64_t s = (t ^ (p << 32) ^ h) ^ (u << 16);
+	uint64_t x = 0;
+	uint64_t u = (uint64_t)getuid() ^ getsidhash();
+	uint64_t s = x ^ (t ^ (p << 32) ^ h) ^ (u << 16);
 
 #if defined(SEC_OS_WINDOWS)
 	s ^= GetTickCount();

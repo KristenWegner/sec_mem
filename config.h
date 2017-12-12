@@ -47,6 +47,7 @@
 #if defined(SEC_OS_WINDOWS)
 typedef uint32_t uid_t;
 extern uid_t getuid();
+extern uint64_t getsidhash();
 #define inline __forceinline
 #define restrict __restrict
 #define HALIGN1 __declspec(align(1))
