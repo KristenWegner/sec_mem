@@ -64,9 +64,9 @@
 #define SEC_OP_MEMMEMFN (0x0DD6U) // Same as memmem: sec_mem_f.
 #define SEC_OP_MEMXORRG (0xDA82U) // Memory XOR given RNG function and state: sec_mxr_f.
 
-#define SEC_OP_HCITYB64 (0x8FF1U) // City Hash 64-Bit, up to 8 bytes: sec_h64_f.
-#define SEC_OP_HMURMU64 (0xADC2U) // Murmur Hash 64-Bit: sec_h64_f.
-#define SEC_OP_HMURMU32 (0x3FE3U) // Murmur Hash 32-Bit: sec_h32_f.
+#define SEC_OP_sm_city_64_hash (0x8FF1U) // City Hash 64-Bit, up to 8 bytes: sec_h64_f.
+#define SEC_OP_sm_murmur_3_64_hash (0xADC2U) // Murmur Hash 64-Bit: sec_h64_f.
+#define SEC_OP_sm_murmur_3_32_hash (0x3FE3U) // Murmur Hash 32-Bit: sec_h32_f.
 
 
 // Gets the specified element, or zero. If the request is for a procedure, it must be freed when no longer needed.

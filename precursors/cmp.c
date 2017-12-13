@@ -4,15 +4,15 @@
 #include "../config.h"
 
 
-#define EXPORTED // Just to identify exported functions.
+#define exported // Just to identify exported functions.
 
 
 #if defined(SEC_OS_WINDOWS)
-#define CALLCONV __stdcall // Do not emit extra prologue instructions.
+#define callconv __stdcall // Do not emit extra prologue instructions.
 #elif defined(SEC_OS_LINUX)
-#define CALLCONV __attribute__((stdcall))
+#define callconv __attribute__((stdcall))
 #else
-#define CALLCONV
+#define callconv
 #endif
 
 
@@ -60,7 +60,7 @@ inline static uint8_t compute_size__(const void* src, uint64_t slen, uint64_t* d
 }
 
 
-EXPORTED uint8_t CALLCONV sec_compress(const void *const src, const uint64_t slen, void *dst, uint64_t *const dlen, void* htab)
+exported uint8_t callconv sec_compress(const void *const src, const uint64_t slen, void *dst, uint64_t *const dlen, void* htab)
 {
 	const uint8_t** hs;
 	uint64_t hv;
@@ -188,7 +188,7 @@ EXPORTED uint8_t CALLCONV sec_compress(const void *const src, const uint64_t sle
 }
 
 
-EXPORTED uint8_t CALLCONV sec_decompress(const void* src, uint64_t slen, void* dst, uint64_t* dlen)
+exported uint8_t callconv sec_decompress(const void* src, uint64_t slen, void* dst, uint64_t* dlen)
 {
 	uint8_t const *ip = (const uint8_t*)src;
 	uint8_t const *const ie = ip + slen;

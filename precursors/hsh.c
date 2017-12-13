@@ -4,30 +4,18 @@
 #include "../config.h"
 
 
-#define EXPORTED // Just to identify exported functions.
-
-
-#if defined(SEC_OS_WINDOWS)
-#define CALLCONV __stdcall // Do not emit extra prologue instructions.
-#elif defined(SEC_OS_LINUX)
-#define CALLCONV __attribute__((stdcall))
-#else
-#define CALLCONV
-#endif
-
-
-#define SWP64(x) ((uint64_t)( \
+#define swp64(x) ((uint64_t)( \
 	(((uint64_t)(x) & UINT64_C(0x00000000000000FF)) << 56) | (((uint64_t)(x) & UINT64_C(0x000000000000FF00)) << 40) | \
 	(((uint64_t)(x) & UINT64_C(0x0000000000FF0000)) << 24) | (((uint64_t)(x) & UINT64_C(0x00000000FF000000)) <<  8) | \
 	(((uint64_t)(x) & UINT64_C(0x000000FF00000000)) >>  8) | (((uint64_t)(x) & UINT64_C(0x0000FF0000000000)) >> 24) | \
 	(((uint64_t)(x) & UINT64_C(0x00FF000000000000)) >> 40) | (((uint64_t)(x) & UINT64_C(0xFF00000000000000)) >> 56)))
 #ifdef SEC_WORDS_BIG_ENDIAN
-#define SWO64(x) (SWP64(x))
+#define swo64(x) (swp64(x))
 #else
-#define SWO64(x) (x)
+#define swo64(x) (x)
 #endif
-#define LOD64(x, d) ((d) = *((uint64_t*)((void*)(x)))), (d)
-#define GET64(x, d) (SWO64(LOD64(x, d)))
+#define lod64(x, d) ((d) = *((uint64_t*)((void*)(x)))), (d)
+#define get64(x, d) (swo64(lod64(x, d)))
 #define MIX64(x) ((x) ^ ((x) >> 47))
 #define ROT64(x, n) ((!(n)) ? (x) : (((x) >> (n)) | ((x) << (64 - (n)))))
 #define BLK64(p, i) ((uint64_t)((const uint64_t*)(p))[(i)])
@@ -42,7 +30,7 @@
 
 
 // Function to hash an array of up to 8 bytes to an uint64_t value. Based on CityHash, by Geoff Pike and Jyrki Alakuijala of Google.
-EXPORTED uint64_t CALLCONV HCITYB64(const void *restrict p, size_t n)
+exported uint64_t callconv sm_city_64_hash(const void *restrict p, size_t n)
 {
 	register const uint8_t* s = (const uint8_t*)&p;
 	register uint64_t t;
@@ -50,26 +38,26 @@ EXPORTED uint64_t CALLCONV HCITYB64(const void *restrict p, size_t n)
 	if (n > sizeof(uint64_t)) n = sizeof(uint64_t);
 
 	uint64_t m = UINT64_C(0x9AE16A3B2F90404F) + n * UINT64_C(2);
-	uint64_t a = GET64(s, t) * UINT64_C(0x9AE16A3B2F90404F);
-	uint64_t b = GET64(s + UINT64_C(8), t);
-	uint64_t c = GET64(s + n - UINT64_C(24), t);
-	uint64_t d = GET64(s + n - UINT64_C(32), t);
-	uint64_t e = GET64(s + UINT64_C(16), t) * UINT64_C(0x9AE16A3B2F90404F);
-	uint64_t f = GET64(s + UINT64_C(24), t) * UINT64_C(9);
-	uint64_t g = GET64(s + n - UINT64_C(8), t);
-	uint64_t h = GET64(s + n - UINT64_C(16), t) * m;
+	uint64_t a = get64(s, t) * UINT64_C(0x9AE16A3B2F90404F);
+	uint64_t b = get64(s + UINT64_C(8), t);
+	uint64_t c = get64(s + n - UINT64_C(24), t);
+	uint64_t d = get64(s + n - UINT64_C(32), t);
+	uint64_t e = get64(s + UINT64_C(16), t) * UINT64_C(0x9AE16A3B2F90404F);
+	uint64_t f = get64(s + UINT64_C(24), t) * UINT64_C(9);
+	uint64_t g = get64(s + n - UINT64_C(8), t);
+	uint64_t h = get64(s + n - UINT64_C(16), t) * m;
 	uint64_t u = ROT64(a + g, 43) + (ROT64(b, 30) + c) * UINT64_C(9);
 	uint64_t v = ((a + g) ^ d) + f + UINT64_C(1);
 	t = (u + v) * m;
-	uint64_t w = SWP64(t) + h;
+	uint64_t w = swp64(t) + h;
 	t = e + f;
 	uint64_t x = ROT64(t, 42) + c;
 	t = ((v + w) * m) + g;
-	uint64_t y = SWP64(t) * m;
+	uint64_t y = swp64(t) * m;
 	uint64_t z = (e + f + c);
 
 	t = (x + z) * m + y;
-	a = SWP64(t) + b;
+	a = swp64(t) + b;
 	t = (z + a) * m + d + h;
 	b = MIX64(t) * m;
 
@@ -78,7 +66,7 @@ EXPORTED uint64_t CALLCONV HCITYB64(const void *restrict p, size_t n)
 
 
 // 64-bit Murmur 3 hash function, by Austin Appleby.
-EXPORTED uint64_t CALLCONV HMURMU64(const void *restrict p, size_t n)
+exported uint64_t callconv sm_murmur_3_64_hash(const void *restrict p, size_t n)
 {
 	const uint8_t* s = (const uint8_t*)p;
 	const uint64_t e = (n / UINT64_C(16));
@@ -155,7 +143,7 @@ EXPORTED uint64_t CALLCONV HMURMU64(const void *restrict p, size_t n)
 
 
 // 32-bit Murmur 3 hash function, by Austin Appleby.
-EXPORTED uint32_t CALLCONV HMURMU32(const void *restrict p, register size_t n)
+exported uint32_t callconv sm_murmur_3_32_hash(const void *restrict p, register size_t n)
 {
 	const uint32_t b = (n / UINT32_C(4));
 	register uint32_t i;
@@ -196,7 +184,7 @@ EXPORTED uint32_t CALLCONV HMURMU32(const void *restrict p, register size_t n)
 
 
 // Fowler/Noll/Vo-0 FNV-1A 64 hash function.
-EXPORTED uint64_t CALLCONV HFNV1A64(const void *restrict p, size_t n)
+exported uint64_t callconv sm_fnv1a_64_hash(const void *restrict p, size_t n)
 {
 	register uint64_t h = UINT64_C(0xCBF29CE484222325);
 	register uint8_t *s = (uint8_t*)p;

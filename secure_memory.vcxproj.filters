@@ -12,6 +12,9 @@
     <Filter Include="Source Files\compatibility">
       <UniqueIdentifier>{1a51b2d7-dc3a-40c1-a52d-4b5b8d43b6b3}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\utility">
+      <UniqueIdentifier>{8c129b53-7921-4845-ac0a-37519412a6f8}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="embedded.c">
@@ -25,6 +28,12 @@
     </ClCompile>
     <ClCompile Include="compatibility\getuid.c">
       <Filter>Source Files\compatibility</Filter>
+    </ClCompile>
+    <ClCompile Include="compatibility\gettimeofday.c">
+      <Filter>Source Files\compatibility</Filter>
+    </ClCompile>
+    <ClCompile Include="utility\string.c">
+      <Filter>Source Files\utility</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

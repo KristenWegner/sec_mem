@@ -4,19 +4,19 @@
 #include "../config.h"
 
 
-#define EXPORTED // Just to identify exported functions.
+#define exported // Just to identify exported functions.
 
 
 #if defined(SEC_OS_WINDOWS)
-#define CALLCONV __stdcall // Do not emit extra prologue instructions.
+#define callconv __stdcall // Do not emit extra prologue instructions.
 #elif defined(SEC_OS_LINUX)
-#define CALLCONV __attribute__((stdcall))
+#define callconv __attribute__((stdcall))
 #else
-#define CALLCONV
+#define callconv
 #endif
 
 
-EXPORTED uint32_t CALLCONV CRC32FUN(uint32_t c, register const uint8_t *restrict p, uint64_t n, void* t)
+exported uint32_t callconv CRC32FUN(uint32_t c, register const uint8_t *restrict p, uint64_t n, void* t)
 {
 	register const uint32_t* tab = t;
 	c = c ^ ~0U;
@@ -25,7 +25,7 @@ EXPORTED uint32_t CALLCONV CRC32FUN(uint32_t c, register const uint8_t *restrict
 	return c ^ ~0U;
 }
 
-EXPORTED uint64_t CALLCONV CRC64FUN(uint64_t c, register const uint8_t *restrict p, uint64_t n, void* t)
+exported uint64_t callconv CRC64FUN(uint64_t c, register const uint8_t *restrict p, uint64_t n, void* t)
 {
 	register const uint64_t* tab = t;
 	while (n--)

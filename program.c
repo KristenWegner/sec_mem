@@ -41,7 +41,7 @@ int main(int argc, char* argv[])
 	uint8_t xsrs[0x009C8U] = { 0 };
 	xrs(xsrs, rdr());
 
-	printf("RDRAND64,KR02RG64,FS20RG64,MERSRG64\n");
+	printf("RDRAND64,KR02RG64,sm_fishman_20_64_rand,sm_mersenne_64_rand\n");
 
 	for (uint32_t j = 0; j < 0xFFFF; ++j)
 	{

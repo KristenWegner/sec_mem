@@ -120,6 +120,18 @@ extern uint64_t getsidhash();
 #endif
 
 
+#define exported // Just to identify exported functions.
+
+
+#if defined(SEC_OS_WINDOWS)
+#define callconv __stdcall // Do not emit extra prologue instructions.
+#elif defined(SEC_OS_LINUX)
+#define callconv __attribute__((stdcall))
+#else
+#define callconv
+#endif
+
+
 // Configuration flags for allocator library.
 
 

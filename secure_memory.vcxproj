@@ -144,6 +144,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="compatibility\gettimeofday.c" />
     <ClCompile Include="compatibility\getuid.c" />
     <ClCompile Include="discontinuous_array.c" />
     <ClCompile Include="embedded.c">
@@ -162,6 +163,7 @@
       <OmitDefaultLibName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</OmitDefaultLibName>
     </ClCompile>
     <ClCompile Include="program.c" />
+    <ClCompile Include="utility\string.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="checksum.h" />
