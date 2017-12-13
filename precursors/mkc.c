@@ -439,34 +439,53 @@ int evaluate_size(char* entity_size, uint64_t* result)
 
 	// Well-know types & their pointers.
 
-	REP(sizeof(int8_t));    REP(sizeof(int8_t*));
-	REP(sizeof(int16_t));   REP(sizeof(int16_t*));
-	REP(sizeof(int32_t));   REP(sizeof(int32_t*));
-	REP(sizeof(int64_t));   REP(sizeof(int64_t*));
-	REP(sizeof(uint8_t));   REP(sizeof(uint8_t*));
-	REP(sizeof(uint16_t));  REP(sizeof(uint16_t*));
-	REP(sizeof(uint32_t));  REP(sizeof(uint32_t*));
-	REP(sizeof(uint64_t));  REP(sizeof(uint64_t*));
-	REP(sizeof(size_t));    REP(sizeof(size_t*));
-	REP(sizeof(off_t));     REP(sizeof(off_t*));
-	REP(sizeof(ptrdiff_t)); REP(sizeof(ptrdiff_t*));
+	REP(sizeof(int8_t));				REP(sizeof(int8_t*));
+	REP(sizeof(int16_t));   			REP(sizeof(int16_t*));
+	REP(sizeof(int32_t));   			REP(sizeof(int32_t*));
+	REP(sizeof(int64_t));   			REP(sizeof(int64_t*));
+	REP(sizeof(uint8_t));   			REP(sizeof(uint8_t*));
+	REP(sizeof(uint16_t));  			REP(sizeof(uint16_t*));
+	REP(sizeof(uint32_t));  			REP(sizeof(uint32_t*));
+	REP(sizeof(uint64_t));  			REP(sizeof(uint64_t*));
+	REP(sizeof(size_t));    			REP(sizeof(size_t*));
+	REP(sizeof(ssize_t));   			REP(sizeof(ssize_t*));
+	REP(sizeof(off_t));     			REP(sizeof(off_t*));
+	REP(sizeof(ptrdiff_t)); 			REP(sizeof(ptrdiff_t*));
+	REP(sizeof(clock_t)); 				REP(sizeof(clock_t*));
+	REP(sizeof(time_t)); 				REP(sizeof(time_t*));
+	REP(sizeof(wchar_t)); 				REP(sizeof(wchar_t*));
+	REP(sizeof(errno_t));				REP(sizeof(errno_t*));
+	REP(sizeof(uintptr_t));				REP(sizeof(uintptr_t*));
+	REP(sizeof(uid_t));					REP(sizeof(uid_t*));
+	REP(sizeof(pid_t));					REP(sizeof(pid_t*));
+	REP(sizeof(locale_t));				REP(sizeof(locale_t*));
+	REP(sizeof(struct timeval));		REP(sizeof(struct timeval*));
+	REP(sizeof(struct tm));				REP(sizeof(struct tm*));
+	REP(sizeof(fd_set));				REP(sizeof(fd_set*));
+	REP(sizeof(FILE*)); 				
 
+#if defined(SEC_OS_WINDOWS)
+	REP(sizeof(HANDLE));
+	REP(sizeof(GUID));					REP(sizeof(GUID*));
+#else
+	REP(sizeof(guid_t));				REP(sizeof(guid_t*));
+#endif
 
 	// Constants from limits.h, stdint.h, and float.h.
 
 	REP(CHAR_BIT);
-	REP(SCHAR_MAX);     REP(UCHAR_MAX);
-	REP(SHRT_MAX);      REP(USHRT_MAX);
-	REP(INT_MAX);       REP(UINT_MAX);
-	REP(LONG_MAX);      REP(ULONG_MAX);
-	REP(LLONG_MAX);     REP(ULLONG_MAX);
-	REP(INT8_MAX);	    REP(UINT8_MAX);
-	REP(INT16_MAX);	    REP(UINT16_MAX);
-	REP(INT32_MAX);	    REP(UINT32_MAX);
-	REP(INT64_MAX);	    REP(UINT64_MAX);
-	REP(FLT_MANT_DIG);  REP(FLT_MAX_EXP);
-	REP(DBL_MANT_DIG);  REP(DBL_MAX_EXP);
-	REP(LDBL_MANT_DIG); REP(LDBL_MAX_EXP);
+	REP(SCHAR_MAX);						REP(UCHAR_MAX);
+	REP(SHRT_MAX);						REP(USHRT_MAX);
+	REP(INT_MAX);						REP(UINT_MAX);
+	REP(LONG_MAX);						REP(ULONG_MAX);
+	REP(LLONG_MAX);						REP(ULLONG_MAX);
+	REP(INT8_MAX);						REP(UINT8_MAX);
+	REP(INT16_MAX);						REP(UINT16_MAX);
+	REP(INT32_MAX);						REP(UINT32_MAX);
+	REP(INT64_MAX);						REP(UINT64_MAX);
+	REP(FLT_MANT_DIG);					REP(FLT_MAX_EXP);
+	REP(DBL_MANT_DIG);					REP(DBL_MAX_EXP);
+	REP(LDBL_MANT_DIG);					REP(LDBL_MAX_EXP);
 
 #undef REP
 
