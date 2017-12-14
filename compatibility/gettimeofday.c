@@ -4,7 +4,7 @@
 #include "../config.h"
 
 
-#if IS_OS(SB_OS_WINDOWS)
+#if defined(SEC_OS_WINDOWS)
 
 
 #include "gettimeofday.h"
@@ -26,5 +26,5 @@ int gettimeofday(struct timeval* tv, void* tz)
 }
 
 
-#endif // IS_OS(SB_OS_WINDOWS)
+#endif // SEC_OS_WINDOWS
 

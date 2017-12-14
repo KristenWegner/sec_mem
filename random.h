@@ -54,34 +54,6 @@
 // Methods
 
 
-// Check if we have rdrand.
-inline static bool sec_have_rdrand(void)
-{
-#if defined(SEC_CPU_AMD) || defined(SEC_CPU_INTEL)
-	int32_t n[4] = { INT32_C(0), INT32_C(0), INT32_C(0), INT32_C(0) };
-	int32_t d[4] = { INT32_C(0), INT32_C(0), INT32_C(0), INT32_C(0) };
-
-	__cpuid(n, 0);
-
-	if ((n[1] == INT32_C(0x756E6547) && n[2] == INT32_C(0x6C65746E) && n[3] == INT32_C(0x49656E69)) ||
-		(n[1] == INT32_C(0x41757468) && n[2] == INT32_C(0x646E7469) && n[3] == INT32_C(0x63414D44)))
-	{
-		__cpuid(d, INT32_C(1));
-		if (d[2] & (INT32_C(1) << 30))
-			return true;
-	}
-#endif
-
-	return false;
-}
-
-
-extern int32_t sec_rdrand_step_32(uint32_t*);
-extern uint32_t sec_rdrand_retry_32(void);
-extern int32_t sec_rdrand_step_64(uint64_t*);
-extern uint64_t sec_rdrand_retry_64(void);
-
-
 // Reduces x to [0..n).
 inline static uint32_t sec_reduce_32(uint32_t x, uint32_t n)
 {
@@ -351,20 +323,20 @@ inline static uint8_t* sec_random_read_entropy()
 		p += sizeof(DWORD);
 		red += sizeof(DWORD);
 
-		SetFilePointer(h, sec_reduce_32(sec_rdrand_retry_64(), 0x147AE14), NULL, FILE_BEGIN);
+		SetFilePointer(h, sec_reduce_32(sm_rdrand_retry_64(), 0x147AE14), NULL, FILE_BEGIN);
 		ReadFile(h, p, 1024 - red, &t, NULL);
 		
 		CloseHandle(h);
 
 		l = (uint64_t*)e;
 		for (i = 0; i < 512; ++i)
-			l[i] ^= sec_rdrand_retry_64();
+			l[i] ^= sm_rdrand_retry_64();
 	}
 	else
 	{
 		l = (uint64_t*)e;
 		for (i = 0; i < 512; ++i)
-			l[i] = sec_rdrand_retry_64();
+			l[i] = sm_rdrand_retry_64();
 	}
 
 #else
@@ -407,7 +379,7 @@ inline static uint8_t* sec_random_read_entropy()
 	{
 		l = (uint64_t*)e;
 		for (i = 0; i < 512; ++i)
-			l[i] = sec_rdrand_retry_64();
+			l[i] = sm_rdrand_retry_64();
 	}
 
 #endif
@@ -446,16 +418,16 @@ inline static uint8_t* sec_random_generate_seed(void)
 	s ^= (((uint64_t)tv.tv_sec << 32) ^ ((uint64_t)tv.tv_usec);
 #endif
 
-	if (sec_have_rdrand())
+	if (sm_have_rdrand())
 	{
-		s ^= sec_rdrand_retry_64();
-		s ^= sec_rdrand_retry_64();
-		s ^= sec_rdrand_retry_64();
-		s ^= sec_rdrand_retry_64();
-		s ^= sec_rdrand_retry_64();
-		s ^= sec_rdrand_retry_64();
-		s ^= sec_rdrand_retry_64();
-		s ^= sec_rdrand_retry_64();
+		s ^= sm_rdrand_retry_64();
+		s ^= sm_rdrand_retry_64();
+		s ^= sm_rdrand_retry_64();
+		s ^= sm_rdrand_retry_64();
+		s ^= sm_rdrand_retry_64();
+		s ^= sm_rdrand_retry_64();
+		s ^= sm_rdrand_retry_64();
+		s ^= sm_rdrand_retry_64();
 	}
 
 	srand(s);

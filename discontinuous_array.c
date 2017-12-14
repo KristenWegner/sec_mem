@@ -5,42 +5,25 @@
 #include "discontinuous_array.h"
 
 
-uint64_t sec_random_master_next(void* state) { return 0; }
+extern uint64_t callconv sm_master_rand();
 
 
-inline static uint8_t fold64to8(uint64_t value)
+inline static uint64_t rnext(void *restrict s)
 {
-	union { uint8_t b[sizeof(uint64_t)]; uint64_t u; } v = { .u = value };
-	uint8_t r = v.b[0];
-	for (uint8_t i = 1; i < sizeof(v.b); ++i) r ^= v.b[i];
-	return r;
-}
-
-
-// XorShift1024* 64 next.
-inline static uint64_t xorshift1024star_next(void *state)
-{
-	register int32_t *p = state;
-	register uint64_t *s = (uint64_t*)&p[1];
-	const uint64_t s0 = s[*p];
-	uint64_t s1 = s[*p = (*p + 1) & 15];
+	register uint32_t *p = s;
+	register uint64_t *t = (uint64_t*)&p[1], s0 = t[*p];
+	uint64_t s1 = t[*p = (*p + 1) & 15];
 	s1 ^= s1 << 31;
-	s[*p] = s1 ^ s0 ^ (s1 >> 11) ^ (s0 >> 30);
-	return s[*p] * UINT64_C(0x9E3779B97F4A7C13);
+	t[*p] = s1 ^ s0 ^ (s1 >> 11) ^ (s0 >> 30);
+	return t[*p] * UINT64_C(0x9E3779B97F4A7C13);
 }
 
 
-// XorShift1024* 64 seed.
-inline static void xorshift1024star_seed(void *state, uint64_t seed)
+inline static void rseed(void *state, uint64_t seed)
 {
-	register int32_t *p = state;
-	register uint64_t *s = (uint64_t*)&p[1];
-	register uint8_t i;
-	register uint64_t z;
-
-	*p = 0;
-
-	for (i = 0; i < 16; ++i) 
+	register uint32_t i, *p = state; *p = 0;
+	register uint64_t z, *s = (uint64_t*)&p[1];
+	for (i = 0; i < 0x20; ++i) 
 	{
 		z = (seed += UINT64_C(0x9E3779B97F4A7C15));
 		z = (z ^ (z >> 30)) * UINT64_C(0xBF58476D1CE4E5B9);
@@ -50,18 +33,18 @@ inline static void xorshift1024star_seed(void *state, uint64_t seed)
 }
 
 
-bool sec_discontinuous_array_create(sec_discontinuous_array** object, size_t spacing, size_t element, size_t count, uint64_t seed)
+bool sm_discontinuous_array_create(sm_discontinuous_array** object, size_t spacing, size_t element, size_t count)
 {
 	if (!object) return false;
 	*object = NULL;
 
-	sec_discontinuous_array* result = malloc(sizeof(sec_discontinuous_array));
+	sm_discontinuous_array* result = malloc(sizeof(sm_discontinuous_array));
 
 	if (!result) return false;
 
 	register uint8_t* t = (uint8_t*)result;
-	register size_t n = sizeof(sec_discontinuous_array);
-	while (n-- > 0U) *t++ = 0x0U;
+	register size_t i, n = sizeof(sm_discontinuous_array);
+	while (n-- > 0U) *t++ = 0;
 
 	if (!mutex_create(&result->mutex))
 	{
@@ -71,7 +54,7 @@ bool sec_discontinuous_array_create(sec_discontinuous_array** object, size_t spa
 
 	mutex_lock(&result->mutex);
 
-	result->seed = seed;
+	result->seed = sm_master_rand();
 	result->spacing = spacing;
 	result->element = element;
 	result->count = count;
@@ -89,10 +72,8 @@ bool sec_discontinuous_array_create(sec_discontinuous_array** object, size_t spa
 		return false;
 	}
 
-	size_t i;
-
 	for (i = 0; i < total; ++i)
-		result->data[i] = fold64to8(sec_random_master_next(NULL));
+		result->data[i] = (uint8_t)sm_master_rand();
 
 	result->index = 0;
 	result->pointer = NULL;

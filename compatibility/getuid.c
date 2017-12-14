@@ -8,50 +8,39 @@
 #include "../config.h"
 
 
-inline static uint64_t rotl64__(uint64_t x, uint64_t b)
+inline static uint64_t rotl64(uint64_t x, uint64_t b)
 {
 	return (x << b) | (x >> (64 - b));
 }
 
 
-inline static void mix64__(uint64_t* v0, uint64_t* v1, uint64_t* v2, uint64_t* v3)
+inline static void fmix64(uint64_t* v0, uint64_t* v1, uint64_t* v2, uint64_t* v3)
 {
 	*v0 += *v1;
-	*v1 = rotl64__(*v1, 13);
+	*v1 = rotl64(*v1, 13);
 	*v1 ^= *v0;
-	*v0 = rotl64__(*v0, 32);
+	*v0 = rotl64(*v0, 32);
 	*v2 += *v3;
-	*v3 = rotl64__(*v3, 16);
+	*v3 = rotl64(*v3, 16);
 	*v3 ^= *v2;
 	*v0 += *v3;
-	*v3 = rotl64__(*v3, 21);
+	*v3 = rotl64(*v3, 21);
 	*v3 ^= *v0;
 	*v2 += *v1;
-	*v1 = rotl64__(*v1, 17);
+	*v1 = rotl64(*v1, 17);
 	*v1 ^= *v2;
-	*v2 = rotl64__(*v2, 32);
+	*v2 = rotl64(*v2, 32);
 }
 
 
-inline static uint64_t hash64__(const uint8_t* p, size_t n)
+inline static uint64_t hash64(const uint8_t* p, size_t n)
 {
-	uint64_t v0 = UINT64_C(0x736F6D6570736575);
-	uint64_t v1 = UINT64_C(0x646F72616E646F6D);
-	uint64_t v2 = UINT64_C(0x6C7967656E657261);
-	uint64_t v3 = UINT64_C(0x7465646279746573);
+	uint64_t v0 = UINT64_C(0x736F6D6570736575), v1 = UINT64_C(0x646F72616E646F6D), v2 = UINT64_C(0x6C7967656E657261), v3 = UINT64_C(0x7465646279746573);
+	uint64_t k0 = n << 32, k1 = ~(n << p[0] % 64) ^ ~(uint64_t)p[n / 2];
+	v0 ^= k0, v1 ^= k1, v2 ^= k0, v3 ^= k1;
+	uint64_t b = n << 56, t = (v0 << 12) | (v1 << 24) | (v2 << 36) | (v3 << 48);
 
-	uint64_t k0 = n << 32;
-	uint64_t k1 = ~(n << p[0] % 64) ^ ~(uint64_t)p[n / 2];
-
-	v0 ^= k0;
-	v1 ^= k1;
-	v2 ^= k0;
-	v3 ^= k1;
-
-	uint64_t b = n << 56;
-	uint64_t t = (v0 << 12) | (v1 << 24) | (v2 << 36) | (v3 << 48);
-
-	while (n-- > 0U)
+	while (n-- > 0)
 	{
 		t ^= (uint64_t)*p;
 
@@ -71,14 +60,14 @@ inline static uint64_t hash64__(const uint8_t* p, size_t n)
 	}
 
 	v3 ^= b;
-	mix64__(&v0, &v1, &v2, &v3);
-	mix64__(&v0, &v1, &v2, &v3);
+	fmix64(&v0, &v1, &v2, &v3);
+	fmix64(&v0, &v1, &v2, &v3);
 	v0 ^= b;
 	v2 ^= UINT64_C(0xFF);
-	mix64__(&v0, &v1, &v2, &v3);
-	mix64__(&v0, &v1, &v2, &v3);
-	mix64__(&v0, &v1, &v2, &v3);
-	mix64__(&v0, &v1, &v2, &v3);
+	fmix64(&v0, &v1, &v2, &v3);
+	fmix64(&v0, &v1, &v2, &v3);
+	fmix64(&v0, &v1, &v2, &v3);
+	fmix64(&v0, &v1, &v2, &v3);
 
 	return (v0 ^ v1 ^ v2  ^ v3);
 }
@@ -91,7 +80,7 @@ inline static uint64_t hash64__(const uint8_t* p, size_t n)
 #include <sddl.h>
 
 
-inline static PSID get_user_sid__(HANDLE token)
+inline static PSID sm_get_user_sid(HANDLE token)
 {
 	if (token == NULL || token == INVALID_HANDLE_VALUE) return NULL;
 	DWORD tkl = 0;
@@ -110,14 +99,14 @@ inline static PSID get_user_sid__(HANDLE token)
 }
 
 
-inline static uid_t get_token_uid__(HANDLE token, uint64_t* hash)
+inline static uid_t sm_get_token_uid(HANDLE token, uint64_t* hash)
 {
 	uid_t u = -1;
-	PSID sid = get_user_sid__(token);
+	PSID sid = sm_get_user_sid(token);
 	if (!sid) return u;
 	LPSTR ssid = NULL;
 	if (!ConvertSidToStringSidA(sid, &ssid)) { HeapFree(GetProcessHeap(), 0, sid); return u; }
-	if (hash) { *hash = hash64__(ssid, strlen(ssid)); }
+	if (hash) { *hash = hash64(ssid, strlen(ssid)); }
 	LPCSTR p = strrchr(ssid, '-');
 	if (p && isdigit(p[1])) { ++p; u = atoi(p); }
 	HeapFree(GetProcessHeap(), 0, sid);
@@ -126,27 +115,27 @@ inline static uid_t get_token_uid__(HANDLE token, uint64_t* hash)
 }
 
 
-uid_t getuid()
+uid_t sm_getuid()
 {
 	uid_t u = -1;
 	HANDLE token = NULL;
 	HANDLE process = GetCurrentProcess();
 	if (!OpenProcessToken(process, TOKEN_READ | TOKEN_QUERY_SOURCE, &token)) { CloseHandle(process); return u; }
-	u = get_token_uid__(token, NULL);
+	u = sm_get_token_uid(token, NULL);
 	CloseHandle(token);
 	CloseHandle(process);
 	return u;
 }
 
 
-uint64_t getsidh()
+uint64_t sm_getsidh()
 {
 	uint64_t sh = 0;
 	uid_t u = -1;
 	HANDLE token = NULL;
 	HANDLE process = GetCurrentProcess();
 	if (!OpenProcessToken(process, TOKEN_READ | TOKEN_QUERY_SOURCE, &token)) { CloseHandle(process); return u; }
-	u = get_token_uid__(token, &sh);
+	u = sm_get_token_uid(token, &sh);
 	CloseHandle(token);
 	CloseHandle(process);
 	return sh ^ (((uint64_t)u) << 21);
@@ -156,10 +145,10 @@ uint64_t getsidh()
 
 #include <pwd.h>
 
-uint64_t getsidh()
+uint64_t sm_getsidh()
 {
 	struct passwd* pw = getpwuid(geteuid());
-	if (pw) return hash64__(pw->pw_name, strlen(pw->pw_name));
+	if (pw) return hash64(pw->pw_name, strlen(pw->pw_name));
 	return -1;
 }
 

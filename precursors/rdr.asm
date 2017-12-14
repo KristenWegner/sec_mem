@@ -1,13 +1,15 @@
 ; rdr.asm - RDRAND Support
 
+
 _TEXT SEGMENT
 
-	PUBLIC HRDRND64
-    PUBLIC RDRAND64
+	PUBLIC sm_have_rdrand
+    PUBLIC sm_rdrand
+
 
 ; Tests for the presence of the RDRAND instruction.
-; uint64_t HRDRND64(void)
-HRDRND64 PROC
+; uint64_t sm_have_rdrand(void)
+sm_have_rdrand PROC
     push    rbx
     mov     eax, 1
     cpuid
@@ -20,18 +22,20 @@ DONE:
 FAIL:
     sub     rax, rax
     jmp     short DONE
-HRDRND64 ENDP
+sm_have_rdrand ENDP
+
 
 ; Calls the RDRAND instruction, and returns the resultant 64-bit value.
-; uint64_t RDRAND64()
-RDRAND64 PROC
+; uint64_t sm_rdrand()
+sm_rdrand PROC
 REDO:
     rdrand  rax
     ; db    048h, 0Fh, 0C7h, 0F0h
     jnc     REDO
     ret
-RDRAND64 ENDP
+sm_rdrand ENDP
 
 _TEXT ENDS
 
 END
+

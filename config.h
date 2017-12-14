@@ -46,13 +46,20 @@
 #define restrict restrict
 #else
 #if defined(SEC_OS_WINDOWS)
+#pragma warning(disable:4005)
+#ifndef _WINSOCKAPI_
+#define _WINSOCKAPI_ 1
+#endif
 #include <windows.h>
+#include <winsock2.h>
+#include <process.h>
 typedef uint32_t uid_t;
 typedef int32_t pid_t;
 typedef SSIZE_T ssize_t;
 typedef _locale_t locale_t;
-extern uid_t getuid();
-extern uint64_t getsidh();
+extern uid_t sm_getuid();
+extern uint64_t sm_getsidh();
+#define getpid _getpid
 #define inline __forceinline
 #define restrict __restrict
 #define HALIGN1 __declspec(align(1))
@@ -63,7 +70,9 @@ extern uint64_t getsidh();
 #define HALIGN1
 #define TALIGN1 __attribute__((aligned(1),packed))
 #include <unistd.h>
-#define getsidh geteuid
+#include <sys/time.h>
+#define sm_getuid getuid
+#define sm_getsidh geteuid
 #else
 #define inline
 #define restrict
