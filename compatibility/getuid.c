@@ -1,22 +1,18 @@
 // getuid.c - Get UID support for Windows.
 
 
-#include "../config.h"
-
-
-#if defined(SEC_OS_WINDOWS)
-
-
 #include <stdint.h>
 #include <stdlib.h>
-#include <windows.h>
-#include <sddl.h>
+
+
+#include "../config.h"
 
 
 inline static uint64_t rotl64__(uint64_t x, uint64_t b)
 {
 	return (x << b) | (x >> (64 - b));
 }
+
 
 inline static void mix64__(uint64_t* v0, uint64_t* v1, uint64_t* v2, uint64_t* v3)
 {
@@ -36,6 +32,7 @@ inline static void mix64__(uint64_t* v0, uint64_t* v1, uint64_t* v2, uint64_t* v
 	*v2 = rotl64__(*v2, 32);
 }
 
+
 inline static uint64_t hash64__(const uint8_t* p, size_t n)
 {
 	uint64_t v0 = UINT64_C(0x736F6D6570736575);
@@ -44,7 +41,7 @@ inline static uint64_t hash64__(const uint8_t* p, size_t n)
 	uint64_t v3 = UINT64_C(0x7465646279746573);
 
 	uint64_t k0 = n << 32;
-	uint64_t k1 = ~(n << 32) ^ ~(uint64_t)p[n / 2];
+	uint64_t k1 = ~(n << p[0] % 64) ^ ~(uint64_t)p[n / 2];
 
 	v0 ^= k0;
 	v1 ^= k1;
@@ -85,6 +82,13 @@ inline static uint64_t hash64__(const uint8_t* p, size_t n)
 
 	return (v0 ^ v1 ^ v2  ^ v3);
 }
+
+
+#if defined(SEC_OS_WINDOWS)
+
+
+#include <windows.h>
+#include <sddl.h>
 
 
 inline static PSID get_user_sid__(HANDLE token)
@@ -135,7 +139,7 @@ uid_t getuid()
 }
 
 
-uint64_t getsidhash()
+uint64_t getsidh()
 {
 	uint64_t sh = 0;
 	uid_t u = -1;
@@ -145,7 +149,18 @@ uint64_t getsidhash()
 	u = get_token_uid__(token, &sh);
 	CloseHandle(token);
 	CloseHandle(process);
-	return sh ^ u;
+	return sh ^ (((uint64_t)u) << 21);
+}
+
+#else
+
+#include <pwd.h>
+
+uint64_t getsidh()
+{
+	struct passwd* pw = getpwuid(geteuid());
+	if (pw) return hash64__(pw->pw_name, strlen(pw->pw_name));
+	return -1;
 }
 
 

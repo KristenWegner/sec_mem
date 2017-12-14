@@ -52,7 +52,7 @@ typedef int32_t pid_t;
 typedef SSIZE_T ssize_t;
 typedef _locale_t locale_t;
 extern uid_t getuid();
-extern uint64_t getsidhash();
+extern uint64_t getsidh();
 #define inline __forceinline
 #define restrict __restrict
 #define HALIGN1 __declspec(align(1))
@@ -63,6 +63,7 @@ extern uint64_t getsidhash();
 #define HALIGN1
 #define TALIGN1 __attribute__((aligned(1),packed))
 #include <unistd.h>
+#define getsidh geteuid
 #else
 #define inline
 #define restrict
