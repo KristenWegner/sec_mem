@@ -8,7 +8,7 @@
 #define INCLUDE_MUTEX_H 1
 
 
-#if defined(SEC_OS_WINDOWS)
+#if defined(SM_OS_WINDOWS)
 
 
 #include <windows.h>
@@ -52,7 +52,7 @@ inline static bool mutex_unlock(mutex_t* m)
 }
 
 
-#elif defined(SEC_OS_LINUX)
+#elif defined(SM_OS_LINUX)
 
 
 #include <pthread.h>
@@ -93,7 +93,7 @@ inline static bool mutex_unlock(mutex_t* m)
 }
 
 
-#endif // SEC_OS_LINUX
+#endif // SM_OS_LINUX
 
 
 #endif // INCLUDE_MUTEX_H

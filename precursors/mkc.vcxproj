@@ -54,7 +54,15 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="precursors-x86-x64.code" />
-    <None Include="rdr.asm" />
+    <CustomBuild Include="rdr.asm">
+      <FileType>Document</FileType>
+      <PackAlignmentBoundary Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">1</PackAlignmentBoundary>
+      <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">2</CallingConvention>
+      <UseSafeExceptionHandlers Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</UseSafeExceptionHandlers>
+      <MakeAllSymbolsPublic Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</MakeAllSymbolsPublic>
+      <PreserveIdentifierCase Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">1</PreserveIdentifierCase>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+    </CustomBuild>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>

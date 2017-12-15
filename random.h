@@ -7,7 +7,7 @@
 #include <stdio.h>
 
 
-#if defined(SEC_OS_WINDOWS)
+#if defined(SM_OS_WINDOWS)
 #include <intrin.h>
 #include <xmmintrin.h>
 #include <emmintrin.h>
@@ -21,7 +21,7 @@
 #include "config.h"
 #include "memory.h"
 
-#if defined(SEC_OS_WINDOWS)
+#if defined(SM_OS_WINDOWS)
 #define WIN32_LEAN_AND_MEAN 1
 #include <time.h>
 #include <process.h>
@@ -30,7 +30,7 @@
 #define getpid _getpid
 #define time _time64
 #define gettid GetCurrentThreadId
-#elif defined(SEC_OS_LINUX)
+#elif defined(SM_OS_LINUX)
 #include <time.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -306,7 +306,7 @@ inline static uint8_t* sec_random_read_entropy()
 
 	p = e;
 
-#if defined(SEC_OS_WINDOWS)
+#if defined(SM_OS_WINDOWS)
 
 	uint32_t i;
 	DWORD t = 0, narb = 0, red = 0;
@@ -410,9 +410,9 @@ inline static uint8_t* sec_random_generate_seed(void)
 	uint64_t u = (uint64_t)getuid() ^ getsidhash();
 	uint64_t s = x ^ (t ^ (p << 32) ^ h) ^ (u << 16);
 
-#if defined(SEC_OS_WINDOWS)
+#if defined(SM_OS_WINDOWS)
 	s ^= GetTickCount();
-#elif defined(SEC_OS_LINUX)
+#elif defined(SM_OS_LINUX)
 	struct timeval tv;
 	gettimeofday(&tv, 0);
 	s ^= (((uint64_t)tv.tv_sec << 32) ^ ((uint64_t)tv.tv_usec);

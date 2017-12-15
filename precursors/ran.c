@@ -7,8 +7,8 @@
 #include "../config.h"
 
 
-extern uint64_t sm_have_rdrand();
-extern uint64_t sm_rdrand();
+extern uint64_t callconv sm_have_rdrand();
+extern uint64_t callconv sm_rdrand();
 
 
 #define swap64(x) ((uint64_t)( \
@@ -56,7 +56,7 @@ exported uint64_t callconv sm_master_rand()
 	uint64_t r = UINT64_C(0x18271B1);
 	r ^= (((uint64_t)time(NULL)) << 16) ^ UINT64_C(0x136A352B2C8C1);
 
-#if defined(SEC_OS_WINDOWS)
+#if defined(SM_OS_WINDOWS)
 	DWORD tc = GetTickCount();
 	tc = swap64(tc);
 	r ^= tc;
@@ -96,10 +96,8 @@ inline static uint64_t sm_fishman_20_64_next(register void *restrict s)
 	const uint64_t x = *v;
 	const int64_t h = x / INT64_C(0xADC8);
 	const int64_t t = INT64_C(0xBC8F) * (x - h * INT64_C(0xADC8)) - h * INT64_C(0x0D47);
-
 	if (t < INT64_C(0)) *v = t + INT64_C(0x7FFFFFFF);
 	else *v = t;
-
 	return *v;
 }
 

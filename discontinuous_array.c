@@ -39,7 +39,6 @@ bool sm_discontinuous_array_create(sm_discontinuous_array** object, size_t spaci
 	*object = NULL;
 
 	sm_discontinuous_array* result = malloc(sizeof(sm_discontinuous_array));
-
 	if (!result) return false;
 
 	register uint8_t* t = (uint8_t*)result;
@@ -60,9 +59,9 @@ bool sm_discontinuous_array_create(sm_discontinuous_array** object, size_t spaci
 	result->count = count;
 
 	size_t total = ((element + spacing) * (count + 2));
-	total = (size_t)(((total + 1.0 / 16.0) * 8) / 8.0);
+	result->size = (size_t)(((total + 1.0 / 16.0) * 8) / 8.0);
 
-	result->data = (uint8_t*)malloc(total);
+	result->data = (uint8_t*)malloc(result->size);
 
 	if (!result->data)
 	{
@@ -72,7 +71,7 @@ bool sm_discontinuous_array_create(sm_discontinuous_array** object, size_t spaci
 		return false;
 	}
 
-	for (i = 0; i < total; ++i)
+	for (i = 0; i < result->size; ++i)
 		result->data[i] = (uint8_t)sm_master_rand();
 
 	result->index = 0;
@@ -85,5 +84,8 @@ bool sm_discontinuous_array_create(sm_discontinuous_array** object, size_t spaci
 	return true;
 }
 
-
+void* sm_discontinuous_array_get(sm_discontinuous_array* object, uint64_t index)
+{
+	if (!object) return NULL;
+}
 

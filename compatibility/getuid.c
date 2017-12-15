@@ -16,20 +16,12 @@ inline static uint64_t rotl64(uint64_t x, uint64_t b)
 
 inline static void fmix64(uint64_t* v0, uint64_t* v1, uint64_t* v2, uint64_t* v3)
 {
-	*v0 += *v1;
-	*v1 = rotl64(*v1, 13);
-	*v1 ^= *v0;
-	*v0 = rotl64(*v0, 32);
-	*v2 += *v3;
-	*v3 = rotl64(*v3, 16);
-	*v3 ^= *v2;
-	*v0 += *v3;
-	*v3 = rotl64(*v3, 21);
-	*v3 ^= *v0;
-	*v2 += *v1;
-	*v1 = rotl64(*v1, 17);
-	*v1 ^= *v2;
-	*v2 = rotl64(*v2, 32);
+	*v0 += *v1, *v1 = rotl64(*v1, 13);
+	*v1 ^= *v0, *v0 = rotl64(*v0, 32);
+	*v2 += *v3, *v3 = rotl64(*v3, 16);
+	*v3 ^= *v2, *v0 += *v3, *v3 = rotl64(*v3, 21);
+	*v3 ^= *v0, *v2 += *v1, *v1 = rotl64(*v1, 17);
+	*v1 ^= *v2, *v2 = rotl64(*v2, 32);
 }
 
 
@@ -73,7 +65,7 @@ inline static uint64_t hash64(const uint8_t* p, size_t n)
 }
 
 
-#if defined(SEC_OS_WINDOWS)
+#if defined(SM_OS_WINDOWS)
 
 
 #include <windows.h>
@@ -153,5 +145,5 @@ uint64_t sm_getsidh()
 }
 
 
-#endif // SEC_OS_WINDOWS
+#endif // SM_OS_WINDOWS
 

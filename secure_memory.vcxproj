@@ -145,6 +145,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="allocator.c" />
     <ClCompile Include="compatibility\gettimeofday.c" />
     <ClCompile Include="compatibility\getuid.c" />
     <ClCompile Include="discontinuous_array.c" />

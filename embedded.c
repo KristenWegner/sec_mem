@@ -5,11 +5,11 @@
 #include "embedded.h"
 
 
-#if defined(SEC_OS_LINUX)
+#if defined(SM_OS_LINUX)
 #include <sys/mman.h>
 static int (*em_mp__)(void*,size_t,int) = mprotect;
 #define EMMKEXEC(P, L, R) { (r) = (em_mp__((void*)P, (L), PROT_READ|PROT_WRITE|PROT_EXEC) == 0); } // Makes the specified page executable.
-#elif defined(SEC_OS_WINDOWS)
+#elif defined(SM_OS_WINDOWS)
 #include <windows.h>
 static int (__stdcall *em_mp__)(void*,size_t,unsigned long, unsigned long*) = VirtualProtect;
 #define EMMKEXEC(P, L, R) { unsigned long mx_dv__; (R) = (em_mp__((void*)P, L, PAGE_EXECUTE_READWRITE, &mx_dv__) != 0); /*if (R) FlushInstructionCache(GetCurrentProcess(), NULL, 0);*/ } // Makes the specified page executable.

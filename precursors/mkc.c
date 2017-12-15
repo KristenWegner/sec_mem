@@ -16,7 +16,7 @@
 #include "../config.h"
 
 
-#if defined(SEC_OS_WINDOWS)
+#if defined(SM_OS_WINDOWS)
 #define WIN32_LEAN_AND_MEAN 1
 #include <time.h>
 #include <process.h>
@@ -24,7 +24,7 @@
 #define getpid _getpid
 #define time _time64
 #define gettid GetCurrentThreadId
-#elif defined(SEC_OS_LINUX)
+#elif defined(SM_OS_LINUX)
 #include <time.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -458,7 +458,7 @@ int evaluate_size(char* entity_size, uint64_t* result)
 	REP(sizeof(fd_set));				REP(sizeof(fd_set*));
 	REP(sizeof(FILE*)); 				
 
-#if defined(SEC_OS_WINDOWS)
+#if defined(SM_OS_WINDOWS)
 	REP(sizeof(HANDLE));
 	REP(sizeof(GUID));					REP(sizeof(GUID*));
 #else

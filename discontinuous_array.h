@@ -10,7 +10,7 @@
 
 
 // Represents an array where each element is separated by any number of non-used bytes.
-typedef HALIGN1 struct sm_discontinuous_array
+typedef halign(1) struct sm_discontinuous_array
 {
 	// Current seed.
 	uint64_t seed;
@@ -27,7 +27,10 @@ typedef HALIGN1 struct sm_discontinuous_array
 	// Count of elements.
 	size_t count;
 
-	// The actual data.
+	// The actual count of bytes.
+	size_t size;
+
+	// Pointer to the actual data.
 	uint8_t* data;
 
 	// Current index, for iteration.
@@ -39,7 +42,7 @@ typedef HALIGN1 struct sm_discontinuous_array
 	// Mutex.
 	mutex_t mutex;
 }
-TALIGN1
+talign(1)
 sm_discontinuous_array;
 
 

@@ -13,30 +13,30 @@
 
 
 // Operating system.
-#undef SEC_OS_APPLE
-#undef SEC_OS_LINUX
-#undef SEC_OS_OTHER
-#undef SEC_OS_WINDOWS
+#undef SM_OS_APPLE
+#undef SM_OS_LINUX
+#undef SM_OS_OTHER
+#undef SM_OS_WINDOWS
 #if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
-#undef SEC_OS_APPLE
-#undef SEC_OS_LINUX
-#undef SEC_OS_OTHER
-#define SEC_OS_WINDOWS 1
+#undef SM_OS_APPLE
+#undef SM_OS_LINUX
+#undef SM_OS_OTHER
+#define SM_OS_WINDOWS 1
 #elif defined(linux) || defined(__unix__) || defined(__linux__) || defined(__GNUC__)
-#undef SEC_OS_APPLE
-#define SEC_OS_LINUX 1
-#undef SEC_OS_OTHER
-#undef SEC_OS_WINDOWS
+#undef SM_OS_APPLE
+#define SM_OS_LINUX 1
+#undef SM_OS_OTHER
+#undef SM_OS_WINDOWS
 #elif defined(__APPLE__)
-#define SEC_OS_APPLE 1
-#undef SEC_OS_LINUX
-#undef SEC_OS_OTHER 
-#undef SEC_OS_WINDOWS
+#define SM_OS_APPLE 1
+#undef SM_OS_LINUX
+#undef SM_OS_OTHER 
+#undef SM_OS_WINDOWS
 #else
-#undef SEC_OS_APPLE
-#undef SEC_OS_LINUX
-#define SEC_OS_OTHER 1
-#undef SEC_OS_WINDOWS
+#undef SM_OS_APPLE
+#undef SM_OS_LINUX
+#define SM_OS_OTHER 1
+#undef SM_OS_WINDOWS
 #endif
 
 
@@ -45,7 +45,7 @@
 #define inline inline
 #define restrict restrict
 #else
-#if defined(SEC_OS_WINDOWS)
+#if defined(SM_OS_WINDOWS)
 #pragma warning(disable:4005)
 #ifndef _WINSOCKAPI_
 #define _WINSOCKAPI_ 1
@@ -62,13 +62,13 @@ extern uint64_t sm_getsidh();
 #define getpid _getpid
 #define inline __forceinline
 #define restrict __restrict
-#define HALIGN1 __declspec(align(1))
-#define TALIGN1
-#elif defined(SEC_OS_LINUX)
+#define halign(b) __declspec(align(b))
+#define talign(b)
+#elif defined(SM_OS_LINUX)
 #define inline __inline__
 #define restrict __restrict
-#define HALIGN1
-#define TALIGN1 __attribute__((aligned(1),packed))
+#define halign(b)
+#define talign(b) __attribute__((aligned(b),packed))
 #include <unistd.h>
 #include <sys/time.h>
 #define sm_getuid getuid
@@ -133,23 +133,13 @@ extern uint64_t sm_getsidh();
 #define exported // Just to identify exported functions.
 
 
-#if defined(SEC_OS_WINDOWS)
+#if defined(SM_OS_WINDOWS)
 #define callconv __stdcall // Do not emit extra prologue instructions.
-#elif defined(SEC_OS_LINUX)
+#elif defined(SM_OS_LINUX)
 #define callconv __attribute__((stdcall))
 #else
 #define callconv
 #endif
-
-
-// Configuration flags for allocator library.
-
-
-#define MM_USE_LOCKS 1
-#define MM_HAVE_MMAP 1
-#define MM_MSPACES 1
-#undef MM_NO_ALLOC_STATS
-#undef MM_INSECURE
 
 
 #endif // INCLUDE_CONFIG_H

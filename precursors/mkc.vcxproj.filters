@@ -38,9 +38,11 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="rdr.asm">
-      <Filter>Source Files</Filter>
-    </None>
     <None Include="precursors-x86-x64.code" />
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="rdr.asm">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
   </ItemGroup>
 </Project>

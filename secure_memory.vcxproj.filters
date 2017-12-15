@@ -35,6 +35,9 @@
     <ClCompile Include="utility\string.c">
       <Filter>Source Files\utility</Filter>
     </ClCompile>
+    <ClCompile Include="allocator.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="mutex.h">
