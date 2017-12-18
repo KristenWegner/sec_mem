@@ -5,11 +5,6 @@
 #include "allocator.h"
 
 
-#ifndef SM_ALLOCATOR_VERSION
-#define SM_ALLOCATOR_VERSION 20180101
-#endif
-
-
 #ifndef SM_ALLOCATOR_EXPORT
 #define SM_ALLOCATOR_EXPORT extern
 #endif
@@ -18,17 +13,18 @@
 #if defined(SM_OS_WINDOWS)
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#include <tchar.h>
-#undef SM_LACKS_ERRNO_H
-#undef SM_LACKS_STRING_H
-#undef SM_LACKS_SYS_TYPES_H
+#define SM_LACKS_ERRNO_H 0
+#define SM_LACKS_STRING_H 0
+#define SM_LACKS_SYS_TYPES_H 0
 #define SM_HAS_MMAP 1
 #define SM_HAS_MORE_CORE 0
-#define SM_LACKS_UNISTD_H
-#define SM_LACKS_SYS_PARAM_H
-#define SM_LACKS_SYS_MMAN_H
-#define SM_LACKS_STRINGS_H
-#define SM_LACKS_SCHED_H
+#define SM_LACKS_UNISTD_H 1
+#define SM_LACKS_SYS_PARAM_H 1
+#define SM_LACKS_SYS_MMAN_H 1
+#define SM_LACKS_STRINGS_H 1
+#define SM_LACKS_SCHED_H 1
+#define SM_MALLOC_INSPECT_ALL 1
+#define SM_USE_LOCKS 1
 #ifndef SM_MALLOC_FAILURE_ACTION
 #define SM_MALLOC_FAILURE_ACTION
 #endif
@@ -71,20 +67,6 @@
 #endif
 #elif !defined(SM_USE_SPIN_LOCKS)
 #define SM_USE_SPIN_LOCKS 0
-#endif
-
-
-#ifndef SM_ONLY_MSPACES
-#define SM_ONLY_MSPACES 0
-#endif 
-
-
-#ifndef SM_MSPACES
-#if SM_ONLY_MSPACES
-#define SM_MSPACES 1
-#else
-#define SM_MSPACES 0
-#endif
 #endif
 
 
@@ -218,8 +200,8 @@
 #endif
 
 
-#ifndef NO_MALLOC_STATS
-#define NO_MALLOC_STATS 0
+#ifndef SM_NO_MALLOC_STATS
+#define SM_NO_MALLOC_STATS 0
 #endif 
 
 
@@ -228,105 +210,11 @@
 #endif 
 
 
-// Tuning options. This malloc supports the following options.
-#define SM_M_TRIM_THRESHOLD (-1)
-#define SM_M_GRANULARITY    (-2)
-#define SM_M_MMAP_THRESHOLD (-3)
-
-
-#if !SM_NO_ALLOCATION_INFO
-#ifndef SM_STRUCT_MEM_INFO_DECLARED
-#define SM_STRUCT_MEM_INFO_DECLARED 1
-typedef struct sm_memory_info_t
-{
-	uint64_t arena; // Non-mmapped space allocated from system.
-	uint64_t count_free_chunks; // Number of free chunks.
-	uint64_t small_blocks; // Always 0.
-	uint64_t h_blocks; // Always 0.
-	uint64_t memory_mapped_space; // Space in mmapped regions.
-	uint64_t max_total_allocated_space; // Maximum total allocated space.
-	uint64_t fsm_blocks; // Always 0.
-	uint64_t total_allocated_space; // Total allocated space.
-	uint64_t total_free_space; // Total free space.
-	uint64_t keep_cost; // Releasable (via malloc_trim) space.
-}
-sm_memory_info_t;
-#endif
-#endif
-
-
-#if SM_MSPACES
-
-
-// An opaque type representing an independent region of space.
-typedef void* sm_space_t;
-
-
-// Creates and returns a new independent space with the given initial capacity, or, if 0, the default granularity size. It
-// returns null if there is no system memory available to create the space. If argument locked is non-zero, the space uses a separate
-// lock to control access. The capacity of the space will grow dynamically as needed to service allocation requests. You can
-// control the sizes of incremental increases of this space by compiling with a different SM_DEFAULT_GRANULARITY or dynamically
-// setting with mallopt(SM_M_GRANULARITY, value).
-SM_ALLOCATOR_EXPORT sm_space_t sm_create_space(size_t capacity, int locked);
-
-
-// Destroys the given space, and attempts to return all of its memory back to the system, returning the total number of
-// bytes freed. After destruction, the results of access to all memory used by the space become undefined.
-SM_ALLOCATOR_EXPORT size_t sm_destroy_space(sm_space_t space);
-
-
-// Uses the memory supplied as the initial base of a new space. Part (less than 128 * sizeof(size_t) bytes) of this
-// space is used for bookkeeping, so the capacity must be at least this large. (Otherwise 0 is returned.) When this initial 
-// space is exhausted, additional memory will be obtained from the system. Destroying this space will deallocate all 
-// additionally  allocated space (if possible) but not the initial base.
-SM_ALLOCATOR_EXPORT sm_space_t sm_create_space_with_base(void* base, size_t capacity, int locked);
-
-
-// Controls whether requests for large chunks are allocated in their own untracked mmapped regions, separate from
-// others in this space. By default large chunks are not tracked, which reduces fragmentation. However, such chunks are not
-// necessarily released to the system upon destruction. Enabling tracking by setting to true may increase fragmentation, but 
-// avoids leakage when relying on sm_destroy_space to release all memory allocated using this space. The function returns the 
-// previous setting.
-SM_ALLOCATOR_EXPORT int sm_space_track_large_chunks(sm_space_t space, int enable);
-
-SM_ALLOCATOR_EXPORT void* sm_space_malloc(sm_space_t space, size_t bytes);
-SM_ALLOCATOR_EXPORT void sm_space_free(sm_space_t space, void* memory);
-SM_ALLOCATOR_EXPORT void* sm_space_realloc(sm_space_t space, void* memory, size_t size);
-SM_ALLOCATOR_EXPORT void* sm_space_calloc(sm_space_t space, size_t count, size_t size);
-SM_ALLOCATOR_EXPORT void* sm_space_mem_align(sm_space_t space, size_t alignment, size_t bytes);
-SM_ALLOCATOR_EXPORT void** sm_space_independent_calloc(sm_space_t space, size_t count, size_t size, void** chunks);
-SM_ALLOCATOR_EXPORT void** sm_space_independent_co_malloc(sm_space_t space, size_t count, size_t* sizes, void** chunks);
-
-// Returns the number of bytes obtained from the system for this space.
-SM_ALLOCATOR_EXPORT size_t sm_space_footprint(sm_space_t space);
-
-// Returns the peak number of bytes obtained from the system for this space.
-SM_ALLOCATOR_EXPORT size_t sm_space_max_footprint(sm_space_t space);
-
-
-#if !SM_NO_ALLOCATION_INFO
-// Reports properties of the given space.
-SM_ALLOCATOR_EXPORT struct sm_memory_info_t sm_space_mem_info(sm_space_t msp);
-#endif
-
-SM_ALLOCATOR_EXPORT size_t sm_space_usable_size(const void* memory);
-SM_ALLOCATOR_EXPORT void sm_space_malloc_stats(sm_space_t space);
-SM_ALLOCATOR_EXPORT int sm_space_trim(sm_space_t space, size_t padding);
-SM_ALLOCATOR_EXPORT int sm_space_options(int, int);
-
-#endif
-
-
 // Internal Includes
 
 
 #if defined(SM_OS_WINDOWS)
 #pragma warning(disable:4146) // No unsigned warnings.
-#endif
-
-
-#if !NO_MALLOC_STATS
-#include <stdio.h>
 #endif
 
 
@@ -350,22 +238,22 @@ SM_ALLOCATOR_EXPORT int sm_space_options(int, int);
 #endif
 
 
-#if !defined(SM_OS_WINDOWS) && !defined(SM_LACKS_TIME_H)
+#if !defined(SM_LACKS_TIME_H)
 #include <time.h>
 #endif
 
 
-#ifndef SM_LACKS_STDLIB_H
+#if !defined(SM_LACKS_STDLIB_H)
 #include <stdlib.h>
 #endif
 
 
-#ifndef SM_LACKS_STRING_H
+#if !defined(SM_LACKS_STRING_H)
 #include <string.h>
 #endif
 
 
-#if SM_USE_BUILTIN_FFS
+#if defined(SM_USE_BUILTIN_FFS)
 #ifndef SM_LACKS_STRINGS_H
 #include <strings.h>
 #endif
@@ -382,7 +270,7 @@ SM_ALLOCATOR_EXPORT int sm_space_options(int, int);
 #include <sys/mman.h>
 #endif
 #endif
-#ifndef LACKS_FCNTL_H
+#if !defined(SM_LACKS_FCNTL_H)
 #include <fcntl.h>
 #endif
 #endif
@@ -409,8 +297,8 @@ extern void* sbrk(ptrdiff_t);
 #endif
 #elif defined(SM_OS_WINDOWS)
 #ifndef _M_AMD64
-LONG __cdecl _InterlockedCompareExchange(LONG volatile* dest, LONG exchange, LONG comp);
-LONG __cdecl _InterlockedExchange(LONG volatile* target, LONG value);
+LONG _InterlockedCompareExchange(LONG volatile* dest, LONG exchange, LONG comp);
+LONG _InterlockedExchange(LONG volatile* target, LONG value);
 #endif
 #pragma intrinsic(_InterlockedCompareExchange)
 #pragma intrinsic(_InterlockedExchange)
@@ -424,10 +312,18 @@ LONG __cdecl _InterlockedExchange(LONG volatile* target, LONG value);
 #endif
 
 
-#ifndef LOCK_AT_FORK
-#define LOCK_AT_FORK 0
+#ifndef SM_LOCK_AT_FORK
+#define SM_LOCK_AT_FORK 0
 #endif
 
+// https://graphics.stanford.edu/~seander/bithacks.html
+
+inline static uint32_t clz32(uint32_t v)
+{
+	v = v - ((v >> 1) & 0x55555555);
+	v = (v & 0x33333333) + ((v >> 2) & 0x33333333);
+	return ((v + (v >> 4) & 0xF0F0F0F) * 0x1010101) >> 24;
+}
 
 #if defined(SM_OS_WINDOWS)
 #ifndef BitScanForward
@@ -489,28 +385,28 @@ extern size_t getpagesize();
 #endif
 
 
-#define SM_SIZE_T_SIZE			(sizeof(size_t))
-#define SM_SIZE_T_BITSIZE		(sizeof(size_t) << 3)
-#define SM_SIZE_T_ZERO			((size_t)UINT64_C(0))
-#define SM_SIZE_T_ONE			((size_t)UINT64_C(1))
-#define SM_SIZE_T_TWO			((size_t)UINT64_C(2))
-#define SM_SIZE_T_FOUR			((size_t)UINT64_C(4))
-#define SM_TWO_SIZE_T_SIZES		(SM_SIZE_T_SIZE << 1)
-#define SM_FOUR_SIZE_T_SIZES	(SM_SIZE_T_SIZE << 2)
-#define SM_SIX_SIZE_T_SIZES		(SM_FOUR_SIZE_T_SIZES + SM_TWO_SIZE_T_SIZES)
-#define SM_HALF_MAX_SIZE_T		(SM_MAX_SIZE_T / UINT64_C(2))
-#define SM_CHUNK_ALIGN_MASK		(SM_MALLOC_ALIGNMENT - SM_SIZE_T_ONE) // The bit mask value corresponding to SM_MALLOC_ALIGNMENT.
+#define SM_SIZE_T_SIZE       (sizeof(size_t))
+#define SM_SIZE_T_BITSIZE    (sizeof(size_t) << 3)
+#define SM_SIZE_T_ZERO       ((size_t)UINT64_C(0))
+#define SM_SIZE_T_ONE        ((size_t)UINT64_C(1))
+#define SM_SIZE_T_TWO        ((size_t)UINT64_C(2))
+#define SM_SIZE_T_FOUR       ((size_t)UINT64_C(4))
+#define SM_TWO_SIZE_T_SIZES  (SM_SIZE_T_SIZE << 1)
+#define SM_FOUR_SIZE_T_SIZES (SM_SIZE_T_SIZE << 2)
+#define SM_SIX_SIZE_T_SIZES  (SM_FOUR_SIZE_T_SIZES + SM_TWO_SIZE_T_SIZES)
+#define SM_HALF_MAX_SIZE_T   (SM_MAX_SIZE_T / UINT64_C(2))
+#define SM_CHUNK_ALIGN_MASK  (SM_MALLOC_ALIGNMENT - SM_SIZE_T_ONE) // The bit mask value corresponding to SM_MALLOC_ALIGNMENT.
 
 
-#define sm_is_aligned(A)		(((size_t)((A)) & (SM_CHUNK_ALIGN_MASK)) == UINT64_C(0)) // True if address a has acceptable alignment.
-#define sm_align_offset(A)		((((size_t)(A) & SM_CHUNK_ALIGN_MASK) == UINT64_C(0)) ? UINT64_C(0) : ((SM_MALLOC_ALIGNMENT - ((size_t)(A) & SM_CHUNK_ALIGN_MASK)) & SM_CHUNK_ALIGN_MASK)) // The number of bytes to offset an address to align it.
+#define sm_is_aligned(A)   (((size_t)((A)) & (SM_CHUNK_ALIGN_MASK)) == UINT64_C(0)) // True if address a has acceptable alignment.
+#define sm_align_offset(A) ((((size_t)(A) & SM_CHUNK_ALIGN_MASK) == UINT64_C(0)) ? UINT64_C(0) : ((SM_MALLOC_ALIGNMENT - ((size_t)(A) & SM_CHUNK_ALIGN_MASK)) & SM_CHUNK_ALIGN_MASK)) // The number of bytes to offset an address to align it.
 
 
-// MORECORE and MMAP return SM_M_FAIL on failure.
+// MORECORE and SM_MMAP return SM_M_FAIL on failure.
 
 
-#define SM_M_FAIL				((void*)(SM_MAX_SIZE_T))
-#define SM_MC_FAIL				((uint8_t*)(SM_M_FAIL))
+#define SM_M_FAIL  ((void*)(SM_MAX_SIZE_T))
+#define SM_MC_FAIL ((uint8_t*)(SM_M_FAIL))
 
 
 #if SM_HAS_MMAP
@@ -518,11 +414,16 @@ extern size_t getpagesize();
 
 #if !defined(SM_OS_WINDOWS)
 
+
 #define SM_MUNMAP_DEFAULT(A, S) munmap((A), (S))
 #define SM_MMAP_PROT (PROT_READ | PROT_WRITE)
 #if !defined(MAP_ANONYMOUS) && defined(MAP_ANON)
 #define MAP_ANONYMOUS MAP_ANON
+
+
 #endif
+
+
 #ifdef MAP_ANONYMOUS
 #define SM_MMAP_FLAGS (MAP_PRIVATE | MAP_ANONYMOUS)
 #define SM_MMAP_DEFAULT(S) mmap(0, (S), SM_MMAP_PROT, SM_MMAP_FLAGS, -1, 0)
@@ -532,6 +433,7 @@ static int sm_dev_zero_fd__ = -1; // Cached file descriptor for /dev/zero.
 #define SM_MMAP_DEFAULT(S) ((sm_dev_zero_fd__ < 0) ? (sm_dev_zero_fd__ = open("/dev/zero", O_RDWR), mmap(0, (S), SM_MMAP_PROT, SM_MMAP_FLAGS, sm_dev_zero_fd__, 0)) : mmap(0, (S), SM_MMAP_PROT, SM_MMAP_FLAGS, sm_dev_zero_fd__, 0))
 #endif
 #define SM_DIRECT_MMAP_DEFAULT(S) SM_MMAP_DEFAULT(S)
+
 
 #else // defined(SM_OS_WINDOWS)
 
@@ -557,9 +459,9 @@ inline static int sm_win_munmap(void* p, size_t n)
 
 	while (n)
 	{
-		if (VirtualQuery(b, &i, sizeof(i)) == 0) return -1;
+		if (VirtualQuery(b, &i, sizeof(i)) == UINT64_C(0)) return -1;
 		if (i.BaseAddress != b || i.AllocationBase != b || i.State != MEM_COMMIT || i.RegionSize > n) return -1;
-		if (VirtualFree(b, 0, MEM_RELEASE) == 0) return -1;
+		if (VirtualFree(b, UINT64_C(0), MEM_RELEASE) == FALSE) return -1;
 		b += i.RegionSize;
 		n -= i.RegionSize;
 	}
@@ -579,7 +481,7 @@ inline static int sm_win_munmap(void* p, size_t n)
 
 #if SM_HAVE_MREMAP
 #if !defined(SM_OS_WINDOWS)
-#define MREMAP_DEFAULT(A, O, N, M) mremap((A), (O), (N), (M))
+#define SM_MREMAP_DEFAULT(A, O, N, M) mremap((A), (O), (N), (M))
 #endif 
 #endif
 
@@ -601,33 +503,33 @@ inline static int sm_win_munmap(void* p, size_t n)
 #define SM_USE_MMAP_BIT (SM_SIZE_T_ONE)
 
 
-#ifdef MMAP
-#define SM_CALL_MMAP(S) MMAP(S)
+#ifdef SM_MMAP
+#define SM_CALL_MMAP(S) SM_MMAP(S)
 #else
 #define SM_CALL_MMAP(S) SM_MMAP_DEFAULT(S)
 #endif
 
 
-#ifdef MUNMAP
-#define SM_CALL_MUNMAP(A, S) MUNMAP((A), (S))
+#ifdef SM_MUNMAP
+#define SM_CALL_MUNMAP(A, S) SM_MUNMAP((A), (S))
 #else
 #define SM_CALL_MUNMAP(A, S) SM_MUNMAP_DEFAULT((A), (S))
 #endif
 
 
-#ifdef DIRECT_MMAP
-#define SM_CALL_DIRECT_MMAP(S) DIRECT_MMAP(S)
+#ifdef SM_DIRECT_MMAP
+#define SM_CALL_DIRECT_MMAP(S) SM_DIRECT_MMAP(S)
 #else
 #define SM_CALL_DIRECT_MMAP(S) SM_DIRECT_MMAP_DEFAULT(S)
 #endif
 #else
 #define SM_USE_MMAP_BIT (SM_SIZE_T_ZERO)
-#define MMAP(S) SM_M_FAIL
-#define MUNMAP(A, S) (-1)
-#define DIRECT_MMAP(S) SM_M_FAIL
-#define SM_CALL_DIRECT_MMAP(S) DIRECT_MMAP(S)
-#define SM_CALL_MMAP(S) MMAP(S)
-#define SM_CALL_MUNMAP(A, S) MUNMAP((A), (S))
+#define SM_MMAP(S) SM_M_FAIL
+#define SM_MUNMAP(A, S) (-1)
+#define SM_DIRECT_MMAP(S) SM_M_FAIL
+#define SM_CALL_DIRECT_MMAP(S) SM_DIRECT_MMAP(S)
+#define SM_CALL_MMAP(S) SM_MMAP(S)
+#define SM_CALL_MUNMAP(A, S) SM_MUNMAP((A), (S))
 #endif
 
 
@@ -635,7 +537,7 @@ inline static int sm_win_munmap(void* p, size_t n)
 #ifdef MREMAP
 #define SM_CALL_MREMAP(A, O, N, M) MREMAP((A), (O), (N), (M))
 #else
-#define SM_CALL_MREMAP(A, O, N, M) MREMAP_DEFAULT((A), (O), (N), (M))
+#define SM_CALL_MREMAP(A, O, N, M) SM_MREMAP_DEFAULT((A), (O), (N), (M))
 #endif
 #else
 #define SM_CALL_MREMAP(A, O, N, M) SM_M_FAIL
@@ -643,17 +545,17 @@ inline static int sm_win_munmap(void* p, size_t n)
 
 
 // Set if continguous morecore disabled or failed.
-#define SM_USE_NON_CONTIGUOUS_BIT (4U)
+#define SM_USE_NON_CONTIGUOUS_BIT (UINT64_C(4))
 
 
 // Segment bit set in sm_create_space_with_base.
-#define SM_EXTERN_BIT (8U)
+#define SM_EXTERN_BIT (UINT64_C(8))
 
 
 #if !SM_USE_LOCKS
-#define SM_USE_LOCK_BIT (0U)
-#define SM_INITIAL_LOCK(L) (0)
-#define SM_DESTROY_LOCK(L) (0)
+#define SM_USE_LOCK_BIT (UINT64_C(0))
+#define SM_INITIAL_LOCK(L) (UINT64_C(0))
+#define SM_DESTROY_LOCK(L) (UINT64_C(0))
 #define SM_ACQUIRE_MALLOC_GLOBAL_LOCK()
 #define SM_RELEASE_MALLOC_GLOBAL_LOCK()
 #else
@@ -692,14 +594,14 @@ inline static void sm_clr_lock(int* l)
 #define SM_CAS_LOCK(L) sm_cas_lock(L)
 #define SM_CLR_LOCK(L) sm_clr_lock(L)
 #else // Windows
-#define SM_CAS_LOCK(L) sm_interlocked_exchange(L, (LONG)1)
-#define SM_CLR_LOCK(L) sm_interlocked_exchange (L, (LONG)0)
+#define SM_CAS_LOCK(L) sm_interlocked_exchange(L, UINT64_C(1))
+#define SM_CLR_LOCK(L) sm_interlocked_exchange(L, UINT64_C(0))
 #endif
 
 
 #define SM_SPINS_PER_YIELD 63
 #if defined(SM_OS_WINDOWS)
-#define SM_SLEEP_EX_DURATION 50 // Delay for yield/sleep.
+#define SM_SLEEP_EX_DURATION 64 // Delay for yield/sleep.
 #define SM_SPIN_LOCK_YIELD SleepEx(SM_SLEEP_EX_DURATION, FALSE)
 #elif defined (__SVR4) && defined (__sun)
 #define SM_SPIN_LOCK_YIELD thr_yield();
@@ -723,8 +625,9 @@ static int sm_spin_acquire_lock(int* l)
 	return 0;
 }
 
+
 #define SM_MLOCK_T int
-#define SM_TRY_LOCK(L) !SM_CAS_LOCK(L)
+#define SM_TRY_LOCK(L) (!SM_CAS_LOCK(L))
 #define SM_RELEASE_LOCK(L) SM_CLR_LOCK(L)
 #define SM_ACQUIRE_LOCK(L) (SM_CAS_LOCK(L) ? sm_spin_acquire_lock(L) : 0)
 #define SM_INITIAL_LOCK(L) (*L = 0)
@@ -844,7 +747,7 @@ inline static int sm_recursive_try_lock(SM_MLOCK_T* l)
 
 
 static SM_MLOCK_T sm_malloc_global_mutex__;
-static volatile LONG sm_malloc_global_mutex_status__;
+static volatile LONG64 sm_malloc_global_mutex_status__;
 
 
 // Use spin loop to initialize global lock.
@@ -852,14 +755,14 @@ static void sm_init_malloc_global_mutex()
 {
 	for (;;)
 	{
-		LONG s = sm_malloc_global_mutex_status__;
+		LONG64 s = sm_malloc_global_mutex_status__;
 
 		if (s > 0) return;
 
-		if (s == 0 && sm_interlocked_compare_exchange(&sm_malloc_global_mutex_status__, (LONG)-1, (LONG)0) == 0)
+		if (s == 0 && sm_interlocked_compare_exchange(&sm_malloc_global_mutex_status__, (LONG64)-1, (LONG64)0) == 0)
 		{
 			InitializeCriticalSection(&sm_malloc_global_mutex__);
-			sm_interlocked_exchange(&sm_malloc_global_mutex_status__, (LONG)1);
+			sm_interlocked_exchange(&sm_malloc_global_mutex_status__, (LONG64)1);
 			return;
 		}
 
@@ -925,17 +828,17 @@ static int pthread_init_lock(SM_MLOCK_T* l)
 // Chunk Representations
 
 
-typedef struct sm_malloc_chunk_s
+typedef struct sm_chunk_s
 {
 	size_t previous; // Size of previous chunk (if free).
 	size_t head; // Size and in-use bits.
-	struct sm_malloc_chunk_s* forward; // Forward link.
-	struct sm_malloc_chunk_s* backward; // Backward link.
+	struct sm_chunk_s* forward; // Forward link.
+	struct sm_chunk_s* backward; // Backward link.
 }
 sm_chunk_t, *sm_pchunk_t, *sm_psbin_t;
 
 
-typedef uint64_t sm_bin_index_t;
+typedef uint64_t sm_bindex_t;
 typedef uint64_t sm_bin_map_t;
 typedef uint32_t sm_flag_t; // The type of various bit flag sets.
 
@@ -961,11 +864,11 @@ typedef uint32_t sm_flag_t; // The type of various bit flag sets.
 #define SM_MIN_CHUNK_SIZE ((SM_MCHUNK_SIZE + SM_CHUNK_ALIGN_MASK) & ~SM_CHUNK_ALIGN_MASK)
 
 // Conversion from malloc headers to user pointers, and back.
-#define sm_chunk_to_mem(C) ((void*)((uint8_t*)(C) + SM_TWO_SIZE_T_SIZES))
-#define sm_mem_to_chunk(M) ((sm_pchunk_t)((uint8_t*)(M) - SM_TWO_SIZE_T_SIZES))
+#define sm_chunk_to_memory(C) ((void*)((uint8_t*)(C) + SM_TWO_SIZE_T_SIZES))
+#define sm_memory_to_chunk(M) ((sm_pchunk_t)((uint8_t*)(M) - SM_TWO_SIZE_T_SIZES))
 
 // Chunk associated with aligned address.
-#define sm_align_as_chunk(A) (sm_pchunk_t)((A) + sm_align_offset(sm_chunk_to_mem(A)))
+#define sm_align_as_chunk(A) (sm_pchunk_t)((A) + sm_align_offset(sm_chunk_to_memory(A)))
 
 // Bounds on request (not chunk) sizes.
 #define SM_MAX_REQUEST ((-SM_MIN_CHUNK_SIZE) << 2)
@@ -992,19 +895,19 @@ typedef uint32_t sm_flag_t; // The type of various bit flag sets.
 #define SM_FLAG_BITS (SM_P_IN_USE_BIT | SM_C_IN_USE_BIT | SM_FLAG_4_BIT)
 
 // Head value for fence posts.
-#define SM_FENCE_POST_HEAD      (SM_IN_USE_BITS | SM_SIZE_T_SIZE)
+#define SM_FENCE_POST_HEAD (SM_IN_USE_BITS | SM_SIZE_T_SIZE)
 
 
 // Extraction of Fields From Head Words
 
 
-#define sm_c_in_use(P) ((P)->head & SM_C_IN_USE_BIT)
-#define sm_p_in_use(P) ((P)->head & SM_P_IN_USE_BIT)
+#define sm_chunk_in_use(P) ((P)->head & SM_C_IN_USE_BIT)
+#define sm_is_p_in_use(P) ((P)->head & SM_P_IN_USE_BIT)
 #define sm_flag_4_in_use(P) ((P)->head & SM_FLAG_4_BIT)
 #define sm_is_in_use(P) (((P)->head & SM_IN_USE_BITS) != SM_P_IN_USE_BIT)
-#define sm_is_mem_mapped(P) (((P)->head & SM_IN_USE_BITS) == 0)
+#define sm_is_mapped(P) (((P)->head & SM_IN_USE_BITS) == 0)
 #define sm_chunk_size(P) ((P)->head & ~(SM_FLAG_BITS))
-#define sm_clear_p_in_use(P) ((P)->head &= ~SM_P_IN_USE_BIT)
+#define sm_clear_chunk_in_use(P) ((P)->head &= ~SM_P_IN_USE_BIT)
 #define sm_set_flag_4(P) ((P)->head |= SM_FLAG_4_BIT)
 #define sm_clr_flag_4(P) ((P)->head &= ~SM_FLAG_4_BIT)
 
@@ -1016,25 +919,25 @@ typedef uint32_t sm_flag_t; // The type of various bit flag sets.
 #define sm_next_chunk(P) ((sm_pchunk_t)(((uint8_t*)(P)) + ((P)->head & ~SM_FLAG_BITS)))
 #define sm_previous_chunk(P) ((sm_pchunk_t)(((uint8_t*)(P)) - ((P)->previous)))
 
-// Extract next chunk's sm_p_in_use bit.
+// Extract next chunk's sm_is_p_in_use bit.
 #define sm_next_p_in_use(P) ((sm_next_chunk(P)->head) & SM_P_IN_USE_BIT)
 
 // Get/set size at footer.
 #define sm_get_foot(P, S) (((sm_pchunk_t)((uint8_t*)(P) + (S)))->previous)
 #define sm_set_foot(P, S) (((sm_pchunk_t)((uint8_t*)(P) + (S)))->previous = (S))
 
-// Set size, sm_p_in_use bit, and foot.
+// Set size, sm_is_p_in_use bit, and foot.
 #define sm_sets_p_inuse_fchunk(P, S) ((P)->head = (S | SM_P_IN_USE_BIT), sm_set_foot(P, S))
 
-// Set size, sm_p_in_use bit, foot, and clear next sm_p_in_use.
-#define sm_set_free_with_p_in_use(P, S, N) (sm_clear_p_in_use(N), sm_sets_p_inuse_fchunk(P, S))
+// Set size, sm_is_p_in_use bit, foot, and clear next sm_is_p_in_use.
+#define sm_set_free_with_p_in_use(P, S, N) (sm_clear_chunk_in_use(N), sm_sets_p_inuse_fchunk(P, S))
 
 // Get the internal overhead associated with chunk.
-#define sm_get_overhead_for(P) (sm_is_mem_mapped(P) ? SM_MMAP_CHUNK_OVERHEAD : SM_CHUNK_OVERHEAD)
+#define sm_get_overhead_for(P) (sm_is_mapped(P) ? SM_MMAP_CHUNK_OVERHEAD : SM_CHUNK_OVERHEAD)
 
 // Return true if allocated space is not necessarily cleared.
 #if SM_MMAP_CLEARS
-#define sm_calloc_must_clear(P) (!sm_is_mem_mapped(P))
+#define sm_calloc_must_clear(P) (!sm_is_mapped(P))
 #else
 #define sm_calloc_must_clear(P) (1)
 #endif
@@ -1043,18 +946,18 @@ typedef uint32_t sm_flag_t; // The type of various bit flag sets.
 // Overlaid Data Structures
 
 
-typedef struct sm_tree_chunk_s
+typedef struct sm_tchunk_s
 {
 	// The first four fields must be compatible with sm_malloc_chunk.
 	size_t previous;
 	size_t head;
-	struct sm_tree_chunk_s* forward;
-	struct sm_tree_chunk_s* backward;
-	struct sm_tree_chunk_s* child[2];
-	struct sm_tree_chunk_s* parent;
-	sm_bin_index_t index;
+	struct sm_tchunk_s* forward;
+	struct sm_tchunk_s* backward;
+	struct sm_tchunk_s* child[2];
+	struct sm_tchunk_s* parent;
+	sm_bindex_t index;
 }
-sm_tree_chunk_t, *sm_ptchunk_t, *sm_ptbin_t;
+sm_tchunk_t, *sm_ptchunk_t, *sm_ptbin_t;
 
 
 #define sm_left_most_child(T) ((T)->child[0] != 0 ? (T)->child[0] : (T)->child[1])
@@ -1073,8 +976,8 @@ typedef struct sm_segment_s
 sm_segment_t, *sm_psegment_t;
 
 
-#define sm_is_mmapped_segment(S) ((S)->flags & SM_USE_MMAP_BIT)
-#define sm_is_extern_segment(S) ((S)->flags & SM_EXTERN_BIT)
+#define sm_is_mapped_segment(S) ((S)->flags & SM_USE_MMAP_BIT)
+#define sm_is_external_segment(S) ((S)->flags & SM_EXTERN_BIT)
 
 
 // Allocation State
@@ -1082,11 +985,11 @@ sm_segment_t, *sm_psegment_t;
 
 // Bin types, widths and sizes.
 
-#define SM_N_SMALL_BINS (32U)
-#define SM_N_TREE_BINS (32U)
-#define SM_SMALL_BIN_SHIFT (3U)
+#define SM_N_SMALL_BINS (UINT64_C(32))
+#define SM_N_TREE_BINS (UINT64_C(32))
+#define SM_SMALL_BIN_SHIFT (UINT64_C(3))
 #define SM_SMALL_BIN_WIDTH (SM_SIZE_T_ONE << SM_SMALL_BIN_SHIFT)
-#define SM_TREE_BIN_SHIFT (8U)
+#define SM_TREE_BIN_SHIFT (UINT64_C(8))
 #define SM_MIN_LARGE_SIZE (SM_SIZE_T_ONE << SM_TREE_BIN_SHIFT)
 #define SM_MAX_SMALL_SIZE (SM_MIN_LARGE_SIZE - SM_SIZE_T_ONE)
 #define SM_MAX_SMALL_REQUEST (SM_MAX_SMALL_SIZE - SM_CHUNK_ALIGN_MASK - SM_CHUNK_OVERHEAD)
@@ -1104,7 +1007,7 @@ typedef struct sm_state_s
 	size_t trim_check;
 	size_t release_checks;
 	size_t magic;
-	sm_pchunk_t small_bins[(SM_N_SMALL_BINS + 1) * 2];
+	sm_pchunk_t small_bins[(SM_N_SMALL_BINS + UINT64_C(1)) * UINT64_C(2)];
 	sm_ptbin_t tree_bins[SM_N_TREE_BINS];
 	size_t foot_print;
 	size_t max_foot_print;
@@ -1139,7 +1042,7 @@ static sm_parameters_t sm_m_params__;
 
 
 // Ensure sm_m_params__ is initialized.
-#define sm_ensure_initialization() (void)(sm_m_params__.magic != 0 || sm_init_params())
+#define sm_ensure_initialization() (sm_m_params__.magic != UINT64_C(0) || sm_init_params())
 
 
 #if !SM_ONLY_MSPACES
@@ -1167,19 +1070,19 @@ static struct sm_state_s sm_gm__;
 #endif
 
 
-#define sm_use_mmap(M) ((M)->flags & SM_USE_MMAP_BIT)
-#define sm_enable_mmap(M) ((M)->flags |=  SM_USE_MMAP_BIT)
+#define sm_use_mapping(M) ((M)->flags & SM_USE_MMAP_BIT)
+#define sm_enable_mapping(M) ((M)->flags |=  SM_USE_MMAP_BIT)
 #if SM_HAS_MMAP
-#define sm_disable_mmap(M) ((M)->flags &= ~SM_USE_MMAP_BIT)
+#define sm_disable_mapping(M) ((M)->flags &= ~SM_USE_MMAP_BIT)
 #else
-#define sm_disable_mmap(M)
+#define sm_disable_mapping(M)
 #endif
 
 
 #define sm_use_non_contiguous(M)  ((M)->flags &   SM_USE_NON_CONTIGUOUS_BIT)
 #define sm_disable_contiguous(M) ((M)->flags |=  SM_USE_NON_CONTIGUOUS_BIT)
 
-#define sm_set_lock(M, L) ((M)->flags = (L) ? ((M)->flags | SM_USE_LOCK_BIT) : ((M)->flags & ~SM_USE_LOCK_BIT))
+#define sm_set_locked(M, L) ((M)->flags = (L) ? ((M)->flags | SM_USE_LOCK_BIT) : ((M)->flags & ~SM_USE_LOCK_BIT))
 
 // Page-align a size.
 #define sm_page_align(S) (((S) + (sm_m_params__.page_size - SM_SIZE_T_ONE)) & ~(sm_m_params__.page_size - SM_SIZE_T_ONE))
@@ -1190,13 +1093,13 @@ static struct sm_state_s sm_gm__;
 
 // For mmap, use granularity alignment on windows, else page-align,
 #if defined(SM_OS_WINDOWS) 
-#define sm_mmap_align(S) sm_granularity_align(S)
+#define sm_map_align(S) sm_granularity_align(S)
 #else
-#define sm_mmap_align(S) sm_page_align(S)
+#define sm_map_align(S) sm_page_align(S)
 #endif
 
 
-// For sys_alloc, enough padding to ensure can malloc request on success.
+// For sm_system_allocate, enough padding to ensure can malloc request on success.
 #define SM_SYS_ALLOC_PADDING (SM_TOP_FOOT_SIZE + SM_MALLOC_ALIGNMENT)
 
 #define sm_is_page_aligned(S) (((size_t)(S) & (sm_m_params__.page_size - SM_SIZE_T_ONE)) == 0)
@@ -1207,7 +1110,7 @@ static struct sm_state_s sm_gm__;
 
 
 // Get segment holding given address.
-static sm_psegment_t sm_segment_holding(sm_state_t m, uint8_t* s)
+inline static sm_psegment_t sm_segment_holding(sm_state_t m, uint8_t* s)
 {
 	sm_psegment_t p = &m->segment;
 
@@ -1220,7 +1123,7 @@ static sm_psegment_t sm_segment_holding(sm_state_t m, uint8_t* s)
 
 
 // Return 1 if segment contains a segment link.
-static uint8_t sm_has_segment_link(sm_state_t m, sm_psegment_t s)
+inline static uint8_t sm_has_segment_link(sm_state_t m, sm_psegment_t s)
 {
 	sm_psegment_t p = &m->segment;
 
@@ -1241,7 +1144,7 @@ static uint8_t sm_has_segment_link(sm_state_t m, sm_psegment_t s)
 
 // SM_TOP_FOOT_SIZE is padding at the end of a segment, including space that may be needed to place segment records 
 // and fence posts when new non-contiguous segments are added.
-#define SM_TOP_FOOT_SIZE (sm_align_offset(sm_chunk_to_mem(0)) + sm_pad_request(sizeof(struct sm_segment_s)) + SM_MIN_CHUNK_SIZE)
+#define SM_TOP_FOOT_SIZE (sm_align_offset(sm_chunk_to_memory(0)) + sm_pad_request(sizeof(struct sm_segment_s)) + SM_MIN_CHUNK_SIZE)
 
 
 // Hooks
@@ -1317,8 +1220,8 @@ static void sm_do_check_in_use_chunk(sm_state_t state, sm_pchunk_t chunk);
 static void sm_do_check_free_chunk(sm_state_t state, sm_pchunk_t chunk);
 static void sm_do_check_allocated_chunk(sm_state_t state, void* memory, size_t size);
 static void sm_do_check_tree(sm_state_t state, sm_ptchunk_t t);
-static void sm_do_check_tree_bin(sm_state_t state, sm_bin_index_t state);
-static void sm_do_check_small_bin(sm_state_t state, sm_bin_index_t state);
+static void sm_do_check_tree_bin(sm_state_t state, sm_bindex_t state);
+static void sm_do_check_small_bin(sm_state_t state, sm_bindex_t state);
 static void sm_do_check_allocation_state(sm_state_t state);
 static int sm_bin_find(sm_state_t state, sm_pchunk_t x);
 static size_t sm_traverse_and_check(sm_state_t state);
@@ -1330,7 +1233,7 @@ static size_t sm_traverse_and_check(sm_state_t state);
 
 
 #define sm_is_small(S) (((S) >> SM_SMALL_BIN_SHIFT) < SM_N_SMALL_BINS)
-#define sm_small_index(S) (sm_bin_index_t)((S)  >> SM_SMALL_BIN_SHIFT)
+#define sm_small_index(S) (sm_bindex_t)((S)  >> SM_SMALL_BIN_SHIFT)
 #define sm_small_index_to_size(I) ((I)  << SM_SMALL_BIN_SHIFT)
 #define SM_MIN_SMALL_INDEX (sm_small_index(SM_MIN_CHUNK_SIZE))
 
@@ -1346,41 +1249,41 @@ static size_t sm_traverse_and_check(sm_state_t state);
 #define sm_compute_tree_index(S, I) { uint64_t ctix__ = S >> SM_TREE_BIN_SHIFT;\
 	if (ctix__ == 0) I = 0; else if (ctix__ > UINT64_C(0xFFFF)) I = SM_N_TREE_BINS - 1;\
 	else { uint64_t ctik__ = (uint64_t) sizeof(ctix__) * __CHAR_BIT__ - 1 - (uint64_t) __builtin_clz(ctix__); \
-	I = (sm_bin_index_t)((ctik__ << 1) + ((S >> (ctik__ + (SM_TREE_BIN_SHIFT - 1)) & 1))); } }
+	I = (sm_bindex_t)((ctik__ << 1) + ((S >> (ctik__ + (SM_TREE_BIN_SHIFT - 1)) & 1))); } }
 #elif defined (__INTEL_COMPILER)
 #define sm_compute_tree_index(S, I) { uint64_t ctix__ = S >> SM_TREE_BIN_SHIFT; if (ctix__ == UINT64_C(0)) I = 0; \
 	else if (ctix__ >  UINT64_C(0xFFFF)) I = SM_N_TREE_BINS - 1; else { uint64_t ctik__ = _bit_scan_reverse(ctix__); \
-	I = (sm_bin_index_t)((ctik__ << 1) + ((S >> (ctik__ + (SM_TREE_BIN_SHIFT - 1)) & UINT64_C(1)))); } }
+	I = (sm_bindex_t)((ctik__ << 1) + ((S >> (ctik__ + (SM_TREE_BIN_SHIFT - 1)) & UINT64_C(1)))); } }
 #elif defined(SM_OS_WINDOWS)
 #define sm_compute_tree_index(S, I) { DWORD ctix__ = S >> SM_TREE_BIN_SHIFT; \
-	if (ctix__ ==  UINT64_C(0)) I = 0; else if (ctix__ > UINT64_C(0xFFFF)) I = SM_N_TREE_BINS - 1; \
+	if (ctix__ ==  UINT64_C(0)) I = UINT64_C(0); else if (ctix__ > UINT64_C(0xFFFF)) I = SM_N_TREE_BINS - UINT64_C(1); \
 	else { DWORD ctik__ =  UINT64_C(0); _BitScanReverse((DWORD*)&ctik__, (DWORD)ctix__); \
-	I = (sm_bin_index_t)((ctik__ << 1) + ((S >> (ctik__ + (SM_TREE_BIN_SHIFT-1)) & 1))); } }
+	I = (sm_bindex_t)((ctik__ << 1) + ((S >> (ctik__ + (SM_TREE_BIN_SHIFT - UINT64_C(1))) & UINT64_C(1)))); } }
 #else
 #define sm_compute_tree_index(S, I) { uint64_t ctix__ = S >> SM_TREE_BIN_SHIFT; \
-	if (ctix__ ==  UINT64_C(0)) I = 0; else if (ctix__ > UINT64_C(0xFFFF)) I = SM_N_TREE_BINS - 1; \
+	if (ctix__ ==  UINT64_C(0)) I = 0; else if (ctix__ > UINT64_C(0xFFFF)) I = SM_N_TREE_BINS - UINT64_C(1); \
 	else { uint64_t ctiy__ = (uint64_t)ctix__; uint64_t ctin__ = ((ctiy__ - UINT64_C(0x100)) >> 16) & UINT64_C(8);\
     uint64_t ctik__ = (((ctiy__ <<= ctin__) - UINT64_C(0x1000)) >> 16) & UINT64_C(4); ctin__ += ctik__; \
     ctin__ += ctik__ = (((ctiy__ <<= ctik__) - UINT64_C(0x4000)) >> 16) & 2; ctik__ = UINT64_C(14) - ctin__ + ((ctiy__ <<= ctik__) >> 15); \
-    I = (ctik__ << 1) + ((S >> (ctik__ + (SM_TREE_BIN_SHIFT - 1)) & UINT64_C(1))); } }
+    I = (ctik__ << 1) + ((S >> (ctik__ + (SM_TREE_BIN_SHIFT - UINT64_C(1))) & UINT64_C(1))); } }
 #endif
 
 
 // Bit representing maximum resolved size in a tree bin at index.
-#define sm_bit_for_tree_index(I) ((I == SM_N_TREE_BINS - 1) ? (SM_SIZE_T_BITSIZE - 1) : (((I) >> 1) + SM_TREE_BIN_SHIFT - 2))
+#define sm_bit_for_tree_index(I) ((I == SM_N_TREE_BINS - 1) ? (SM_SIZE_T_BITSIZE - 1) : (((I) >> 1) + SM_TREE_BIN_SHIFT - UINT64_C(2)))
 
 // Shift placing maximum resolved bit in a tree bin at index as sign bit.
-#define sm_left_shift_for_tree_index(I) ((I == SM_N_TREE_BINS - 1) ? 0 : ((SM_SIZE_T_BITSIZE-SM_SIZE_T_ONE) - (((I) >> 1) + SM_TREE_BIN_SHIFT - 2)))
+#define sm_left_shift_for_tree_index(I) ((I == SM_N_TREE_BINS - UINT64_C(1)) ? UINT64_C(0) : ((SM_SIZE_T_BITSIZE-SM_SIZE_T_ONE) - (((I) >> 1) + SM_TREE_BIN_SHIFT - UINT64_C(2))))
 
 // The size of the smallest chunk held in bin with index.
-#define sm_min_size_for_tree_index(I) ((SM_SIZE_T_ONE << (((I) >> 1) + SM_TREE_BIN_SHIFT)) | (((size_t)((I) & SM_SIZE_T_ONE)) << (((I) >> 1) + SM_TREE_BIN_SHIFT - 1)))
+#define sm_min_size_for_tree_index(I) ((SM_SIZE_T_ONE << (((I) >> 1) + SM_TREE_BIN_SHIFT)) | (((size_t)((I) & SM_SIZE_T_ONE)) << (((I) >> 1) + SM_TREE_BIN_SHIFT - UINT64_C(1))))
 
 
 // Operations on Bin Maps
 
 
 // Bit corresponding to given index.
-#define sm_index_to_bit(I) ((sm_bin_map_t)(1) << (I))
+#define sm_index_to_bit(I) ((sm_bin_map_t)UINT64_C(1) << (I))
 
 
 // Mark/clear bits with given index.
@@ -1407,20 +1310,20 @@ static size_t sm_traverse_and_check(sm_state_t state);
 
 // Index corresponding to given bit.
 #if defined(SM_OS_LINUX)
-#define sm_compute_bit_to_index(X, I) { I = (sm_bin_index_t)__builtin_ctz(X); }
+#define sm_compute_bit_to_index(X, I) { I = (sm_bindex_t)__builtin_ctz(X); }
 #elif defined (__INTEL_COMPILER)
-#define sm_compute_bit_to_index(X, I) { I = (sm_bin_index_t)_bit_scan_forward(X); }
+#define sm_compute_bit_to_index(X, I) { I = (sm_bindex_t)_bit_scan_forward(X); }
 #elif defined(SM_OS_WINDOWS)
-#define sm_compute_bit_to_index(X, I) { DWORD cbi__ = 0; _BitScanForward((DWORD*)&cbi__, X); I = (sm_bin_index_t)cbi__; }
+#define sm_compute_bit_to_index(X, I) { DWORD cbi__ = 0; _BitScanForward((DWORD*)&cbi__, X); I = (sm_bindex_t)cbi__; }
 #elif SM_USE_BUILTIN_FFS
-#define sm_compute_bit_to_index(X, I) { I = (ffs(X) - 1); }
+#define sm_compute_bit_to_index(X, I) { I = (ffs(X) - UINT64_C(1)); }
 #else
-#define sm_compute_bit_to_index(X, I) { uint32_t cbiy__ = (X) - 1, cbik__ = cbiy__ >> (16 - 4) & 16;, cbin__ = cbik__; \
-	cbiy__ >>= cbik__; cbin__ += cbik__ = cbiy__ >> (8 - 3) &  8; cbiy__ >>= cbik__; \
-	cbin__ += cbik__ = cbiy__ >> (4 - 2) &  4; cbiy__ >>= cbik__; \
-	cbin__ += cbik__ = cbiy__ >> (2 - 1) &  2; cbiy__ >>= cbik__; \
-	cbin__ += cbik__ = cbiy__ >> (1 - 0) &  1; cbiy__ >>= cbik__; \
-	I = (sm_bin_index_t)(cbin__ + cbiy__); }
+#define sm_compute_bit_to_index(X, I) { uint64_t cbiy__ = (X) - 1, cbik__ = cbiy__ >> (UINT64_C(16) - UINT64_C(4)) & UINT64_C(16); cbin__ = cbik__; \
+	cbiy__ >>= cbik__; cbin__ += cbik__ = cbiy__ >> (UINT64_C(8) - UINT64_C(3)) & UINT64_C(8); cbiy__ >>= cbik__; \
+	cbin__ += cbik__ = cbiy__ >> (UINT64_C(4) - UINT64_C(2)) & UINT64_C(4); cbiy__ >>= cbik__; \
+	cbin__ += cbik__ = cbiy__ >> (UINT64_C(2) - UINT64_C(1)) & UINT64_C(2); cbiy__ >>= cbik__; \
+	cbin__ += cbik__ = cbiy__ >> (UINT64_C(1) - UINT64_C(0)) & UINT64_C(1); cbiy__ >>= cbik__; \
+	I = (sm_bindex_t)(cbin__ + cbiy__); }
 #endif
 
 
@@ -1428,39 +1331,39 @@ static size_t sm_traverse_and_check(sm_state_t state);
 
 
 #if !SM_INSECURE
-// Check if address A is at least as high as any from MORECORE or MMAP.
-#define sm_ok_address(M, A) ((uint8_t*)(A) >= (M)->least_address)
+// Check if address A is at least as high as any from MORECORE or SM_MMAP.
+#define sm_is_address_ok(M, A) ((uint8_t*)(A) >= (M)->least_address)
 // Check if address of next chunk N is higher than base chunk P.
 #define sm_ok_next(P, N) ((uint8_t*)(P) < (uint8_t*)(N))
 // Check if P has in-use status.
-#define sm_ok_in_use(P) sm_is_in_use(P)
-// Check if P has its sm_p_in_use bit on.
-#define sm_ok_p_in_use(P) sm_p_in_use(P)
+#define sm_is_in_use_ok(P) sm_is_in_use(P)
+// Check if P has its sm_is_p_in_use bit on.
+#define sm_ok_p_in_use(P) sm_is_p_in_use(P)
 #else
-#define sm_ok_address(M, A) (1)
+#define sm_is_address_ok(M, A) (1)
 #define sm_ok_next(P, N) (1)
-#define sm_ok_in_use(P) (1)
+#define sm_is_in_use_ok(P) (1)
 #define sm_ok_p_in_use(P) (1)
 #endif
 
 
 #if (SM_FOOTERS && !SM_INSECURE)
 // Check if (alleged) sm_state_t M has expected magic field.
-#define sm_ok_magic(M) ((M)->magic == sm_m_params__.magic)
+#define sm_is_magic_ok(M) ((M)->magic == sm_m_params__.magic)
 #else
-#define sm_ok_magic(M) (1)
+#define sm_is_magic_ok(M) (1)
 #endif
 
 
 // In GCC, use __builtin_expect to minimize impact of checks.
 #if !SM_INSECURE
-#if defined(__GNUC__) && __GNUC__ >= 3
-#define sm_rt_check(E) __builtin_expect(E, 1)
+#if defined(__GNUC__) && (__GNUC__ >= 3)
+#define sm_runtime_check(E) __builtin_expect(E, 1)
 #else
-#define sm_rt_check(E)  (E)
+#define sm_runtime_check(E) (E)
 #endif
 #else
-#define sm_rt_check(E)  (1)
+#define sm_runtime_check(E) (1)
 #endif
 
 
@@ -1476,21 +1379,21 @@ static size_t sm_traverse_and_check(sm_state_t state);
 #else
 // Set foot of in-use chunk to be XOR of sm_state_t and seed.
 #define sm_mark_in_use_foot(M, P, S) (((sm_pchunk_t)((uint8_t*)(P) + (S)))->previous = ((size_t)(M) ^ sm_m_params__.magic))
-#define sm_get_mstate_for(P) ((sm_state_t)(((sm_pchunk_t)((uint8_t*)(P) + (sm_chunk_size(P))))->previous ^ sm_m_params__.magic))
+#define sm_get_memory_state_for(P) ((sm_state_t)(((sm_pchunk_t)((uint8_t*)(P) + (sm_chunk_size(P))))->previous ^ sm_m_params__.magic))
 #define sm_set_in_use(M, P, S) ((P)->head = (((P)->head & SM_P_IN_USE_BIT) | S | SM_C_IN_USE_BIT), (((sm_pchunk_t)(((uint8_t*)(P)) + (S)))->head |= SM_P_IN_USE_BIT), sm_mark_in_use_foot(M, P, S))
 #define sm_set_in_use_and_p_in_use(M, P, S) ((P)->head = (S | SM_P_IN_USE_BIT|SM_C_IN_USE_BIT), (((sm_pchunk_t)(((uint8_t*)(P)) + (S)))->head |= SM_P_IN_USE_BIT), sm_mark_in_use_foot(M, P, S))
 #define sm_sets_p_inuse_inuse_chunk(M, P, S) ((P)->head = (S | SM_P_IN_USE_BIT | SM_C_IN_USE_BIT), sm_mark_in_use_foot(M, P, S))
 #endif
 
 
-#if LOCK_AT_FORK
-static void pre_fork(void) { SM_ACQUIRE_LOCK(&(sm_gm)->mutex); }
-static void post_fork_parent(void) { SM_RELEASE_LOCK(&(sm_gm)->mutex); }
-static void post_fork_child(void) { SM_INITIAL_LOCK(&(sm_gm)->mutex); }
+#if SM_LOCK_AT_FORK
+inline static void sm_pre_fork() { SM_ACQUIRE_LOCK(&(sm_gm)->mutex); }
+inline static void sm_post_fork_parent() { SM_RELEASE_LOCK(&(sm_gm)->mutex); }
+inline static void sm_post_fork_child() { SM_INITIAL_LOCK(&(sm_gm)->mutex); }
 #endif
 
 
-static int sm_init_params(void)
+inline static uint8_t sm_init_params()
 {
 #ifdef SM_NEED_GLOBAL_LOCK_INIT
 	if (sm_malloc_global_mutex_status__ <= 0)
@@ -1499,26 +1402,26 @@ static int sm_init_params(void)
 
 	SM_ACQUIRE_MALLOC_GLOBAL_LOCK();
 
-	if (sm_m_params__.magic == 0)
+	if (sm_m_params__.magic == UINT64_C(0))
 	{
 		size_t magic, psize, gsize;
 
 #if !defined(SM_OS_WINDOWS)
 		psize = sm_malloc_get_page_size;
-		gsize = ((SM_DEFAULT_GRANULARITY != 0) ? SM_DEFAULT_GRANULARITY : psize);
+		gsize = ((SM_DEFAULT_GRANULARITY != UINT64_C(0)) ? SM_DEFAULT_GRANULARITY : psize);
 #else
 		{
 			SYSTEM_INFO si;
 			GetSystemInfo(&si);
 			psize = si.dwPageSize;
-			gsize = ((SM_DEFAULT_GRANULARITY != 0) ? SM_DEFAULT_GRANULARITY : si.dwAllocationGranularity);
+			gsize = ((SM_DEFAULT_GRANULARITY != UINT64_C(0)) ? SM_DEFAULT_GRANULARITY : si.dwAllocationGranularity);
 		}
 #endif
 
-		if ((sizeof(size_t) != sizeof(uint8_t*)) || (SM_MAX_SIZE_T < SM_MIN_CHUNK_SIZE) || (sizeof(int32_t) < 4) ||
-			(SM_MALLOC_ALIGNMENT < (size_t)8U) || ((SM_MALLOC_ALIGNMENT & (SM_MALLOC_ALIGNMENT - SM_SIZE_T_ONE)) != 0) ||
-			((SM_MCHUNK_SIZE & (SM_MCHUNK_SIZE - SM_SIZE_T_ONE)) != 0) || ((gsize & (gsize - SM_SIZE_T_ONE)) != 0) ||
-			((psize & (psize - SM_SIZE_T_ONE)) != 0))
+		if ((sizeof(size_t) != sizeof(uint8_t*)) || (SM_MAX_SIZE_T < SM_MIN_CHUNK_SIZE) || (sizeof(int32_t) < UINT64_C(4)) ||
+			(SM_MALLOC_ALIGNMENT < (size_t)UINT64_C(8)) || ((SM_MALLOC_ALIGNMENT & (SM_MALLOC_ALIGNMENT - SM_SIZE_T_ONE)) != UINT64_C(0)) ||
+			((SM_MCHUNK_SIZE & (SM_MCHUNK_SIZE - SM_SIZE_T_ONE)) != UINT64_C(0)) || ((gsize & (gsize - SM_SIZE_T_ONE)) != UINT64_C(0)) ||
+			((psize & (psize - SM_SIZE_T_ONE)) != UINT64_C(0)))
 			SM_ABORT;
 
 		sm_m_params__.granularity = gsize;
@@ -1534,25 +1437,27 @@ static int sm_init_params(void)
 
 #if !SM_ONLY_MSPACES
 		sm_gm->flags = sm_m_params__.default_flags;
-		(void)SM_INITIAL_LOCK(&sm_gm->mutex);
+		SM_INITIAL_LOCK(&sm_gm->mutex);
 #endif
 
-#if LOCK_AT_FORK
-		pthread_atfork(&pre_fork, &post_fork_parent, &post_fork_child);
+#if SM_LOCK_AT_FORK
+		pthread_atfork(&sm_pre_fork, &sm_post_fork_parent, &sm_post_fork_child);
 #endif
 
 		{
+
 #if SM_USE_DEV_RANDOM
 			int fd;
 			uint8_t buf[sizeof(size_t)];
 
 			if ((fd = open("/dev/urandom", O_RDONLY)) >= 0 && read(fd, buf, sizeof(buf)) == sizeof(buf))
 			{
-				magic = *((size_t *)buf);
+				magic = *((size_t*)buf);
 				close(fd);
 			}
 			else
 #endif
+
 #if defined(SM_OS_WINDOWS)
 				magic = (size_t)(GetTickCount() ^ UINT64_C(0x55555555));
 #elif defined(SM_LACKS_TIME_H)
@@ -1573,7 +1478,7 @@ static int sm_init_params(void)
 }
 
 
-static int sm_change_param(int param, int value)
+inline static uint8_t sm_change_param(int param, int value)
 {
 	sm_ensure_initialization();
 
@@ -1585,7 +1490,7 @@ static int sm_change_param(int param, int value)
 		sm_m_params__.trim_threshold = val;
 		return 1;
 	case SM_M_GRANULARITY:
-		if (val >= sm_m_params__.page_size && ((val & (val - 1)) == 0))
+		if (val >= sm_m_params__.page_size && ((val & (val - UINT64_C(1))) == UINT64_C(0)))
 		{
 			sm_m_params__.granularity = val;
 			return 1;
@@ -1606,258 +1511,258 @@ static int sm_change_param(int param, int value)
 
 
 // Check properties of any chunk, whether free, inuse, mmapped etc.
-static void sm_do_check_any_chunk(sm_state_t m, sm_pchunk_t p)
+inline static void sm_do_check_any_chunk(sm_state_t state, sm_pchunk_t chunk)
 {
-	assert((sm_is_aligned(sm_chunk_to_mem(p))) || (p->head == SM_FENCE_POST_HEAD));
-	assert(sm_ok_address(m, p));
+	assert((sm_is_aligned(sm_chunk_to_memory(chunk))) || (chunk->head == SM_FENCE_POST_HEAD));
+	assert(sm_is_address_ok(state, chunk));
 }
 
 
 // Check properties of top chunk.
-static void sm_do_check_top_chunk(sm_state_t m, sm_pchunk_t p)
+inline static void sm_do_check_top_chunk(sm_state_t state, sm_pchunk_t chunk)
 {
-	sm_psegment_t sp = sm_segment_holding(m, (uint8_t*)p);
-	size_t sz = p->head & ~SM_IN_USE_BITS;
+	sm_psegment_t sp = sm_segment_holding(state, (uint8_t*)chunk);
+	size_t sz = chunk->head & ~SM_IN_USE_BITS;
 
-	assert(sp != 0);
-	assert((sm_is_aligned(sm_chunk_to_mem(p))) || (p->head == SM_FENCE_POST_HEAD));
-	assert(sm_ok_address(m, p));
-	assert(sz == m->top_size);
-	assert(sz > 0);
-	assert(sz == ((sp->base + sp->size) - (char*)p) - SM_TOP_FOOT_SIZE);
-	assert(sm_p_in_use(p));
-	assert(!sm_p_in_use(sm_chunk_plus_offset(p, sz)));
+	assert(sp != NULL);
+	assert((sm_is_aligned(sm_chunk_to_memory(chunk))) || (chunk->head == SM_FENCE_POST_HEAD));
+	assert(sm_is_address_ok(state, chunk));
+	assert(sz == state->top_size);
+	assert(sz > UINT64_C(0));
+	assert(sz == ((sp->base + sp->size) - (uint8_t*)chunk) - SM_TOP_FOOT_SIZE);
+	assert(sm_is_p_in_use(chunk));
+	assert(!sm_is_p_in_use(sm_chunk_plus_offset(chunk, sz)));
 }
 
 
 // Check properties of (in-use) mmapped chunks.
-static void sm_do_check_mapped_chunk(sm_state_t m, sm_pchunk_t p)
+inline static void sm_do_check_mapped_chunk(sm_state_t state, sm_pchunk_t chunk)
 {
-	size_t sz = sm_chunk_size(p);
-	size_t len = (sz + (p->previous) + SM_MMAP_FOOT_PAD);
+	size_t sz = sm_chunk_size(chunk);
+	size_t ln = (sz + (chunk->previous) + SM_MMAP_FOOT_PAD);
 
-	assert(sm_is_mem_mapped(p));
-	assert(sm_use_mmap(m));
-	assert((sm_is_aligned(sm_chunk_to_mem(p))) || (p->head == SM_FENCE_POST_HEAD));
-	assert(sm_ok_address(m, p));
+	assert(sm_is_mapped(chunk));
+	assert(sm_use_mapping(state));
+	assert((sm_is_aligned(sm_chunk_to_memory(chunk))) || (chunk->head == SM_FENCE_POST_HEAD));
+	assert(sm_is_address_ok(state, chunk));
 	assert(!sm_is_small(sz));
-	assert((len & (sm_m_params__.page_size - SM_SIZE_T_ONE)) == 0);
-	assert(sm_chunk_plus_offset(p, sz)->head == SM_FENCE_POST_HEAD);
-	assert(sm_chunk_plus_offset(p, sz + SM_SIZE_T_SIZE)->head == 0);
+	assert((ln & (sm_m_params__.page_size - SM_SIZE_T_ONE)) == UINT64_C(0));
+	assert(sm_chunk_plus_offset(chunk, sz)->head == SM_FENCE_POST_HEAD);
+	assert(sm_chunk_plus_offset(chunk, sz + SM_SIZE_T_SIZE)->head == UINT64_C(0));
 }
 
 
 // Check properties of in-use chunks.
-static void sm_do_check_in_use_chunk(sm_state_t m, sm_pchunk_t p)
+inline static void sm_do_check_in_use_chunk(sm_state_t state, sm_pchunk_t chunk)
 {
-	sm_do_check_any_chunk(m, p);
+	sm_do_check_any_chunk(state, chunk);
 
-	assert(sm_is_in_use(p));
-	assert(sm_next_p_in_use(p));
-	assert(sm_is_mem_mapped(p) || sm_p_in_use(p) || sm_next_chunk(sm_previous_chunk(p)) == p);
+	assert(sm_is_in_use(chunk));
+	assert(sm_next_p_in_use(chunk));
+	assert(sm_is_mapped(chunk) || sm_is_p_in_use(chunk) || sm_next_chunk(sm_previous_chunk(chunk)) == chunk);
 
-	if (sm_is_mem_mapped(p))
-		sm_do_check_mapped_chunk(m, p);
+	if (sm_is_mapped(chunk))
+		sm_do_check_mapped_chunk(state, chunk);
 }
 
 
 // Check properties of free chunks.
-static void sm_do_check_free_chunk(sm_state_t m, sm_pchunk_t p)
+inline static void sm_do_check_free_chunk(sm_state_t state, sm_pchunk_t chunk)
 {
-	size_t sz = sm_chunk_size(p);
-	sm_pchunk_t next = sm_chunk_plus_offset(p, sz);
+	size_t size = sm_chunk_size(chunk);
+	sm_pchunk_t next = sm_chunk_plus_offset(chunk, size);
 
-	sm_do_check_any_chunk(m, p);
+	sm_do_check_any_chunk(state, chunk);
 
-	assert(!sm_is_in_use(p));
-	assert(!sm_next_p_in_use(p));
-	assert(!sm_is_mem_mapped(p));
+	assert(!sm_is_in_use(chunk));
+	assert(!sm_next_p_in_use(chunk));
+	assert(!sm_is_mapped(chunk));
 
-	if (p != m->dv && p != m->top)
+	if (chunk != state->dv && chunk != state->top)
 	{
-		if (sz >= SM_MIN_CHUNK_SIZE)
+		if (size >= SM_MIN_CHUNK_SIZE)
 		{
-			assert((sz & SM_CHUNK_ALIGN_MASK) == 0);
-			assert(sm_is_aligned(sm_chunk_to_mem(p)));
-			assert(next->previous == sz);
-			assert(sm_p_in_use(p));
-			assert(next == m->top || sm_is_in_use(next));
-			assert(p->forward->backward == p);
-			assert(p->backward->forward == p);
+			assert((size & SM_CHUNK_ALIGN_MASK) == 0);
+			assert(sm_is_aligned(sm_chunk_to_memory(chunk)));
+			assert(next->previous == size);
+			assert(sm_is_p_in_use(chunk));
+			assert(next == state->top || sm_is_in_use(next));
+			assert(chunk->forward->backward == chunk);
+			assert(chunk->backward->forward == chunk);
 		}
-		else assert(sz == SM_SIZE_T_SIZE);
+		else assert(size == SM_SIZE_T_SIZE);
 	}
 }
 
 // Check properties of malloced chunks at the point they are malloced.
-static void sm_do_check_allocated_chunk(sm_state_t m, void* pmem, size_t s)
+inline static void sm_do_check_allocated_chunk(sm_state_t state, void* memory, size_t size)
 {
-	if (pmem != 0)
+	if (memory != NULL)
 	{
-		sm_pchunk_t p = sm_mem_to_chunk(pmem);
-		size_t sz = p->head & ~SM_IN_USE_BITS;
+		sm_pchunk_t chunk = sm_memory_to_chunk(memory);
+		size_t sz = chunk->head & ~SM_IN_USE_BITS;
 
-		sm_do_check_in_use_chunk(m, p);
+		sm_do_check_in_use_chunk(state, chunk);
 
-		assert((sz & SM_CHUNK_ALIGN_MASK) == 0);
+		assert((sz & SM_CHUNK_ALIGN_MASK) == UINT64_C(0));
 		assert(sz >= SM_MIN_CHUNK_SIZE);
-		assert(sz >= s);
-		assert(sm_is_mem_mapped(p) || sz < (s + SM_MIN_CHUNK_SIZE));
+		assert(sz >= size);
+		assert(sm_is_mapped(chunk) || sz < (s + SM_MIN_CHUNK_SIZE));
 	}
 }
 
 
 // Check a tree and its subtrees.
-static void sm_do_check_tree(sm_state_t m, sm_ptchunk_t t)
+inline static void sm_do_check_tree(sm_state_t state, sm_ptchunk_t chunk)
 {
-	sm_ptchunk_t head = 0;
-	sm_ptchunk_t u = t;
-	sm_bin_index_t tindex = t->index;
-	size_t tsize = sm_chunk_size(t);
-	sm_bin_index_t idx;
+	sm_ptchunk_t head = NULL;
+	sm_ptchunk_t uchk = chunk;
+	sm_bindex_t tidx = chunk->index;
+	size_t tsiz = sm_chunk_size(chunk);
+	sm_bindex_t bidx;
 
-	sm_compute_tree_index(tsize, idx);
+	sm_compute_tree_index(tsiz, bidx);
 
-	assert(tindex == idx);
-	assert(tsize >= SM_MIN_LARGE_SIZE);
-	assert(tsize >= sm_min_size_for_tree_index(idx));
-	assert((idx == SM_N_TREE_BINS - 1) || (tsize < sm_min_size_for_tree_index((idx + 1))));
+	assert(tidx == bidx);
+	assert(tsiz >= SM_MIN_LARGE_SIZE);
+	assert(tsiz >= sm_min_size_for_tree_index(bidx));
+	assert((bidx == SM_N_TREE_BINS - UINT64_C(1)) || (tsiz < sm_min_size_for_tree_index((bidx + UINT64_C(1)))));
 
 	do
 	{
-		sm_do_check_any_chunk(m, ((sm_pchunk_t)u));
+		sm_do_check_any_chunk(state, ((sm_pchunk_t)uchk));
 
-		assert(u->index == tindex);
-		assert(sm_chunk_size(u) == tsize);
-		assert(!sm_is_in_use(u));
-		assert(!sm_next_p_in_use(u));
-		assert(u->forward->backward == u);
-		assert(u->backward->forward == u);
+		assert(uchk->index == tidx);
+		assert(sm_chunk_size(uchk) == tsiz);
+		assert(!sm_is_in_use(uchk));
+		assert(!sm_next_p_in_use(uchk));
+		assert(uchk->forward->backward == uchk);
+		assert(uchk->backward->forward == uchk);
 
-		if (u->parent == 0)
+		if (uchk->parent == NULL)
 		{
-			assert(u->child[0] == 0);
-			assert(u->child[1] == 0);
+			assert(uchk->child[0] == NULL);
+			assert(uchk->child[1] == NULL);
 		}
 		else
 		{
-			assert(head == 0);
+			assert(head == NULL);
 
-			head = u;
+			head = uchk;
 
-			assert(u->parent != u);
-			assert(u->parent->child[0] == u || u->parent->child[1] == u || *((sm_ptbin_t*)(u->parent)) == u);
+			assert(uchk->parent != uchk);
+			assert(uchk->parent->child[0] == uchk || uchk->parent->child[1] == uchk || *((sm_ptbin_t*)(uchk->parent)) == uchk);
 
-			if (u->child[0] != 0)
+			if (uchk->child[0] != NULL)
 			{
-				assert(u->child[0]->parent == u);
-				assert(u->child[0] != u);
+				assert(uchk->child[0]->parent == uchk);
+				assert(uchk->child[0] != uchk);
 
-				sm_do_check_tree(m, u->child[0]);
+				sm_do_check_tree(state, uchk->child[0]);
 			}
 
-			if (u->child[1] != 0)
+			if (uchk->child[1] != NULL)
 			{
-				assert(u->child[1]->parent == u);
-				assert(u->child[1] != u);
+				assert(uchk->child[1]->parent == uchk);
+				assert(uchk->child[1] != uchk);
 
-				sm_do_check_tree(m, u->child[1]);
+				sm_do_check_tree(state, uchk->child[1]);
 			}
 
-			if (u->child[0] != 0 && u->child[1] != 0)
-				assert(sm_chunk_size(u->child[0]) < sm_chunk_size(u->child[1]));
+			if (uchk->child[0] != NULL && uchk->child[1] != NULL)
+				assert(sm_chunk_size(uchk->child[0]) < sm_chunk_size(uchk->child[1]));
 		}
 
-		u = u->forward;
+		uchk = uchk->forward;
+	} 
+	while (uchk != chunk);
 
-	} while (u != t);
-
-	assert(head != 0);
+	assert(head != NULL);
 }
 
 
 // Check all the chunks in a tree bin.
-static void sm_do_check_tree_bin(sm_state_t m, sm_bin_index_t i)
+inline static void sm_do_check_tree_bin(sm_state_t state, sm_bindex_t index)
 {
-	sm_ptbin_t* tb = sm_tree_bin_at(m, i);
-	sm_ptchunk_t t = *tb;
+	sm_ptbin_t* tb = sm_tree_bin_at(state, index);
+	sm_ptchunk_t tc = *tb;
 
-	int empty = (m->tree_map & (1U << i)) == 0;
+	uint32_t empty = ((state->tree_map & (UINT64_C(1) << index)) == UINT64_C(0));
 
-	if (t == 0) assert(empty);
-	if (!empty) sm_do_check_tree(m, t);
+	if (tc == NULL) assert(empty);
+	if (!empty) sm_do_check_tree(state, tc);
 }
 
 
 // Check all the chunks in a small bin.
-static void sm_do_check_small_bin(sm_state_t m, sm_bin_index_t i)
+inline static void sm_do_check_small_bin(sm_state_t state, sm_bindex_t index)
 {
-	sm_psbin_t b = sm_small_bin_at(m, i);
-	sm_pchunk_t p = b->backward;
-	uint32_t empty = ((m->small_map & (1U << i)) == 0);
+	sm_psbin_t sbin = sm_small_bin_at(state, index);
+	sm_pchunk_t pbak = sbin->backward;
+	uint8_t emty = ((state->small_map & (UINT64_C(1) << index)) == UINT64_C(0));
 
-	if (p == b) assert(empty);
+	if (pbak == sbin) assert(emty);
 
-	if (!empty)
+	if (!emty)
 	{
-		for (; p != b; p = p->backward)
+		for (; pbak != sbin; pbak = pbak->backward)
 		{
-			size_t size = sm_chunk_size(p);
-			sm_pchunk_t q;
+			size_t size = sm_chunk_size(pbak);
+			sm_pchunk_t qchk;
 
-			sm_do_check_free_chunk(m, p);
+			sm_do_check_free_chunk(state, pbak);
 
-			assert(sm_small_index(size) == i);
-			assert(p->backward == b || sm_chunk_size(p->backward) == sm_chunk_size(p));
+			assert(sm_small_index(size) == index);
+			assert(pbak->backward == sbin || sm_chunk_size(pbak->backward) == sm_chunk_size(pbak));
 
-			q = sm_next_chunk(p);
+			qchk = sm_next_chunk(pbak);
 
-			if (q->head != SM_FENCE_POST_HEAD)
-				sm_do_check_in_use_chunk(m, q);
+			if (qchk->head != SM_FENCE_POST_HEAD)
+				sm_do_check_in_use_chunk(state, qchk);
 		}
 	}
 }
 
 
-// Find x in a bin. Used in other check functions.
-static int sm_bin_find(sm_state_t m, sm_pchunk_t x)
+// Find chunk in a bin. Used in other check functions.
+inline static uint8_t sm_bin_find(sm_state_t state, sm_pchunk_t chunk)
 {
-	size_t size = sm_chunk_size(x);
+	size_t size = sm_chunk_size(chunk);
 
 	if (sm_is_small(size))
 	{
-		sm_bin_index_t sidx = sm_small_index(size);
-		sm_psbin_t b = sm_small_bin_at(m, sidx);
+		sm_bindex_t sidx = sm_small_index(size);
+		sm_psbin_t sbin = sm_small_bin_at(state, sidx);
 
-		if (sm_small_map_is_marked(m, sidx))
+		if (sm_small_map_is_marked(state, sidx))
 		{
-			sm_pchunk_t p = b;
-			do if (p == x) return 1;
-			while ((p = p->forward) != b);
+			sm_pchunk_t pchk = sbin;
+			do if (pchk == chunk) return 1;
+			while ((pchk = pchk->forward) != sbin);
 		}
 	}
 	else
 	{
-		sm_bin_index_t tidx;
+		sm_bindex_t tidx;
 
 		sm_compute_tree_index(size, tidx);
 
-		if (sm_tree_map_is_marked(m, tidx))
+		if (sm_tree_map_is_marked(state, tidx))
 		{
-			sm_ptchunk_t t = *sm_tree_bin_at(m, tidx);
-			size_t sizebits = size << sm_left_shift_for_tree_index(tidx);
+			sm_ptchunk_t tchk = *sm_tree_bin_at(state, tidx);
+			size_t sbit = size << sm_left_shift_for_tree_index(tidx);
 
-			while (t != 0 && sm_chunk_size(t) != size)
+			while (tchk != 0 && sm_chunk_size(tchk) != size)
 			{
-				t = t->child[(sizebits >> (SM_SIZE_T_BITSIZE - SM_SIZE_T_ONE)) & 1];
-				sizebits <<= 1;
+				tchk = tchk->child[(sbit >> (SM_SIZE_T_BITSIZE - SM_SIZE_T_ONE)) & UINT64_C(1)];
+				sbit <<= 1;
 			}
 
-			if (t != 0)
+			if (tchk != 0)
 			{
-				sm_ptchunk_t u = t;
-				do if (u == (sm_ptchunk_t)x) return 1;
-				while ((u = u->forward) != t);
+				sm_ptchunk_t uchk = tchk;
+				do if (uchk == (sm_ptchunk_t)chunk) return 1;
+				while ((uchk = uchk->forward) != tchk);
 			}
 		}
 	}
@@ -1867,185 +1772,192 @@ static int sm_bin_find(sm_state_t m, sm_pchunk_t x)
 
 
 // Traverse each chunk and check it; return total.
-static size_t sm_traverse_and_check(sm_state_t m)
+inline static size_t sm_traverse_and_check(sm_state_t state)
 {
-	size_t sum = 0;
+	size_t ssum = UINT64_C(0);
 
-	if (sm_is_initialized(m))
+	if (sm_is_initialized(state))
 	{
-		sm_psegment_t s = &m->segment;
-		sum += m->top_size + SM_TOP_FOOT_SIZE;
+		sm_psegment_t sseg = &state->segment;
+		ssum += state->top_size + SM_TOP_FOOT_SIZE;
 
-		while (s != 0)
+		while (sseg != NULL)
 		{
-			sm_pchunk_t q = sm_align_as_chunk(s->base);
-			sm_pchunk_t lastq = 0;
+			sm_pchunk_t qchk = sm_align_as_chunk(sseg->base);
+			sm_pchunk_t qlst = NULL;
 
-			assert(sm_p_in_use(q));
+			assert(sm_is_p_in_use(qchk));
 
-			while (sm_segment_holds(s, q) && q != m->top && q->head != SM_FENCE_POST_HEAD)
+			while (sm_segment_holds(sseg, qchk) && qchk != state->top && qchk->head != SM_FENCE_POST_HEAD)
 			{
-				sum += sm_chunk_size(q);
+				ssum += sm_chunk_size(qchk);
 
-				if (sm_is_in_use(q))
+				if (sm_is_in_use(qchk))
 				{
-					assert(!sm_bin_find(m, q));
+					assert(!sm_bin_find(state, qchk));
 
-					sm_do_check_in_use_chunk(m, q);
+					sm_do_check_in_use_chunk(state, qchk);
 				}
 				else
 				{
-					assert(q == m->dv || sm_bin_find(m, q));
-					assert(lastq == 0 || sm_is_in_use(lastq));
+					assert(qchk == state->dv || sm_bin_find(state, qchk));
+					assert(qlst == NULL || sm_is_in_use(qlst));
 
-					sm_do_check_free_chunk(m, q);
+					sm_do_check_free_chunk(state, qchk);
 				}
 
-				lastq = q;
+				qlst = qchk;
 
-				q = sm_next_chunk(q);
+				qchk = sm_next_chunk(qchk);
 			}
 
-			s = s->next;
+			sseg = sseg->next;
 		}
 	}
 
-	return sum;
+	return ssum;
 }
 
 
 // Check all properties of sm_state_s.
-static void sm_do_check_allocation_state(sm_state_t m)
+inline static void sm_do_check_allocation_state(sm_state_t state)
 {
-	sm_bin_index_t i;
-	size_t total;
+	sm_bindex_t bidx;
+	size_t totl;
 
-	for (i = 0; i < SM_N_SMALL_BINS; ++i) sm_do_check_small_bin(m, i);
-	for (i = 0; i < SM_N_TREE_BINS; ++i) sm_do_check_tree_bin(m, i);
+	for (bidx = UINT64_C(0); bidx < SM_N_SMALL_BINS; ++bidx) 
+		sm_do_check_small_bin(state, bidx);
 
-	if (m->dv_size != 0)
+	for (bidx = UINT64_C(0); bidx < SM_N_TREE_BINS; ++bidx) 
+		sm_do_check_tree_bin(state, bidx);
+
+	if (state->dv_size != UINT64_C(0))
 	{
-		sm_do_check_any_chunk(m, m->dv);
+		sm_do_check_any_chunk(state, state->dv);
 
-		assert(m->dv_size == sm_chunk_size(m->dv));
-		assert(m->dv_size >= SM_MIN_CHUNK_SIZE);
-		assert(sm_bin_find(m, m->dv) == 0);
+		assert(state->dv_size == sm_chunk_size(state->dv));
+		assert(state->dv_size >= SM_MIN_CHUNK_SIZE);
+		assert(sm_bin_find(state, state->dv) == NULL);
 	}
 
-	if (m->top != 0)
+	if (state->top != NULL)
 	{
-		sm_do_check_top_chunk(m, m->top);
+		sm_do_check_top_chunk(state, state->top);
 
-		assert(m->top_size > 0);
-		assert(sm_bin_find(m, m->top) == 0);
+		assert(state->top_size > UINT64_C(0));
+		assert(sm_bin_find(state, state->top) == NULL);
 	}
 
-	total = sm_traverse_and_check(m);
+	totl = sm_traverse_and_check(state);
 
-	assert(total <= m->foot_print);
-	assert(m->foot_print <= m->max_foot_print);
+	assert(totl <= state->foot_print);
+	assert(state->foot_print <= state->max_foot_print);
 }
 
 #endif
 
 
 #if !SM_NO_ALLOCATION_INFO
-static struct sm_memory_info_t sm_internal_mem_info(sm_state_t m)
+inline static struct sm_memory_info_t sm_internal_memory_info(sm_state_t state)
 {
-	struct sm_memory_info_t nm = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+	struct sm_memory_info_t imem = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
 	sm_ensure_initialization();
 
-	if (!SM_PRE_ACTION(m))
+	if (!SM_PRE_ACTION(state))
 	{
-		sm_check_allocation_state(m);
+		sm_check_allocation_state(state);
 
-		if (sm_is_initialized(m))
+		if (sm_is_initialized(state))
 		{
-			size_t nfree = SM_SIZE_T_ONE;
-			size_t mfree = m->top_size + SM_TOP_FOOT_SIZE;
-			size_t sum = mfree;
-			sm_psegment_t s = &m->segment;
+			size_t nuse = SM_SIZE_T_ONE;
+			size_t muse = state->top_size + SM_TOP_FOOT_SIZE;
+			size_t ssum = muse;
+			sm_psegment_t pseg = &state->segment;
 
-			while (s != 0)
+			while (pseg != 0)
 			{
-				sm_pchunk_t q = sm_align_as_chunk(s->base);
+				sm_pchunk_t qchk = sm_align_as_chunk(pseg->base);
 
-				while (sm_segment_holds(s, q) && q != m->top && q->head != SM_FENCE_POST_HEAD)
+				while (sm_segment_holds(pseg, qchk) && qchk != state->top && qchk->head != SM_FENCE_POST_HEAD)
 				{
-					size_t sz = sm_chunk_size(q);
-					sum += sz;
+					size_t csiz = sm_chunk_size(qchk);
+					ssum += csiz;
 
-					if (!sm_is_in_use(q))
+					if (!sm_is_in_use(qchk))
 					{
-						mfree += sz;
-						++nfree;
+						muse += csiz;
+						++nuse;
 					}
 
-					q = sm_next_chunk(q);
+					qchk = sm_next_chunk(qchk);
 				}
 
-				s = s->next;
+				pseg = pseg->next;
 			}
 
-			nm.arena = sum;
-			nm.count_free_chunks = nfree;
-			nm.memory_mapped_space = m->foot_print - sum;
-			nm.max_total_allocated_space = m->max_foot_print;
-			nm.total_allocated_space = m->foot_print - mfree;
-			nm.total_free_space = mfree;
-			nm.keep_cost = m->top_size;
+			imem.arena = ssum;
+			imem.count_free_chunks = nuse;
+			imem.memory_mapped_space = state->foot_print - ssum;
+			imem.max_total_allocated_space = state->max_foot_print;
+			imem.total_allocated_space = state->foot_print - muse;
+			imem.total_free_space = muse;
+			imem.keep_cost = state->top_size;
 		}
 
-		SM_POST_ACTION(m);
+		SM_POST_ACTION(state);
 	}
 
-	return nm;
+	return imem;
 }
 #endif
 
 
-#if !NO_MALLOC_STATS
-static void sm_internal_malloc_stats(sm_state_t m)
+#if !SM_NO_MALLOC_STATS
+inline static sm_allocation_stats_t sm_internal_malloc_stats(sm_state_t state)
 {
+	sm_allocation_stats_t stat = { UINT64_C(0), UINT64_C(0), UINT64_C(0) };
+
 	sm_ensure_initialization();
 
-	if (!SM_PRE_ACTION(m))
+	if (!SM_PRE_ACTION(state))
 	{
-		size_t maxfp = 0;
-		size_t fp = 0;
-		size_t used = 0;
+		size_t mxfp = UINT64_C(0);
+		size_t fpnr = UINT64_C(0);
+		size_t used = UINT64_C(0);
 
-		sm_check_allocation_state(m);
+		sm_check_allocation_state(state);
 
-		if (sm_is_initialized(m))
+		if (sm_is_initialized(state))
 		{
-			sm_psegment_t s = &m->segment;
-			maxfp = m->max_foot_print;
-			fp = m->foot_print;
-			used = fp - (m->top_size + SM_TOP_FOOT_SIZE);
+			sm_psegment_t sseg = &state->segment;
+			mxfp = state->max_foot_print;
+			fpnr = state->foot_print;
+			used = fpnr - (state->top_size + SM_TOP_FOOT_SIZE);
 
-			while (s != 0)
+			while (sseg != NULL)
 			{
-				sm_pchunk_t q = sm_align_as_chunk(s->base);
+				sm_pchunk_t qchk = sm_align_as_chunk(sseg->base);
 
-				while (sm_segment_holds(s, q) && q != m->top && q->head != SM_FENCE_POST_HEAD)
+				while (sm_segment_holds(sseg, qchk) && qchk != state->top && qchk->head != SM_FENCE_POST_HEAD)
 				{
-					if (!sm_is_in_use(q))
-						used -= sm_chunk_size(q);
-					q = sm_next_chunk(q);
+					if (!sm_is_in_use(qchk))
+						used -= sm_chunk_size(qchk);
+					qchk = sm_next_chunk(qchk);
 				}
 
-				s = s->next;
+				sseg = sseg->next;
 			}
 		}
 
-		SM_POST_ACTION(m);
+		SM_POST_ACTION(state);
 
-		fprintf(stderr, "max system bytes = %10lu\n", (unsigned long)(maxfp));
-		fprintf(stderr, "system bytes     = %10lu\n", (unsigned long)(fp));
-		fprintf(stderr, "in use bytes     = %10lu\n", (unsigned long)(used));
+		stat.maximum_system_bytes = mxfp;
+		stat.system_bytes = fpnr;
+		stat.in_use_bytes = used;
 	}
+
+	return stat;
 }
 #endif
 
@@ -2054,22 +1966,22 @@ static void sm_internal_malloc_stats(sm_state_t m)
 
 
 // Link a free chunk into a small bin.
-#define sm_insert_small_chunk(M, P, S) { sm_bin_index_t isci__ = sm_small_index(S); sm_pchunk_t iscb__ = sm_small_bin_at(M, isci__); \
+#define sm_insert_small_chunk(M, P, S) { sm_bindex_t isci__ = sm_small_index(S); sm_pchunk_t iscb__ = sm_small_bin_at(M, isci__); \
 	sm_pchunk_t iscf__ = iscb__; assert(S >= SM_MIN_CHUNK_SIZE); if (!sm_small_map_is_marked(M, isci__)) sm_mark_small_map(M, isci__); \
-	else if (sm_rt_check(sm_ok_address(M, iscb__->forward))) iscf__ = iscb__->forward; else SM_CORRUPTION_ERROR_ACTION(M); \
+	else if (sm_runtime_check(sm_is_address_ok(M, iscb__->forward))) iscf__ = iscb__->forward; else SM_CORRUPTION_ERROR_ACTION(M); \
 	iscb__->forward = P; iscf__->backward = P; P->forward = iscf__; P->backward = iscb__; }
 
 // Unlink a chunk from a small bin.
-#define sm_unlink_small_chunk(M, P, S) { sm_pchunk_t uscf__ = P->forward; sm_pchunk_t uscb__ = P->backward; sm_bin_index_t usci__ = sm_small_index(S); \
+#define sm_unlink_small_chunk(M, P, S) { sm_pchunk_t uscf__ = P->forward; sm_pchunk_t uscb__ = P->backward; sm_bindex_t usci__ = sm_small_index(S); \
 	assert(P != uscb__); assert(P != uscf__); assert(sm_chunk_size(P) == sm_small_index_to_size(usci__)); \
-	if (sm_rt_check(uscf__ == sm_small_bin_at(M, usci__) || (sm_ok_address(M, uscf__) && uscf__->backward == P))) { \
-	if (uscb__ == uscf__) sm_clear_small_map(M, usci__); else if (sm_rt_check(uscb__ == sm_small_bin_at(M, usci__) || (sm_ok_address(M, uscb__) && uscb__->forward == P))) \
+	if (sm_runtime_check(uscf__ == sm_small_bin_at(M, usci__) || (sm_is_address_ok(M, uscf__) && uscf__->backward == P))) { \
+	if (uscb__ == uscf__) sm_clear_small_map(M, usci__); else if (sm_runtime_check(uscb__ == sm_small_bin_at(M, usci__) || (sm_is_address_ok(M, uscb__) && uscb__->forward == P))) \
 	{ uscf__->backward = uscb__; uscb__->forward = uscf__; } else SM_CORRUPTION_ERROR_ACTION(M); } else SM_CORRUPTION_ERROR_ACTION(M); }
 
 // Unlink the first chunk from a small bin.
 #define sm_unlink_first_small_chunk(M, B, P, I) { sm_pchunk_t ufsf__ = P->forward; assert(P != B); assert(P != ufsf__); \
 	assert(sm_chunk_size(P) == sm_small_index_to_size(I)); if (B == ufsf__) sm_clear_small_map(M, I); \
-	else if (sm_rt_check(sm_ok_address(M, ufsf__) && ufsf__->backward == P)) { ufsf__->backward = B; B->forward = ufsf__; } \
+	else if (sm_runtime_check(sm_is_address_ok(M, ufsf__) && ufsf__->backward == P)) { ufsf__->backward = B; B->forward = ufsf__; } \
 	else SM_CORRUPTION_ERROR_ACTION(M); }
 
 // Replace dv node, binning the old one. Used only when dv_size is known to be small.
@@ -2082,70 +1994,69 @@ static void sm_internal_malloc_stats(sm_state_t m)
 
 
 // Insert chunk into tree.
-inline static void sm_insert_large_chunk(register sm_state_t m, register sm_ptchunk_t x, size_t s)
+inline static void sm_insert_large_chunk(register sm_state_t state, register sm_ptchunk_t chunk, size_t size)
 {
-	sm_ptbin_t* h;
-	sm_bin_index_t i;
+	sm_ptbin_t* hptb;
+	sm_bindex_t bidx;
 
-	sm_compute_tree_index(s, i);
-	h = sm_tree_bin_at(m, i);
+	sm_compute_tree_index(size, bidx);
+	hptb = sm_tree_bin_at(state, bidx);
 
-	x->index = i;
-	x->child[0] = x->child[1] = 0;
+	chunk->index = bidx;
+	chunk->child[0] = chunk->child[1] = NULL;
 
-	if (!sm_tree_map_is_marked(m, i))
+	if (!sm_tree_map_is_marked(state, bidx))
 	{
-		sm_mark_tree_map(m, i);
+		sm_mark_tree_map(state, bidx);
 
-		*h = x;
-		x->parent = (sm_ptchunk_t)h;
-		x->forward = x->backward = x;
+		*hptb = chunk;
+		chunk->parent = (sm_ptchunk_t)hptb;
+		chunk->forward = chunk->backward = chunk;
 	}
 	else
 	{
-		sm_ptchunk_t t = *h;
-		size_t k = s << sm_left_shift_for_tree_index(i);
+		sm_ptchunk_t tchk = *hptb;
+		size_t ksiz = size << sm_left_shift_for_tree_index(bidx);
 
 		for (;;)
 		{
-			if (sm_chunk_size(t) != s)
+			if (sm_chunk_size(tchk) != size)
 			{
-				register sm_ptchunk_t* c = &(t->child[(k >> (SM_SIZE_T_BITSIZE - SM_SIZE_T_ONE)) & 1]);
-				k <<= 1;
+				register sm_ptchunk_t* cchk = &(tchk->child[(ksiz >> (SM_SIZE_T_BITSIZE - SM_SIZE_T_ONE)) & UINT64_C(1)]);
+				ksiz <<= 1;
 
-				if (*c != 0)
-					t = *c;
-				else if (sm_rt_check(sm_ok_address(m, c)))
+				if (*cchk != 0) tchk = *cchk;
+				else if (sm_runtime_check(sm_is_address_ok(state, cchk)))
 				{
-					*c = x;
-					x->parent = t;
-					x->forward = x->backward = x;
+					*cchk = chunk;
+					chunk->parent = tchk;
+					chunk->forward = chunk->backward = chunk;
 
 					break;
 				}
 				else
 				{
-					SM_CORRUPTION_ERROR_ACTION(m);
+					SM_CORRUPTION_ERROR_ACTION(state);
 
 					break;
 				}
 			}
 			else
 			{
-				register sm_ptchunk_t f = t->forward;
+				register sm_ptchunk_t pfwd = tchk->forward;
 
-				if (sm_rt_check(sm_ok_address(m, t) && sm_ok_address(m, f)))
+				if (sm_runtime_check(sm_is_address_ok(state, tchk) && sm_is_address_ok(state, pfwd)))
 				{
-					t->forward = f->backward = x;
-					x->forward = f;
-					x->backward = t;
-					x->parent = 0;
+					tchk->forward = pfwd->backward = chunk;
+					chunk->forward = pfwd;
+					chunk->backward = tchk;
+					chunk->parent = NULL;
 
 					break;
 				}
 				else
 				{
-					SM_CORRUPTION_ERROR_ACTION(m);
+					SM_CORRUPTION_ERROR_ACTION(state);
 
 					break;
 				}
@@ -2155,85 +2066,85 @@ inline static void sm_insert_large_chunk(register sm_state_t m, register sm_ptch
 }
 
 
-inline static void sm_unlink_large_chunk(sm_state_t m, sm_ptchunk_t x)
+inline static void sm_unlink_large_chunk(sm_state_t state, sm_ptchunk_t chunk)
 {
-	sm_ptchunk_t xp = x->parent;
-	sm_ptchunk_t r;
+	sm_ptchunk_t cppt = chunk->parent;
+	sm_ptchunk_t rchk;
 
-	if (x->backward != x)
+	if (chunk->backward != chunk)
 	{
-		sm_ptchunk_t f = x->forward;
+		sm_ptchunk_t fchk = chunk->forward;
 
-		r = x->backward;
+		rchk = chunk->backward;
 
-		if (sm_rt_check(sm_ok_address(m, f) && f->backward == x && r->forward == x))
+		if (sm_runtime_check(sm_is_address_ok(state, fchk) && fchk->backward == chunk && rchk->forward == chunk))
 		{
-			f->backward = r;
-			r->forward = f;
+			fchk->backward = rchk;
+			rchk->forward = fchk;
 		}
-		else SM_CORRUPTION_ERROR_ACTION(m);
+		else SM_CORRUPTION_ERROR_ACTION(state);
 	}
 	else
 	{
-		sm_ptchunk_t* rp;
+		sm_ptchunk_t* rpck;
 
-		if (((r = *(rp = &(x->child[1]))) != NULL) || ((r = *(rp = &(x->child[0]))) != NULL))
+		if (((rchk = *(rpck = &(chunk->child[1]))) != NULL) || ((rchk = *(rpck = &(chunk->child[0]))) != NULL))
 		{
-			sm_ptchunk_t* cp;
+			sm_ptchunk_t* cpck;
 
-			while ((*(cp = &(r->child[1])) != NULL) || (*(cp = &(r->child[0])) != NULL))
-				r = *(rp = cp);
+			while ((*(cpck = &(rchk->child[1])) != NULL) || (*(cpck = &(rchk->child[0])) != NULL))
+				rchk = *(rpck = cpck);
 
-			if (sm_rt_check(sm_ok_address(m, rp))) *rp = NULL;
-			else SM_CORRUPTION_ERROR_ACTION(m);
+			if (sm_runtime_check(sm_is_address_ok(state, rpck))) *rpck = NULL;
+			else SM_CORRUPTION_ERROR_ACTION(state);
 		}
 	}
 
-	if (xp != NULL)
+	if (cppt != NULL)
 	{
-		sm_ptbin_t* h = sm_tree_bin_at(m, x->index);
+		sm_ptbin_t* hbin = sm_tree_bin_at(state, chunk->index);
 
-		if (x == *h)
+		if (chunk == *hbin)
 		{
-			if ((*h = r) == NULL)
-				sm_clear_tree_map(m, x->index);
+			if ((*hbin = rchk) == NULL)
+				sm_clear_tree_map(state, chunk->index);
 		}
-		else if (sm_rt_check(sm_ok_address(m, xp)))
+		else if (sm_runtime_check(sm_is_address_ok(state, cppt)))
 		{
-			if (xp->child[0] == x) xp->child[0] = r;
-			else xp->child[1] = r;
+			if (cppt->child[0] == chunk) cppt->child[0] = rchk;
+			else cppt->child[1] = rchk;
 		}
-		else SM_CORRUPTION_ERROR_ACTION(m);
+		else SM_CORRUPTION_ERROR_ACTION(state);
 
-		if (r != NULL)
+		if (rchk != NULL)
 		{
-			if (sm_rt_check(sm_ok_address(m, r)))
+			if (sm_runtime_check(sm_is_address_ok(state, rchk)))
 			{
-				sm_ptchunk_t c0, c1;
+				sm_ptchunk_t capt, cbpt;
 
-				r->parent = xp;
+				rchk->parent = cppt;
 
-				if ((c0 = x->child[0]) != NULL)
+				if ((capt = chunk->child[0]) != NULL)
 				{
-					if (sm_rt_check(sm_ok_address(m, c0)))
+					if (sm_runtime_check(sm_is_address_ok(state, capt)))
 					{
-						r->child[0] = c0;
-						c0->parent = r;
+						rchk->child[0] = capt;
+						capt->parent = rchk;
 					}
-					else SM_CORRUPTION_ERROR_ACTION(m);
+					else SM_CORRUPTION_ERROR_ACTION(state);
 				}
 
-				if ((c1 = x->child[1]) != NULL)
+				if ((cbpt = chunk->child[1]) != NULL)
 				{
-					if (sm_rt_check(sm_ok_address(m, c1)))
+					if (sm_runtime_check(sm_is_address_ok(state, cbpt)))
 					{
-						r->child[1] = c1;
-						c1->parent = r;
+						rchk->child[1] = cbpt;
+						cbpt->parent = rchk;
 					}
-					else SM_CORRUPTION_ERROR_ACTION(m);
+					else SM_CORRUPTION_ERROR_ACTION(state);
 				}
 			}
-			else SM_CORRUPTION_ERROR_ACTION(m);
+			else SM_CORRUPTION_ERROR_ACTION(state);
 		}
 	}
 }
@@ -2242,25 +2153,26 @@ inline static void sm_unlink_large_chunk(sm_state_t m, sm_ptchunk_t x)
 // Relays to Large vs Small Bin Operations
 
 
-#define sm_insert_chunk(M, P, S) if (sm_is_small(S)) sm_insert_small_chunk(M, P, S) \
-	else { sm_ptchunk_t ictp__ = (sm_ptchunk_t)(P); sm_insert_large_chunk(M, ictp__, S); }
+#define sm_insert_chunk(M, P, S) { if (sm_is_small(S)) { sm_insert_small_chunk(M, P, S); } \
+	else { sm_ptchunk_t ictp__ = (sm_ptchunk_t)(P); sm_insert_large_chunk(M, ictp__, S); } }
 
-#define sm_unlink_chunk(M, P, S) if (sm_is_small(S)) sm_unlink_small_chunk(M, P, S) \
-	else { sm_ptchunk_t uctp__ = (sm_ptchunk_t)(P); sm_unlink_large_chunk(M, uctp__); }
+
+#define sm_unlink_chunk(M, P, S) { if (sm_is_small(S)) { sm_unlink_small_chunk(M, P, S); } \
+	else { sm_ptchunk_t uctp__ = (sm_ptchunk_t)(P); sm_unlink_large_chunk(M, uctp__); } }
 
 
 // Relays to Internal Calls to Malloc/Free
 
 
 #if SM_ONLY_MSPACES
-#define sm_internal_malloc(M, B) sm_space_malloc(M, B)
+#define sm_internal_allocate(M, B) sm_space_allocate(M, B)
 #define sm_internal_free(M, P) sm_space_free(M, P)
 #else
 #if SM_MSPACES
-#define sm_internal_malloc(M, B) (((M == sm_gm) ? sm_dl_malloc(B) : sm_space_malloc(M, B)))
+#define sm_internal_allocate(M, B) (((M == sm_gm) ? sm_dl_malloc(B) : sm_space_allocate(M, B)))
 #define sm_internal_free(M, P) if (M == sm_gm) sm_dl_free(P); else sm_space_free(M, P);
 #else
-#define sm_internal_malloc(M, B) sm_dl_malloc(B)
+#define sm_internal_allocate(M, B) sm_dl_malloc(B)
 #define sm_internal_free(M, P) sm_dl_free(P)
 #endif
 #endif
@@ -2270,45 +2182,45 @@ inline static void sm_unlink_large_chunk(sm_state_t m, sm_ptchunk_t x)
 
 
 // Malloc using mmap.
-static void* sm_mmap_alloc(sm_state_t m, size_t bcnt)
+inline static void* sm_map_allocate(sm_state_t state, size_t bytes)
 {
-	size_t msiz = sm_mmap_align(bcnt + SM_SIX_SIZE_T_SIZES + SM_CHUNK_ALIGN_MASK);
+	size_t msiz = sm_map_align(bytes + SM_SIX_SIZE_T_SIZES + SM_CHUNK_ALIGN_MASK);
 
-	if (m->foot_print_limit != 0)
+	if (state->foot_print_limit != 0)
 	{
-		size_t fp = m->foot_print + msiz;
-		if (fp <= m->foot_print || fp > m->foot_print_limit)
+		size_t fpsz = state->foot_print + msiz;
+		if (fpsz <= state->foot_print || fpsz > state->foot_print_limit)
 			return NULL;
 	}
 
-	if (msiz > bcnt)
+	if (msiz > bytes)
 	{
-		uint8_t* mm = (uint8_t*)(SM_CALL_DIRECT_MMAP(msiz));
+		uint8_t* mmpt = (uint8_t*)(SM_CALL_DIRECT_MMAP(msiz));
 
-		if (mm != SM_MC_FAIL)
+		if (mmpt != SM_MC_FAIL)
 		{
-			size_t offset = sm_align_offset(sm_chunk_to_mem(mm));
-			size_t psize = msiz - offset - SM_MMAP_FOOT_PAD;
-			sm_pchunk_t p = (sm_pchunk_t)(mm + offset);
+			size_t offs = sm_align_offset(sm_chunk_to_memory(mmpt));
+			size_t psiz = msiz - offs - SM_MMAP_FOOT_PAD;
+			sm_pchunk_t pchk = (sm_pchunk_t)(mmpt + offs);
 
-			p->previous = offset;
-			p->head = psize;
+			pchk->previous = offs;
+			pchk->head = psiz;
 
-			sm_mark_in_use_foot(m, p, psize);
-			sm_chunk_plus_offset(p, psize)->head = SM_FENCE_POST_HEAD;
-			sm_chunk_plus_offset(p, psize + SM_SIZE_T_SIZE)->head = 0;
+			sm_mark_in_use_foot(state, pchk, psiz);
+			sm_chunk_plus_offset(pchk, psiz)->head = SM_FENCE_POST_HEAD;
+			sm_chunk_plus_offset(pchk, psiz + SM_SIZE_T_SIZE)->head = UINT64_C(0);
 
-			if (m->least_address == 0 || mm < m->least_address)
-				m->least_address = mm;
+			if (state->least_address == NULL || mmpt < state->least_address)
+				state->least_address = mmpt;
 
-			if ((m->foot_print += msiz) > m->max_foot_print)
-				m->max_foot_print = m->foot_print;
+			if ((state->foot_print += msiz) > state->max_foot_print)
+				state->max_foot_print = state->foot_print;
 
-			assert(sm_is_aligned(sm_chunk_to_mem(p)));
+			assert(sm_is_aligned(sm_chunk_to_memory(pchk)));
 
-			sm_check_mapped_chunk(m, p);
+			sm_check_mapped_chunk(state, pchk);
 
-			return sm_chunk_to_mem(p);
+			return sm_chunk_to_memory(pchk);
 		}
 	}
 
@@ -2317,41 +2229,40 @@ static void* sm_mmap_alloc(sm_state_t m, size_t bcnt)
 
 
 // Realloc using memory mapping.
-static sm_pchunk_t sm_mmap_resize(sm_state_t m, sm_pchunk_t oldp, size_t bcnt, int flags)
+inline static sm_pchunk_t sm_map_resize(sm_state_t state, sm_pchunk_t chunk, size_t bytes, int flags)
 {
-	size_t osiz = sm_chunk_size(oldp);
+	size_t osiz = sm_chunk_size(chunk);
 
-	(void)flags;
+	if (sm_is_small(bytes)) return NULL;
 
-	if (sm_is_small(bcnt)) return 0;
-
-	if (osiz >= bcnt + SM_SIZE_T_SIZE && (osiz - bcnt) <= (sm_m_params__.granularity << 1))
-		return oldp;
+	if (osiz >= bytes + SM_SIZE_T_SIZE && (osiz - bytes) <= (sm_m_params__.granularity << 1))
+		return chunk;
 	else
 	{
-		size_t offs = oldp->previous;
+		size_t offs = chunk->previous;
 		size_t oldm = osiz + offs + SM_MMAP_FOOT_PAD;
-		size_t newm = sm_mmap_align(bcnt + SM_SIX_SIZE_T_SIZES + SM_CHUNK_ALIGN_MASK);
-		uint8_t* cp = (uint8_t*)SM_CALL_MREMAP((uint8_t*)oldp - offs, oldm, newm, flags);
+		size_t newm = sm_map_align(bytes + SM_SIX_SIZE_T_SIZES + SM_CHUNK_ALIGN_MASK);
 
-		if (cp != SM_MC_FAIL)
+		uint8_t* cptr = (uint8_t*)SM_CALL_MREMAP((uint8_t*)chunk - offs, oldm, newm, flags);
+
+		if (cptr != SM_MC_FAIL)
 		{
-			sm_pchunk_t newp = (sm_pchunk_t)(cp + offs);
+			sm_pchunk_t newp = (sm_pchunk_t)(cptr + offs);
 			size_t psiz = newm - offs - SM_MMAP_FOOT_PAD;
 
 			newp->head = psiz;
 
-			sm_mark_in_use_foot(m, newp, psiz);
+			sm_mark_in_use_foot(state, newp, psiz);
 			sm_chunk_plus_offset(newp, psiz)->head = SM_FENCE_POST_HEAD;
-			sm_chunk_plus_offset(newp, psiz + SM_SIZE_T_SIZE)->head = 0;
+			sm_chunk_plus_offset(newp, psiz + SM_SIZE_T_SIZE)->head = UINT64_C(0);
 
-			if (cp < m->least_address)
-				m->least_address = cp;
+			if (cptr < state->least_address)
+				state->least_address = cptr;
 
-			if ((m->foot_print += newm - oldm) > m->max_foot_print)
-				m->max_foot_print = m->foot_print;
+			if ((state->foot_print += newm - oldm) > state->max_foot_print)
+				state->max_foot_print = state->foot_print;
 
-			sm_check_mapped_chunk(m, newp);
+			sm_check_mapped_chunk(state, newp);
 
 			return newp;
 		}
@@ -2365,74 +2276,80 @@ static sm_pchunk_t sm_mmap_resize(sm_state_t m, sm_pchunk_t oldp, size_t bcnt, i
 
 
 // Initialize top chunk and its size.
-static void sm_init_top(sm_state_t m, sm_pchunk_t p, size_t psiz)
+inline static void sm_initialize_top_chunk(sm_state_t state, sm_pchunk_t chunk, size_t size)
 {
-	size_t offs = sm_align_offset(sm_chunk_to_mem(p));
-	p = (sm_pchunk_t)((uint8_t*)p + offs);
-	psiz -= offs;
-	m->top = p;
-	m->top_size = psiz;
-	p->head = psiz | SM_P_IN_USE_BIT;
-	sm_chunk_plus_offset(p, psiz)->head = SM_TOP_FOOT_SIZE;
-	m->trim_check = sm_m_params__.trim_threshold;
+	size_t offs = sm_align_offset(sm_chunk_to_memory(chunk));
+	chunk = (sm_pchunk_t)((uint8_t*)chunk + offs);
+	size -= offs;
+	state->top = chunk;
+	state->top_size = size;
+	chunk->head = size | SM_P_IN_USE_BIT;
+	sm_chunk_plus_offset(chunk, size)->head = SM_TOP_FOOT_SIZE;
+	state->trim_check = sm_m_params__.trim_threshold;
 }
 
 
 // Initialize bins for a new memory state that is otherwise zeroed out.
-static void sm_init_bins(sm_state_t m)
+inline static void sm_initialize_bins(sm_state_t state)
 {
-	sm_bin_index_t i;
-	for (i = 0; i < SM_N_SMALL_BINS; ++i)
+	sm_bindex_t bidx;
+
+	for (bidx = UINT64_C(0); bidx < SM_N_SMALL_BINS; ++bidx)
 	{
-		sm_psbin_t b = sm_small_bin_at(m, i);
-		b->forward = b->backward = b;
+		sm_psbin_t bptr = sm_small_bin_at(state, bidx);
+		bptr->forward = bptr->backward = bptr;
 	}
 }
 
 #if SM_PROCEED_ON_ERROR
 // Default corruption action.
-static void sm_reset_on_error(sm_state_t m)
+inline static void sm_reset_on_error(sm_state_t state)
 {
-	size_t i;
 	++sm_malloc_corruption_error_count__;
-	m->small_map = m->tree_map = 0;
-	m->dv_size = m->top_size = 0;
-	m->segment.base = 0;
-	m->segment.size = 0;
-	m->segment.next = 0;
-	m->top = m->dv = 0;
-	for (i = 0; i < SM_N_TREE_BINS; ++i)
-		*sm_tree_bin_at(m, i) = 0;
-	sm_init_bins(m);
+
+	state->small_map = state->tree_map = UINT64_C(0);
+	state->dv_size = state->top_size = UINT64_C(0);
+	state->segment.base = NULL;
+	state->segment.size = UINT64_C(0);
+	state->segment.next = NULL;
+	state->top = state->dv = NULL;
+
+	size_t indx;
+
+	for (indx = 0; indx < SM_N_TREE_BINS; ++iindx)
+		*sm_tree_bin_at(state, indx) = NULL;
+
+	sm_initialize_bins(state);
 }
 #endif
 
 
 // Allocate chunk and prepend remainder with chunk in successor base.
-static void* sm_prepend_alloc(sm_state_t m, uint8_t* newb, uint8_t* oldb, size_t bcnt)
+inline static void* sm_prepend_alloc(sm_state_t state, uint8_t* next, uint8_t* previous, size_t bytes)
 {
-	sm_pchunk_t pptr = sm_align_as_chunk(newb);
-	sm_pchunk_t oldf = sm_align_as_chunk(oldb);
+	sm_pchunk_t pptr = sm_align_as_chunk(next);
+	sm_pchunk_t oldf = sm_align_as_chunk(previous);
 	size_t psiz = (uint8_t*)oldf - (uint8_t*)pptr;
-	sm_pchunk_t qptr = sm_chunk_plus_offset(pptr, bcnt);
-	size_t qsiz = psiz - bcnt;
-	sm_sets_p_inuse_inuse_chunk(m, pptr, bcnt);
+	sm_pchunk_t qptr = sm_chunk_plus_offset(pptr, bytes);
+	size_t qsiz = psiz - bytes;
+
+	sm_sets_p_inuse_inuse_chunk(state, pptr, bytes);
 
 	assert((uint8_t*)oldf > (uint8_t*)qptr);
-	assert(sm_p_in_use(oldf));
+	assert(sm_is_p_in_use(oldf));
 	assert(qsiz >= SM_MIN_CHUNK_SIZE);
 
-	if (oldf == m->top)
+	if (oldf == state->top)
 	{
-		size_t tsiz = m->top_size += qsiz;
-		m->top = qptr;
+		size_t tsiz = state->top_size += qsiz;
+		state->top = qptr;
 		qptr->head = tsiz | SM_P_IN_USE_BIT;
-		sm_check_top_chunk(m, qptr);
+		sm_check_top_chunk(state, qptr);
 	}
-	else if (oldf == m->dv)
+	else if (oldf == state->dv)
 	{
-		size_t dsiz = m->dv_size += qsiz;
-		m->dv = qptr;
+		size_t dsiz = state->dv_size += qsiz;
+		state->dv = qptr;
 		sm_sets_p_inuse_fchunk(qptr, dsiz);
 	}
 	else
@@ -2440,93 +2357,95 @@ static void* sm_prepend_alloc(sm_state_t m, uint8_t* newb, uint8_t* oldb, size_t
 		if (!sm_is_in_use(oldf))
 		{
 			size_t nsiz = sm_chunk_size(oldf);
-			sm_unlink_chunk(m, oldf, nsiz);
+			sm_unlink_chunk(state, oldf, nsiz);
 			oldf = sm_chunk_plus_offset(oldf, nsiz);
 			qsiz += nsiz;
 		}
 
 		sm_set_free_with_p_in_use(qptr, qsiz, oldf);
-		sm_insert_chunk(m, qptr, qsiz);
-		sm_check_free_chunk(m, qptr);
+		sm_insert_chunk(state, qptr, qsiz);
+		sm_check_free_chunk(state, qptr);
 	}
 
-	sm_check_allocated_chunk(m, sm_chunk_to_mem(pptr), bcnt);
+	sm_check_allocated_chunk(state, sm_chunk_to_memory(pptr), bytes);
 
-	return sm_chunk_to_mem(pptr);
+	return sm_chunk_to_memory(pptr);
 }
 
 
 // Add a segment to hold a new non-contiguous region.
-static void sm_add_segment(sm_state_t m, uint8_t* tbas, size_t tsiz, sm_flag_t mmap)
+inline static void sm_add_segment(sm_state_t state, uint8_t* base, size_t size, sm_flag_t mapped)
 {
-	uint8_t* oldt = (uint8_t*)m->top;
-	sm_psegment_t ospc = sm_segment_holding(m, oldt);
+	uint8_t* oldt = (uint8_t*)state->top;
+	sm_psegment_t ospc = sm_segment_holding(state, oldt);
 	uint8_t* olde = ospc->base + ospc->size;
 	size_t ssiz = sm_pad_request(sizeof(struct sm_segment_s));
 	uint8_t* praw = olde - (ssiz + SM_FOUR_SIZE_T_SIZES + SM_CHUNK_ALIGN_MASK);
-	size_t offs = sm_align_offset(sm_chunk_to_mem(praw));
-	uint8_t* asp = praw + offs;
-	uint8_t* csp = (asp < (oldt + SM_MIN_CHUNK_SIZE)) ? oldt : asp;
-	sm_pchunk_t sp = (sm_pchunk_t)csp;
-	sm_psegment_t ss = (sm_psegment_t)(sm_chunk_to_mem(sp));
-	sm_pchunk_t tnex = sm_chunk_plus_offset(sp, ssiz);
-	sm_pchunk_t p = tnex;
-	uint64_t nfen = 0;
+	size_t offs = sm_align_offset(sm_chunk_to_memory(praw));
+	uint8_t* aspt = praw + offs;
+	uint8_t* cspt = (aspt < (oldt + SM_MIN_CHUNK_SIZE)) ? oldt : aspt;
+	sm_pchunk_t spck = (sm_pchunk_t)cspt;
+	sm_psegment_t sseg = (sm_psegment_t)(sm_chunk_to_memory(spck));
+	sm_pchunk_t tnex = sm_chunk_plus_offset(spck, ssiz);
+	sm_pchunk_t pnex = tnex;
+	uint64_t nfen = UINT64_C(0);
 
-	sm_init_top(m, (sm_pchunk_t)tbas, tsiz - SM_TOP_FOOT_SIZE);
+	sm_initialize_top_chunk(state, (sm_pchunk_t)base, size - SM_TOP_FOOT_SIZE);
 
-	assert(sm_is_aligned(ss));
+	assert(sm_is_aligned(sseg));
 
-	sm_sets_p_inuse_inuse_chunk(m, sp, ssiz);
+	sm_sets_p_inuse_inuse_chunk(state, spck, ssiz);
 
-	*ss = m->segment;
-	m->segment.base = tbas;
-	m->segment.size = tsiz;
-	m->segment.flags = mmap;
-	m->segment.next = ss;
+	*sseg = state->segment;
+	state->segment.base = base;
+	state->segment.size = size;
+	state->segment.flags = mapped;
+	state->segment.next = sseg;
 
+	// <TODO WHAT="Verify pnex vs. ptmp">
 	for (;;)
 	{
-		sm_pchunk_t pnex = sm_chunk_plus_offset(p, SM_SIZE_T_SIZE);
-		p->head = SM_FENCE_POST_HEAD;
+		sm_pchunk_t ptmp = sm_chunk_plus_offset(pnex, SM_SIZE_T_SIZE);
+		pnex->head = SM_FENCE_POST_HEAD;
 		++nfen;
 
-		if ((uint8_t*)(&(pnex->head)) < olde)
-			p = pnex;
+		if ((uint8_t*)(&(ptmp->head)) < olde)
+			pnex = ptmp;
 		else break;
 	}
+	// </TODO>
 
-	assert(nfen >= 2);
+	assert(nfen >= UINT64_C(2));
 
-	if (csp != oldt)
+	if (cspt != oldt)
 	{
-		sm_pchunk_t q = (sm_pchunk_t)oldt;
-		size_t psize = csp - oldt;
-		sm_pchunk_t tn = sm_chunk_plus_offset(q, psize);
-		sm_set_free_with_p_in_use(q, psize, tn);
-		sm_insert_chunk(m, q, psize);
+		sm_pchunk_t qchk = (sm_pchunk_t)oldt;
+		size_t psiz = cspt - oldt;
+		sm_pchunk_t tnof = sm_chunk_plus_offset(qchk, psiz);
+		sm_set_free_with_p_in_use(qchk, psiz, tnof);
+		sm_insert_chunk(state, qchk, psiz);
 	}
 
-	sm_check_top_chunk(m, m->top);
+	sm_check_top_chunk(state, state->top);
 }
 
 
 // System Allocation
 
 
-// Get memory from system using MORECORE or MMAP.
-static void* sys_alloc(sm_state_t state, size_t bytes)
+// Get memory from system using MORECORE or SM_MMAP.
+inline static void* sm_system_allocate(sm_state_t state, size_t bytes)
 {
 	uint8_t* tbas = SM_MC_FAIL;
-	size_t tsiz = 0;
+	size_t tsiz = UINT64_C(0);
 	sm_flag_t mflg = 0;
 	size_t asiz;
 
 	sm_ensure_initialization();
 
-	if (sm_use_mmap(state) && bytes >= sm_m_params__.mapping_threshold && state->top_size != 0)
+	if (sm_use_mapping(state) && bytes >= sm_m_params__.mapping_threshold && state->top_size != UINT64_C(0))
 	{
-		void* pmem = sm_mmap_alloc(state, bytes);
+		void* pmem = sm_map_allocate(state, bytes);
 
 		if (pmem != NULL)
 			return pmem;
@@ -2536,35 +2455,36 @@ static void* sys_alloc(sm_state_t state, size_t bytes)
 
 	if (asiz <= bytes) return NULL;
 
-	if (state->foot_print_limit != 0)
+	if (state->foot_print_limit != UINT64_C(0))
 	{
 		size_t fpsz = state->foot_print + asiz;
+
 		if (fpsz <= state->foot_print || fpsz > state->foot_print_limit)
 			return NULL;
 	}
 
 	if (SM_MORE_CORE_CONTIGUOUS && !sm_use_non_contiguous(state))
 	{
-		uint8_t* pbr = SM_MC_FAIL;
+		uint8_t* ptbr = SM_MC_FAIL;
 		size_t ssiz = asiz;
-		sm_psegment_t ss = (state->top == 0) ? 0 : sm_segment_holding(state, (uint8_t*)state->top);
+		sm_psegment_t sseg = (state->top == NULL) ? NULL : sm_segment_holding(state, (uint8_t*)state->top);
 
 		SM_ACQUIRE_MALLOC_GLOBAL_LOCK();
 
-		if (ss == 0)
+		if (sseg == 0)
 		{
 			uint8_t* base = (uint8_t*)SM_CALL_MORE_CORE(0);
 
 			if (base != SM_MC_FAIL)
 			{
-				size_t fp;
+				size_t fptr;
 
 				if (!sm_is_page_aligned(base))
 					ssiz += (sm_page_align((size_t)base) - (size_t)base);
 
-				fp = state->foot_print + ssiz;
+				fptr = state->foot_print + ssiz;
 
-				if (ssiz > bytes && ssiz < SM_HALF_MAX_SIZE_T && (state->foot_print_limit == 0 || (fp > state->foot_print && fp <= state->foot_print_limit)) && (pbr = (char*)(SM_CALL_MORE_CORE(ssiz))) == base)
+				if (ssiz > bytes && ssiz < SM_HALF_MAX_SIZE_T && (state->foot_print_limit == 0 || (fptr > state->foot_print && fptr <= state->foot_print_limit)) && (ptbr = (char*)(SM_CALL_MORE_CORE(ssiz))) == base)
 				{
 					tbas = base;
 					tsiz = ssiz;
@@ -2575,16 +2495,16 @@ static void* sys_alloc(sm_state_t state, size_t bytes)
 		{
 			ssiz = sm_granularity_align(bytes - state->top_size + SM_SYS_ALLOC_PADDING);
 
-			if (ssiz < SM_HALF_MAX_SIZE_T && (pbr = (uint8_t*)(SM_CALL_MORE_CORE(ssiz))) == ss->base + ss->size)
+			if (ssiz < SM_HALF_MAX_SIZE_T && (ptbr = (uint8_t*)(SM_CALL_MORE_CORE(ssiz))) == sseg->base + sseg->size)
 			{
-				tbas = pbr;
+				tbas = ptbr;
 				tsiz = ssiz;
 			}
 		}
 
 		if (tbas == SM_MC_FAIL)
 		{
-			if (pbr != SM_MC_FAIL)
+			if (ptbr != SM_MC_FAIL)
 			{
 				if (ssiz < SM_HALF_MAX_SIZE_T && ssiz < bytes + SM_SYS_ALLOC_PADDING)
 				{
@@ -2598,16 +2518,16 @@ static void* sys_alloc(sm_state_t state, size_t bytes)
 							ssiz += esize;
 						else
 						{
-							(void)SM_CALL_MORE_CORE(-ssiz);
-							pbr = SM_MC_FAIL;
+							SM_CALL_MORE_CORE(-ssiz);
+							ptbr = SM_MC_FAIL;
 						}
 					}
 				}
 			}
 
-			if (pbr != SM_MC_FAIL)
+			if (ptbr != SM_MC_FAIL)
 			{
-				tbas = pbr;
+				tbas = ptbr;
 				tsiz = ssiz;
 			}
 			else sm_disable_contiguous(state);
@@ -2618,11 +2538,11 @@ static void* sys_alloc(sm_state_t state, size_t bytes)
 
 	if (SM_HAS_MMAP && tbas == SM_MC_FAIL)
 	{
-		uint8_t* mp = (uint8_t*)(SM_CALL_MMAP(asiz));
+		uint8_t* mptr = (uint8_t*)(SM_CALL_MMAP(asiz));
 
-		if (mp != SM_MC_FAIL)
+		if (mptr != SM_MC_FAIL)
 		{
-			tbas = mp;
+			tbas = mptr;
 			tsiz = asiz;
 			mflg = SM_USE_MMAP_BIT;
 		}
@@ -2632,23 +2552,23 @@ static void* sys_alloc(sm_state_t state, size_t bytes)
 	{
 		if (asiz < SM_HALF_MAX_SIZE_T)
 		{
-			uint8_t *pbr = SM_MC_FAIL, *end = SM_MC_FAIL;
+			uint8_t *ptbr = SM_MC_FAIL, *end = SM_MC_FAIL;
 
 			SM_ACQUIRE_MALLOC_GLOBAL_LOCK();
 
-			pbr = (uint8_t*)(SM_CALL_MORE_CORE(asiz));
+			ptbr = (uint8_t*)(SM_CALL_MORE_CORE(asiz));
 			end = (uint8_t*)(SM_CALL_MORE_CORE(0));
 
 			SM_RELEASE_MALLOC_GLOBAL_LOCK();
 
-			if (pbr != SM_MC_FAIL && end != SM_MC_FAIL && pbr < end)
+			if (ptbr != SM_MC_FAIL && end != SM_MC_FAIL && ptbr < end)
 			{
-				size_t ssz = end - pbr;
+				size_t ssiz = end - ptbr;
 
-				if (ssz > bytes + SM_TOP_FOOT_SIZE)
+				if (ssiz > bytes + SM_TOP_FOOT_SIZE)
 				{
-					tbas = pbr;
-					tsiz = ssz;
+					tbas = ptbr;
+					tsiz = ssiz;
 				}
 			}
 		}
@@ -2661,7 +2581,7 @@ static void* sys_alloc(sm_state_t state, size_t bytes)
 
 		if (!sm_is_initialized(state))
 		{
-			if (state->least_address == 0 || tbas < state->least_address)
+			if (state->least_address == NULL || tbas < state->least_address)
 				state->least_address = tbas;
 
 			state->segment.base = tbas;
@@ -2670,47 +2590,47 @@ static void* sys_alloc(sm_state_t state, size_t bytes)
 			state->magic = sm_m_params__.magic;
 			state->release_checks = SM_MAX_RELEASE_CHECK_RATE;
 
-			sm_init_bins(state);
+			sm_initialize_bins(state);
 
 #if !SM_ONLY_MSPACES
 			if (sm_is_global(state))
-				sm_init_top(state, (sm_pchunk_t)tbas, tsiz - SM_TOP_FOOT_SIZE);
+				sm_initialize_top_chunk(state, (sm_pchunk_t)tbas, tsiz - SM_TOP_FOOT_SIZE);
 			else
 #endif
 			{
-				sm_pchunk_t mn = sm_next_chunk(sm_mem_to_chunk(state));
-				sm_init_top(state, mn, (size_t)((tbas + tsiz) - (uint8_t*)mn) - SM_TOP_FOOT_SIZE);
+				sm_pchunk_t mnck = sm_next_chunk(sm_memory_to_chunk(state));
+				sm_initialize_top_chunk(state, mnck, (size_t)((tbas + tsiz) - (uint8_t*)mnck) - SM_TOP_FOOT_SIZE);
 			}
 		}
 		else
 		{
-			sm_psegment_t sp = &state->segment;
+			sm_psegment_t spsg = &state->segment;
 
-			while (sp != 0 && tbas != sp->base + sp->size)
-				sp = (SM_NO_SEGMENT_TRAVERSAL) ? 0 : sp->next;
+			while (spsg != NULL && tbas != spsg->base + spsg->size)
+				spsg = (SM_NO_SEGMENT_TRAVERSAL) ? NULL : spsg->next;
 
-			if (sp != 0 && !sm_is_extern_segment(sp) && (sp->flags & SM_USE_MMAP_BIT) == mflg && sm_segment_holds(sp, state->top))
+			if (spsg != NULL && !sm_is_external_segment(spsg) && (spsg->flags & SM_USE_MMAP_BIT) == mflg && sm_segment_holds(spsg, state->top))
 			{
-				sp->size += tsiz;
-				sm_init_top(state, state->top, state->top_size + tsiz);
+				spsg->size += tsiz;
+				sm_initialize_top_chunk(state, state->top, state->top_size + tsiz);
 			}
 			else
 			{
 				if (tbas < state->least_address)
 					state->least_address = tbas;
 
-				sp = &state->segment;
+				spsg = &state->segment;
 
-				while (sp != 0 && sp->base != tbas + tsiz)
-					sp = (SM_NO_SEGMENT_TRAVERSAL) ? 0 : sp->next;
+				while (spsg != NULL && spsg->base != tbas + tsiz)
+					spsg = (SM_NO_SEGMENT_TRAVERSAL) ? NULL : spsg->next;
 
-				if (sp != 0 && !sm_is_extern_segment(sp) && (sp->flags & SM_USE_MMAP_BIT) == mflg)
+				if (spsg != NULL && !sm_is_external_segment(spsg) && (spsg->flags & SM_USE_MMAP_BIT) == mflg)
 				{
-					uint8_t* oldbase = sp->base;
-					sp->base = tbas;
-					sp->size += tsiz;
+					uint8_t* obas = spsg->base;
+					spsg->base = tbas;
+					spsg->size += tsiz;
 
-					return sm_prepend_alloc(state, tbas, oldbase, bytes);
+					return sm_prepend_alloc(state, tbas, obas, bytes);
 				}
 				else sm_add_segment(state, tbas, tsiz, mflg);
 			}
@@ -2718,17 +2638,17 @@ static void* sys_alloc(sm_state_t state, size_t bytes)
 
 		if (bytes < state->top_size)
 		{
-			size_t rsize = state->top_size -= bytes;
-			sm_pchunk_t p = state->top;
-			sm_pchunk_t r = state->top = sm_chunk_plus_offset(p, bytes);
+			size_t rsiz = state->top_size -= bytes;
+			sm_pchunk_t pchk = state->top;
+			sm_pchunk_t rchk = state->top = sm_chunk_plus_offset(pchk, bytes);
 
-			r->head = rsize | SM_P_IN_USE_BIT;
+			rchk->head = rsiz | SM_P_IN_USE_BIT;
 
-			sm_sets_p_inuse_inuse_chunk(state, p, bytes);
+			sm_sets_p_inuse_inuse_chunk(state, pchk, bytes);
 			sm_check_top_chunk(state, state->top);
-			sm_check_allocated_chunk(state, sm_chunk_to_mem(p), bytes);
+			sm_check_allocated_chunk(state, sm_chunk_to_memory(pchk), bytes);
 
-			return sm_chunk_to_mem(p);
+			return sm_chunk_to_memory(pchk);
 		}
 	}
 
@@ -2742,37 +2662,37 @@ static void* sys_alloc(sm_state_t state, size_t bytes)
 
 
 // Unmap and unlink any mmapped segments that don't contain used chunks.
-static size_t sm_release_unused_segments(sm_state_t state)
+inline static size_t sm_release_unused_segments(sm_state_t state)
 {
-	size_t nrel = 0;
+	size_t nrel = UINT64_C(0);
 	int nseg = 0;
 	sm_psegment_t pred = &state->segment;
 	sm_psegment_t pnex = pred->next;
 
-	while (pnex != 0)
+	while (pnex != NULL)
 	{
 		uint8_t* base = pnex->base;
 		size_t size = pnex->size;
 		sm_psegment_t next = pnex->next;
 		++nseg;
 
-		if (sm_is_mmapped_segment(pnex) && !sm_is_extern_segment(pnex))
+		if (sm_is_mapped_segment(pnex) && !sm_is_external_segment(pnex))
 		{
 			sm_pchunk_t ptmp = sm_align_as_chunk(base);
 			size_t psiz = sm_chunk_size(ptmp);
 
 			if (!sm_is_in_use(ptmp) && (uint8_t*)ptmp + psiz >= base + size - SM_TOP_FOOT_SIZE)
 			{
-				sm_ptchunk_t tp = (sm_ptchunk_t)ptmp;
+				sm_ptchunk_t tpck = (sm_ptchunk_t)ptmp;
 
 				assert(sm_segment_holds(pnex, (uint8_t*)pnex));
 
 				if (ptmp == state->dv)
 				{
-					state->dv = 0;
-					state->dv_size = 0;
+					state->dv = NULL;
+					state->dv_size = UINT64_C(0);
 				}
-				else sm_unlink_large_chunk(state, tp);
+				else sm_unlink_large_chunk(state, tpck);
 
 				if (SM_CALL_MUNMAP(base, size) == 0)
 				{
@@ -2781,7 +2701,7 @@ static size_t sm_release_unused_segments(sm_state_t state)
 					pnex = pred;
 					pnex->next = next;
 				}
-				else sm_insert_large_chunk(state, tp, psiz);
+				else sm_insert_large_chunk(state, tpck, psiz);
 			}
 		}
 
@@ -2797,9 +2717,9 @@ static size_t sm_release_unused_segments(sm_state_t state)
 }
 
 
-static int sm_sys_trim(sm_state_t state, size_t padding)
+inline static uint8_t sm_system_trim(sm_state_t state, size_t padding)
 {
-	size_t nrel = 0;
+	size_t nrel = UINT64_C(0);
 
 	sm_ensure_initialization();
 
@@ -2813,15 +2733,15 @@ static int sm_sys_trim(sm_state_t state, size_t padding)
 			size_t extr = ((state->top_size - padding + (unit - SM_SIZE_T_ONE)) / unit - SM_SIZE_T_ONE) * unit;
 			sm_psegment_t sptr = sm_segment_holding(state, (uint8_t*)state->top);
 
-			if (!sm_is_extern_segment(sptr))
+			if (!sm_is_external_segment(sptr))
 			{
-				if (sm_is_mmapped_segment(sptr))
+				if (sm_is_mapped_segment(sptr))
 				{
 					if (SM_HAS_MMAP && sptr->size >= extr && !sm_has_segment_link(state, sptr))
 					{
-						size_t newsize = sptr->size - extr;
+						size_t news = sptr->size - extr;
 
-						if ((SM_CALL_MREMAP(sptr->base, sptr->size, newsize, 0) != SM_M_FAIL) || (SM_CALL_MUNMAP(sptr->base + newsize, extr) == 0))
+						if ((SM_CALL_MREMAP(sptr->base, sptr->size, news, 0) != SM_M_FAIL) || (SM_CALL_MUNMAP(sptr->base + news, extr) == 0))
 							nrel = extr;
 					}
 				}
@@ -2833,15 +2753,15 @@ static int sm_sys_trim(sm_state_t state, size_t padding)
 					SM_ACQUIRE_MALLOC_GLOBAL_LOCK();
 
 					{
-						uint8_t* obr = (uint8_t*)(SM_CALL_MORE_CORE(0));
+						uint8_t* pobr = (uint8_t*)(SM_CALL_MORE_CORE(0));
 
-						if (obr == sptr->base + sptr->size)
+						if (pobr == sptr->base + sptr->size)
 						{
-							uint8_t* rbr = (uint8_t*)(SM_CALL_MORE_CORE(-extr));
-							uint8_t* nbr = (uint8_t*)(SM_CALL_MORE_CORE(0));
+							uint8_t* rbrc = (uint8_t*)(SM_CALL_MORE_CORE(-extr));
+							uint8_t* nbrc = (uint8_t*)(SM_CALL_MORE_CORE(0));
 
-							if (rbr != SM_MC_FAIL && nbr < obr)
-								nrel = obr - nbr;
+							if (rbrc != SM_MC_FAIL && nbrc < pobr)
+								nrel = pobr - nbrc;
 						}
 					}
 
@@ -2849,12 +2769,12 @@ static int sm_sys_trim(sm_state_t state, size_t padding)
 				}
 			}
 
-			if (nrel != 0)
+			if (nrel != UINT64_C(0))
 			{
 				sptr->size -= nrel;
 				state->foot_print -= nrel;
 
-				sm_init_top(state, state->top, state->top_size - nrel);
+				sm_initialize_top_chunk(state, state->top, state->top_size - nrel);
 				sm_check_top_chunk(state, state->top);
 			}
 		}
@@ -2862,25 +2782,25 @@ static int sm_sys_trim(sm_state_t state, size_t padding)
 		if (SM_HAS_MMAP)
 			nrel += sm_release_unused_segments(state);
 
-		if (nrel == 0 && state->top_size > state->trim_check)
+		if (nrel == UINT64_C(0) && state->top_size > state->trim_check)
 			state->trim_check = SM_MAX_SIZE_T;
 	}
 
-	return (nrel != 0) ? 1 : 0;
+	return (nrel != UINT64_C(0)) ? 1 : 0;
 }
 
 
 // Consolidate and bin a chunk. Differs from exported versions of free mainly in that the chunk need not be marked as in-use.
-static void sm_dispose_chunk(sm_state_t state, sm_pchunk_t chunk, size_t size)
+inline static void sm_dispose_chunk(sm_state_t state, sm_pchunk_t chunk, size_t size)
 {
 	sm_pchunk_t next = sm_chunk_plus_offset(chunk, size);
 
-	if (!sm_p_in_use(chunk))
+	if (!sm_is_p_in_use(chunk))
 	{
 		sm_pchunk_t prev;
 		size_t prvs = chunk->previous;
 
-		if (sm_is_mem_mapped(chunk))
+		if (sm_is_mapped(chunk))
 		{
 			size += prvs + SM_MMAP_FOOT_PAD;
 
@@ -2894,7 +2814,7 @@ static void sm_dispose_chunk(sm_state_t state, sm_pchunk_t chunk, size_t size)
 		size += prvs;
 		chunk = prev;
 
-		if (sm_rt_check(sm_ok_address(state, prev)))
+		if (sm_runtime_check(sm_is_address_ok(state, prev)))
 		{
 			if (chunk != state->dv) { sm_unlink_chunk(state, chunk, prvs); }
 			else if ((next->head & SM_IN_USE_BITS) == SM_IN_USE_BITS)
@@ -2913,9 +2833,9 @@ static void sm_dispose_chunk(sm_state_t state, sm_pchunk_t chunk, size_t size)
 		}
 	}
 
-	if (sm_rt_check(sm_ok_address(state, next)))
+	if (sm_runtime_check(sm_is_address_ok(state, next)))
 	{
-		if (!sm_c_in_use(next))
+		if (!sm_chunk_in_use(next))
 		{
 			if (next == state->top)
 			{
@@ -2925,8 +2845,8 @@ static void sm_dispose_chunk(sm_state_t state, sm_pchunk_t chunk, size_t size)
 
 				if (chunk == state->dv)
 				{
-					state->dv = 0;
-					state->dv_size = 0;
+					state->dv = NULL;
+					state->dv_size = UINT64_C(0);
 				}
 
 				return;
@@ -2970,12 +2890,12 @@ static void sm_dispose_chunk(sm_state_t state, sm_pchunk_t chunk, size_t size)
 
 
 // Allocate a large request from the best fitting chunk in a tree bin.
-static void* sm_t_malloc_large(sm_state_t state, size_t bytes)
+inline static void* sm_tree_allocate_large(sm_state_t state, size_t bytes)
 {
 	sm_ptchunk_t vptr = NULL;
 	size_t rsiz = -bytes;
 	sm_ptchunk_t tptr;
-	sm_bin_index_t bidx;
+	sm_bindex_t bidx;
 
 	sm_compute_tree_index(bytes, bidx);
 
@@ -2993,17 +2913,17 @@ static void* sm_t_malloc_large(sm_state_t state, size_t bytes)
 			{
 				vptr = tptr;
 
-				if ((rsiz = trem) == 0)
+				if ((rsiz = trem) == UINT64_C(0))
 					break;
 			}
 
 			rtpt = tptr->child[1];
-			tptr = tptr->child[(bsiz >> (SM_SIZE_T_BITSIZE - SM_SIZE_T_ONE)) & 1];
+			tptr = tptr->child[(bsiz >> (SM_SIZE_T_BITSIZE - SM_SIZE_T_ONE)) & UINT64_C(1)];
 
-			if (rtpt != 0 && rtpt != tptr)
+			if (rtpt != NULL && rtpt != tptr)
 				prst = rtpt;
 
-			if (tptr == 0)
+			if (tptr == NULL)
 			{
 				tptr = prst;
 				break;
@@ -3013,13 +2933,13 @@ static void* sm_t_malloc_large(sm_state_t state, size_t bytes)
 		}
 	}
 
-	if (tptr == 0 && vptr == 0)
+	if (tptr == NULL && vptr == NULL)
 	{
 		sm_bin_map_t lbit = sm_left_bits(sm_index_to_bit(bidx)) & state->tree_map;
 
-		if (lbit != 0)
+		if (lbit != UINT64_C(0))
 		{
-			sm_bin_index_t indx;
+			sm_bindex_t indx;
 			sm_bin_map_t bitl = sm_least_bit(lbit);
 
 			sm_compute_bit_to_index(bitl, indx);
@@ -3027,7 +2947,7 @@ static void* sm_t_malloc_large(sm_state_t state, size_t bytes)
 		}
 	}
 
-	while (tptr != 0)
+	while (tptr != NULL)
 	{
 		size_t trem = sm_chunk_size(tptr) - bytes;
 
@@ -3040,15 +2960,15 @@ static void* sm_t_malloc_large(sm_state_t state, size_t bytes)
 		tptr = sm_left_most_child(tptr);
 	}
 
-	if (vptr != 0 && rsiz < (size_t)(state->dv_size - bytes))
+	if (vptr != NULL && rsiz < (size_t)(state->dv_size - bytes))
 	{
-		if (sm_rt_check(sm_ok_address(state, vptr)))
+		if (sm_runtime_check(sm_is_address_ok(state, vptr)))
 		{
 			sm_pchunk_t roff = sm_chunk_plus_offset(vptr, bytes);
 
 			assert(sm_chunk_size(vptr) == rsiz + bytes);
 
-			if (sm_rt_check(sm_ok_next(vptr, roff)))
+			if (sm_runtime_check(sm_ok_next(vptr, roff)))
 			{
 				sm_unlink_large_chunk(state, vptr);
 
@@ -3061,7 +2981,7 @@ static void* sm_t_malloc_large(sm_state_t state, size_t bytes)
 					sm_insert_chunk(state, roff, rsiz);
 				}
 
-				return sm_chunk_to_mem(vptr);
+				return sm_chunk_to_memory(vptr);
 			}
 		}
 
@@ -3073,11 +2993,11 @@ static void* sm_t_malloc_large(sm_state_t state, size_t bytes)
 
 
 // Allocate a small request from the best fitting chunk in a tree bin.
-static void* sm_t_malloc_small(sm_state_t state, size_t bytes)
+inline static void* sm_tree_allocate_small(sm_state_t state, size_t bytes)
 {
 	sm_ptchunk_t tptr, vptr;
 	size_t rsiz;
-	sm_bin_index_t bidx;
+	sm_bindex_t bidx;
 	sm_bin_map_t lbit = sm_least_bit(state->tree_map);
 
 	sm_compute_bit_to_index(lbit, bidx);
@@ -3085,7 +3005,7 @@ static void* sm_t_malloc_small(sm_state_t state, size_t bytes)
 	vptr = tptr = *sm_tree_bin_at(state, bidx);
 	rsiz = sm_chunk_size(tptr) - bytes;
 
-	while ((tptr = sm_left_most_child(tptr)) != 0)
+	while ((tptr = sm_left_most_child(tptr)) != NULL)
 	{
 		size_t trem = sm_chunk_size(tptr) - bytes;
 
@@ -3096,13 +3016,13 @@ static void* sm_t_malloc_small(sm_state_t state, size_t bytes)
 		}
 	}
 
-	if (sm_rt_check(sm_ok_address(state, vptr)))
+	if (sm_runtime_check(sm_is_address_ok(state, vptr)))
 	{
 		sm_pchunk_t rptr = sm_chunk_plus_offset(vptr, bytes);
 
 		assert(sm_chunk_size(vptr) == rsiz + bytes);
 
-		if (sm_rt_check(sm_ok_next(vptr, rptr)))
+		if (sm_runtime_check(sm_ok_next(vptr, rptr)))
 		{
 			sm_unlink_large_chunk(state, vptr);
 
@@ -3115,7 +3035,7 @@ static void* sm_t_malloc_small(sm_state_t state, size_t bytes)
 				sm_replace_dv(state, rptr, rsiz);
 			}
 
-			return sm_chunk_to_mem(vptr);
+			return sm_chunk_to_memory(vptr);
 		}
 	}
 
@@ -3125,407 +3045,67 @@ static void* sm_t_malloc_small(sm_state_t state, size_t bytes)
 }
 
 
-#if !SM_ONLY_MSPACES
-void* sm_dl_malloc(size_t bytes)
-{
-#if SM_USE_LOCKS
-	sm_ensure_initialization();
-#endif
-
-	if (!SM_PRE_ACTION(sm_gm))
-	{
-		void* rmem;
-		size_t numb;
-
-		if (bytes <= SM_MAX_SMALL_REQUEST)
-		{
-			numb = (bytes < SM_MIN_REQUEST) ? SM_MIN_CHUNK_SIZE : sm_pad_request(bytes);
-
-			sm_bin_index_t bidx = sm_small_index(numb);
-			sm_bin_map_t smbt = sm_gm->small_map >> bidx;
-
-			if ((smbt & 0x3U) != 0)
-			{
-				sm_pchunk_t bcpt, pcpt;
-
-				bidx += ~smbt & 1;
-				bcpt = sm_small_bin_at(sm_gm, bidx);
-				pcpt = bcpt->forward;
-
-				assert(sm_chunk_size(pcpt) == sm_small_index_to_size(bidx));
-
-				sm_unlink_first_small_chunk(sm_gm, bcpt, pcpt, bidx);
-				sm_set_in_use_and_p_in_use(sm_gm, pcpt, sm_small_index_to_size(bidx));
-
-				rmem = sm_chunk_to_mem(pcpt);
-
-				sm_check_allocated_chunk(sm_gm, rmem, numb);
-
-				goto LOC_POST_ACTION;
-			}
-			else if (numb > sm_gm->dv_size)
-			{
-				if (smbt != 0)
-				{
-					sm_pchunk_t bcpt, pcpt, rcpt;
-					size_t rsiz;
-					sm_bin_index_t lbix;
-					sm_bin_map_t lftb = (smbt << bidx) & sm_left_bits(sm_index_to_bit(bidx));
-					sm_bin_map_t leab = sm_least_bit(lftb);
-
-					sm_compute_bit_to_index(leab, lbix);
-
-					bcpt = sm_small_bin_at(sm_gm, lbix);
-					pcpt = bcpt->forward;
-
-					assert(sm_chunk_size(pcpt) == sm_small_index_to_size(lbix));
-
-					sm_unlink_first_small_chunk(sm_gm, bcpt, pcpt, lbix);
-
-					rsiz = sm_small_index_to_size(lbix) - numb;
-
-					if (SM_SIZE_T_SIZE != 4 && rsiz < SM_MIN_CHUNK_SIZE)
-						sm_set_in_use_and_p_in_use(sm_gm, pcpt, sm_small_index_to_size(lbix));
-					else
-					{
-						sm_sets_p_inuse_inuse_chunk(sm_gm, pcpt, numb);
-
-						rcpt = sm_chunk_plus_offset(pcpt, numb);
-
-						sm_sets_p_inuse_fchunk(rcpt, rsiz);
-						sm_replace_dv(sm_gm, rcpt, rsiz);
-					}
-
-					rmem = sm_chunk_to_mem(pcpt);
-
-					sm_check_allocated_chunk(sm_gm, rmem, numb);
-
-					goto LOC_POST_ACTION;
-				}
-				else if (sm_gm->tree_map != 0 && (rmem = sm_t_malloc_small(sm_gm, numb)) != 0)
-				{
-					sm_check_allocated_chunk(sm_gm, rmem, numb);
-
-					goto LOC_POST_ACTION;
-				}
-			}
-		}
-		else if (bytes >= SM_MAX_REQUEST)
-			numb = SM_MAX_SIZE_T;
-		else
-		{
-			numb = sm_pad_request(bytes);
-			if (sm_gm->tree_map != 0 && (rmem = sm_t_malloc_large(sm_gm, numb)) != 0)
-			{
-				sm_check_allocated_chunk(sm_gm, rmem, numb);
-
-				goto LOC_POST_ACTION;
-			}
-		}
-
-		if (numb <= sm_gm->dv_size)
-		{
-			size_t rsiz = sm_gm->dv_size - numb;
-			sm_pchunk_t pcpt = sm_gm->dv;
-
-			if (rsiz >= SM_MIN_CHUNK_SIZE)
-			{
-				sm_pchunk_t rcpt = sm_gm->dv = sm_chunk_plus_offset(pcpt, numb);
-				sm_gm->dv_size = rsiz;
-				sm_sets_p_inuse_fchunk(rcpt, rsiz);
-				sm_sets_p_inuse_inuse_chunk(sm_gm, pcpt, numb);
-			}
-			else
-			{
-				size_t dvsz = sm_gm->dv_size;
-				sm_gm->dv_size = 0;
-				sm_gm->dv = 0;
-
-				sm_set_in_use_and_p_in_use(sm_gm, pcpt, dvsz);
-			}
-
-			rmem = sm_chunk_to_mem(pcpt);
-			sm_check_allocated_chunk(sm_gm, rmem, numb);
-
-			goto LOC_POST_ACTION;
-		}
-		else if (numb < sm_gm->top_size)
-		{
-			size_t rsiz = sm_gm->top_size -= numb;
-			sm_pchunk_t pcpt = sm_gm->top;
-			sm_pchunk_t rcpt = sm_gm->top = sm_chunk_plus_offset(pcpt, numb);
-
-			rcpt->head = rsiz | SM_P_IN_USE_BIT;
-
-			sm_sets_p_inuse_inuse_chunk(sm_gm, pcpt, numb);
-
-			rmem = sm_chunk_to_mem(pcpt);
-
-			sm_check_top_chunk(sm_gm, sm_gm->top);
-			sm_check_allocated_chunk(sm_gm, rmem, numb);
-
-			goto LOC_POST_ACTION;
-		}
-
-		rmem = sys_alloc(sm_gm, numb);
-
-	LOC_POST_ACTION:
-
-		SM_POST_ACTION(sm_gm);
-
-		return rmem;
-	}
-
-	return 0;
-}
-
-
-// Free
-
-
-void sm_dl_free(void* memory)
-{
-	if (memory != NULL)
-	{
-		sm_pchunk_t pchk = sm_mem_to_chunk(memory);
-
-#if SM_FOOTERS
-		sm_state_t fmsp = sm_get_mstate_for(pchk);
-
-		if (!sm_ok_magic(fmsp))
-		{
-			SM_USAGE_ERROR_ACTION(fmsp, pchk);
-
-			return;
-		}
-#else
-#define fmsp sm_gm
-#endif
-
-		if (!SM_PRE_ACTION(fmsp))
-		{
-			sm_check_in_use_chunk(fmsp, pchk);
-
-			if (sm_rt_check(sm_ok_address(fmsp, pchk) && sm_ok_in_use(pchk)))
-			{
-				size_t psiz = sm_chunk_size(pchk);
-				sm_pchunk_t next = sm_chunk_plus_offset(pchk, psiz);
-
-				if (!sm_p_in_use(pchk))
-				{
-					size_t prvs = pchk->previous;
-
-					if (sm_is_mem_mapped(pchk))
-					{
-						psiz += prvs + SM_MMAP_FOOT_PAD;
-
-						if (SM_CALL_MUNMAP((char*)pchk - prvs, psiz) == 0)
-							fmsp->foot_print -= psiz;
-
-						goto LOC_POST_ACTION;
-					}
-					else
-					{
-						sm_pchunk_t prev = sm_chunk_minus_offset(pchk, prvs);
-
-						psiz += prvs;
-						pchk = prev;
-
-						if (sm_rt_check(sm_ok_address(fmsp, prev)))
-						{
-							if (pchk != fmsp->dv)
-							{
-								sm_unlink_chunk(fmsp, pchk, prvs);
-							}
-							else if ((next->head & SM_IN_USE_BITS) == SM_IN_USE_BITS)
-							{
-								fmsp->dv_size = psiz;
-								sm_set_free_with_p_in_use(pchk, psiz, next);
-
-								goto LOC_POST_ACTION;
-							}
-						}
-						else goto LOC_ERROR_ACTION;
-					}
-				}
-
-				if (sm_rt_check(sm_ok_next(pchk, next) && sm_ok_p_in_use(next)))
-				{
-					if (!sm_c_in_use(next))
-					{
-						if (next == fmsp->top)
-						{
-							size_t tsiz = fmsp->top_size += psiz;
-
-							fmsp->top = pchk;
-							pchk->head = tsiz | SM_P_IN_USE_BIT;
-
-							if (pchk == fmsp->dv)
-							{
-								fmsp->dv = 0;
-								fmsp->dv_size = 0;
-							}
-
-							if (sm_should_trim(fmsp, tsiz))
-								sm_sys_trim(fmsp, 0);
-
-							goto LOC_POST_ACTION;
-						}
-						else if (next == fmsp->dv)
-						{
-							size_t dsiz = fmsp->dv_size += psiz;
-
-							fmsp->dv = pchk;
-
-							sm_sets_p_inuse_fchunk(pchk, dsiz);
-
-							goto LOC_POST_ACTION;
-						}
-						else
-						{
-							size_t nsiz = sm_chunk_size(next);
-
-							psiz += nsiz;
-
-							sm_unlink_chunk(fmsp, next, nsiz);
-							sm_sets_p_inuse_fchunk(pchk, psiz);
-
-							if (pchk == fmsp->dv)
-							{
-								fmsp->dv_size = psiz;
-
-								goto LOC_POST_ACTION;
-							}
-						}
-					}
-					else sm_set_free_with_p_in_use(pchk, psiz, next);
-
-					if (sm_is_small(psiz))
-					{
-						sm_insert_small_chunk(fmsp, pchk, psiz);
-						sm_check_free_chunk(fmsp, pchk);
-					}
-					else
-					{
-						sm_ptchunk_t tptr = (sm_ptchunk_t)pchk;
-						sm_insert_large_chunk(fmsp, tptr, psiz);
-						sm_check_free_chunk(fmsp, pchk);
-
-						if (--fmsp->release_checks == 0)
-							sm_release_unused_segments(fmsp);
-					}
-
-					goto LOC_POST_ACTION;
-				}
-			}
-
-		LOC_ERROR_ACTION:
-
-			SM_USAGE_ERROR_ACTION(fmsp, pchk);
-
-		LOC_POST_ACTION:
-
-			SM_POST_ACTION(fmsp);
-		}
-	}
-
-#if !SM_FOOTERS
-#undef fmsp
-#endif
-}
-
-
-void* sm_dl_calloc(size_t count, size_t size)
-{
-	void* pmem;
-	size_t sreq = 0;
-
-	if (count != 0)
-	{
-		sreq = count * size;
-
-		if (((count | size) & ~UINT64_C(0xFFFF)) && (sreq / count != size))
-			sreq = SM_MAX_SIZE_T;
-	}
-
-	pmem = sm_dl_malloc(sreq);
-
-	if (pmem != NULL && sm_calloc_must_clear(sm_mem_to_chunk(pmem)))
-	{
-		register uint8_t* p = (uint8_t*)pmem;
-		while (sreq-- > 0U) *p++ = 0;
-	}
-
-	return pmem;
-}
-
-
-#endif
-
-
 // Internal Support for Realloc, Memalign
 
 
 // Try to realloc; only in-place unless can_move true.
-static sm_pchunk_t sm_try_realloc_chunk(sm_state_t state, sm_pchunk_t p, size_t bcnt, bool movable)
+inline static sm_pchunk_t sm_try_reallocate_chunk(sm_state_t state, sm_pchunk_t chunk, size_t bytes, uint8_t movable)
 {
-	sm_pchunk_t newp = 0;
-	size_t osiz = sm_chunk_size(p);
-	sm_pchunk_t next = sm_chunk_plus_offset(p, osiz);
+	sm_pchunk_t newp = NULL;
+	size_t osiz = sm_chunk_size(chunk);
+	sm_pchunk_t next = sm_chunk_plus_offset(chunk, osiz);
 
-	if (sm_rt_check(sm_ok_address(state, p) && sm_ok_in_use(p) && sm_ok_next(p, next) && sm_ok_p_in_use(next)))
+	if (sm_runtime_check(sm_is_address_ok(state, chunk) && sm_is_in_use_ok(chunk) && sm_ok_next(chunk, next) && sm_ok_p_in_use(next)))
 	{
-		if (sm_is_mem_mapped(p))
+		if (sm_is_mapped(chunk))
+			newp = sm_map_resize(state, chunk, bytes, movable);
+		else if (osiz >= bytes)
 		{
-			newp = sm_mmap_resize(state, p, bcnt, movable);
-		}
-		else if (osiz >= bcnt)
-		{
-			size_t rsiz = osiz - bcnt;
+			size_t rsiz = osiz - bytes;
 
 			if (rsiz >= SM_MIN_CHUNK_SIZE)
 			{
-				sm_pchunk_t rtmp = sm_chunk_plus_offset(p, bcnt);
+				sm_pchunk_t rtmp = sm_chunk_plus_offset(chunk, bytes);
 
-				sm_set_in_use(state, p, bcnt);
+				sm_set_in_use(state, chunk, bytes);
 				sm_set_in_use(state, rtmp, rsiz);
 				sm_dispose_chunk(state, rtmp, rsiz);
 			}
 
-			newp = p;
+			newp = chunk;
 		}
 		else if (next == state->top)
 		{
-			if (osiz + state->top_size > bcnt)
+			if (osiz + state->top_size > bytes)
 			{
 				size_t nsiz = osiz + state->top_size;
-				size_t ntsz = nsiz - bcnt;
-				sm_pchunk_t tnew = sm_chunk_plus_offset(p, bcnt);
+				size_t ntsz = nsiz - bytes;
+				sm_pchunk_t tnew = sm_chunk_plus_offset(chunk, bytes);
 
-				sm_set_in_use(state, p, bcnt);
+				sm_set_in_use(state, chunk, bytes);
 
 				tnew->head = ntsz | SM_P_IN_USE_BIT;
 				state->top = tnew;
 				state->top_size = ntsz;
-				newp = p;
+				newp = chunk;
 			}
 		}
 		else if (next == state->dv)
 		{
 			size_t dvss = state->dv_size;
 
-			if (osiz + dvss >= bcnt)
+			if (osiz + dvss >= bytes)
 			{
-				size_t dsiz = osiz + dvss - bcnt;
+				size_t dsiz = osiz + dvss - bytes;
 
 				if (dsiz >= SM_MIN_CHUNK_SIZE)
 				{
-					sm_pchunk_t rtmp = sm_chunk_plus_offset(p, bcnt);
+					sm_pchunk_t rtmp = sm_chunk_plus_offset(chunk, bytes);
 					sm_pchunk_t noff = sm_chunk_plus_offset(rtmp, dsiz);
 
-					sm_set_in_use(state, p, bcnt);
+					sm_set_in_use(state, chunk, bytes);
 					sm_sets_p_inuse_fchunk(rtmp, dsiz);
-					sm_clear_p_in_use(noff);
+					sm_clear_chunk_in_use(noff);
 
 					state->dv_size = dsiz;
 					state->dv = rtmp;
@@ -3534,22 +3114,22 @@ static sm_pchunk_t sm_try_realloc_chunk(sm_state_t state, sm_pchunk_t p, size_t 
 				{
 					size_t nsiz = osiz + dvss;
 
-					sm_set_in_use(state, p, nsiz);
+					sm_set_in_use(state, chunk, nsiz);
 
-					state->dv_size = 0;
-					state->dv = 0;
+					state->dv_size = UINT64_C(0);
+					state->dv = NULL;
 				}
 
-				newp = p;
+				newp = chunk;
 			}
 		}
-		else if (!sm_c_in_use(next))
+		else if (!sm_chunk_in_use(next))
 		{
 			size_t nxts = sm_chunk_size(next);
 
-			if (osiz + nxts >= bcnt)
+			if (osiz + nxts >= bytes)
 			{
-				size_t rsiz = osiz + nxts - bcnt;
+				size_t rsiz = osiz + nxts - bytes;
 
 				sm_unlink_chunk(state, next, nxts);
 
@@ -3557,47 +3137,50 @@ static sm_pchunk_t sm_try_realloc_chunk(sm_state_t state, sm_pchunk_t p, size_t 
 				{
 					size_t nsiz = osiz + nxts;
 
-					sm_set_in_use(state, p, nsiz);
+					sm_set_in_use(state, chunk, nsiz);
 				}
 				else
 				{
-					sm_pchunk_t rtmp = sm_chunk_plus_offset(p, bcnt);
+					sm_pchunk_t rtmp = sm_chunk_plus_offset(chunk, bytes);
 
-					sm_set_in_use(state, p, bcnt);
+					sm_set_in_use(state, chunk, bytes);
 					sm_set_in_use(state, rtmp, rsiz);
+
 					sm_dispose_chunk(state, rtmp, rsiz);
 				}
 
-				newp = p;
+				newp = chunk;
 			}
 		}
 	}
 	else
 	{
-		SM_USAGE_ERROR_ACTION(state, sm_chunk_to_mem(p));
+		SM_USAGE_ERROR_ACTION(state, sm_chunk_to_memory(chunk));
 	}
 
 	return newp;
 }
 
 
-static void* sm_internal_mem_align(sm_state_t state, size_t alignment, size_t bytes)
+inline static void* sm_internal_memory_align(sm_state_t state, size_t alignment, size_t bytes)
 {
 	void* pmem = NULL;
 
 	if (alignment < SM_MIN_CHUNK_SIZE)
 		alignment = SM_MIN_CHUNK_SIZE;
 
-	if ((alignment & (alignment - SM_SIZE_T_ONE)) != 0)
+	if ((alignment & (alignment - SM_SIZE_T_ONE)) != UINT64_C(0))
 	{
 		size_t alin = SM_MALLOC_ALIGNMENT << 1;
+
 		while (alin < alignment) alin <<= 1;
+
 		alignment = alin;
 	}
 
 	if (bytes >= SM_MAX_REQUEST - alignment)
 	{
-		if (state != 0)
+		if (state != NULL)
 		{
 			SM_MALLOC_FAILURE_ACTION;
 		}
@@ -3607,24 +3190,24 @@ static void* sm_internal_mem_align(sm_state_t state, size_t alignment, size_t by
 		size_t bcnt = sm_request_to_size(bytes);
 		size_t reqs = bcnt + alignment + SM_MIN_CHUNK_SIZE - SM_CHUNK_OVERHEAD;
 
-		pmem = sm_internal_malloc(state, reqs);
+		pmem = sm_internal_allocate(state, reqs);
 
-		if (pmem != 0)
+		if (pmem != NULL)
 		{
-			sm_pchunk_t ptmp = sm_mem_to_chunk(pmem);
+			sm_pchunk_t ptmp = sm_memory_to_chunk(pmem);
 
 			if (SM_PRE_ACTION(state))
-				return 0;
+				return NULL;
 
-			if ((((size_t)(pmem)) & (alignment - 1)) != 0)
+			if ((((size_t)(pmem)) & (alignment - UINT64_C(1))) != UINT64_C(0))
 			{
-				uint8_t* brpt = (uint8_t*)sm_mem_to_chunk((size_t)(((size_t)((uint8_t*)pmem + alignment - SM_SIZE_T_ONE)) & -alignment));
+				uint8_t* brpt = (uint8_t*)sm_memory_to_chunk((size_t)(((size_t)((uint8_t*)pmem + alignment - SM_SIZE_T_ONE)) & -alignment));
 				uint8_t* ppos = ((size_t)(brpt - (uint8_t*)(ptmp)) >= SM_MIN_CHUNK_SIZE) ? brpt : brpt + alignment;
 				sm_pchunk_t newp = (sm_pchunk_t)ppos;
 				size_t lsiz = ppos - (uint8_t*)(ptmp);
 				size_t nsiz = sm_chunk_size(ptmp) - lsiz;
 
-				if (sm_is_mem_mapped(ptmp))
+				if (sm_is_mapped(ptmp))
 				{
 					newp->previous = ptmp->previous + lsiz;
 					newp->head = nsiz;
@@ -3639,7 +3222,7 @@ static void* sm_internal_mem_align(sm_state_t state, size_t alignment, size_t by
 				ptmp = newp;
 			}
 
-			if (!sm_is_mem_mapped(ptmp))
+			if (!sm_is_mapped(ptmp))
 			{
 				size_t size = sm_chunk_size(ptmp);
 
@@ -3650,14 +3233,15 @@ static void* sm_internal_mem_align(sm_state_t state, size_t alignment, size_t by
 
 					sm_set_in_use(state, ptmp, bcnt);
 					sm_set_in_use(state, remp, rems);
+
 					sm_dispose_chunk(state, remp, rems);
 				}
 			}
 
-			pmem = sm_chunk_to_mem(ptmp);
+			pmem = sm_chunk_to_memory(ptmp);
 
 			assert(sm_chunk_size(ptmp) >= bcnt);
-			assert(((size_t)pmem & (alignment - 1)) == 0);
+			assert(((size_t)pmem & (alignment - UINT64_C(1))) == UINT64_C(0));
 
 			sm_check_in_use_chunk(state, ptmp);
 
@@ -3668,90 +3252,91 @@ static void* sm_internal_mem_align(sm_state_t state, size_t alignment, size_t by
 	return pmem;
 }
 
+
 // Common support for independent routines, handling all of the combinations that can result.
 // The opts arg has: bit 0 set if all elements are same size (using sizes[0]) and bit 1 set if elements should be zeroed
-static void** sm_i_alloc(sm_state_t state, size_t count, size_t* sizes, int options, void** chunks)
+inline static void** sm_independent_allocate(sm_state_t state, size_t count, size_t* sizes, uint8_t options, void** chunks)
 {
-	size_t i, size, esiz, csiz, asiz, rsiz;
+	size_t indx, size, esiz, csiz, asiz, rsiz;
 	void *pmem, **pary;
 	sm_pchunk_t pmck, pach;
 	sm_flag_t mmon;
 
 	sm_ensure_initialization();
 
-	if (chunks != 0)
+	if (chunks != NULL)
 	{
-		if (count == 0)
+		if (count == UINT64_C(0))
 			return chunks;
 
 		pary = chunks;
-		asiz = 0;
+		asiz = UINT64_C(0);
 	}
 	else
 	{
-		if (count == 0)
-			return (void**)sm_internal_malloc(state, 0);
+		if (count == UINT64_C(0))
+			return (void**)sm_internal_allocate(state, UINT64_C(0));
 
-		pary = 0;
+		pary = NULL;
 		asiz = sm_request_to_size(count * (sizeof(void*)));
 	}
 
-	if (options & 0x1)
+	if (options & 1)
 	{
 		esiz = sm_request_to_size(*sizes);
 		csiz = count * esiz;
 	}
 	else
 	{
-		esiz = csiz = 0;
+		esiz = csiz = UINT64_C(0);
 
-		for (i = 0; i != count; ++i)
-			csiz += sm_request_to_size(sizes[i]);
+		for (indx = UINT64_C(0); indx != count; ++indx)
+			csiz += sm_request_to_size(sizes[indx]);
 	}
 
 	size = csiz + asiz;
 
-	mmon = sm_use_mmap(state);
-	sm_disable_mmap(state);
+	mmon = sm_use_mapping(state);
+	sm_disable_mapping(state);
 
-	pmem = sm_internal_malloc(state, size - SM_CHUNK_OVERHEAD);
+	pmem = sm_internal_allocate(state, size - SM_CHUNK_OVERHEAD);
 
-	if (mmon) sm_enable_mmap(state);
-	if (pmem == 0) return 0;
+	if (mmon) sm_enable_mapping(state);
+	if (pmem == NULL) return NULL;
 
-	if (SM_PRE_ACTION(state)) return 0;
+	if (SM_PRE_ACTION(state)) return NULL;
 
-	pmck = sm_mem_to_chunk(pmem);
+	pmck = sm_memory_to_chunk(pmem);
 	rsiz = sm_chunk_size(pmck);
 
-	assert(!sm_is_mem_mapped(pmck));
+	assert(!sm_is_mapped(pmck));
 
-	if (options & 0x2)
+	if (options & 2)
 	{
-		register uint8_t* mspt = (uint8_t*)pmem;
+		register uint8_t* mssp = (uint8_t*)pmem;
 		register size_t mssz = rsiz - SM_SIZE_T_SIZE - asiz;
-		while (mssz-- > 0U) *mspt++ = 0;
+		while (mssz-- > UINT64_C(0)) *mssp++ = 0;
 	}
 
-	if (pary == 0)
+	if (pary == NULL)
 	{
 		size_t arcs;
 		pach = sm_chunk_plus_offset(pmck, csiz);
 		arcs = rsiz - csiz;
-		pary = (void**)(sm_chunk_to_mem(pach));
+		pary = (void**)(sm_chunk_to_memory(pach));
 		sm_sets_p_inuse_inuse_chunk(state, pach, arcs);
 		rsiz = csiz;
 	}
 
-	for (i = 0; ; ++i)
+	for (indx = UINT64_C(0); ; ++indx)
 	{
-		pary[i] = sm_chunk_to_mem(pmck);
+		pary[indx] = sm_chunk_to_memory(pmck);
 
-		if (i != count - 1)
+		if (indx != count - UINT64_C(1))
 		{
-			if (esiz != 0)
+			if (esiz != UINT64_C(0))
 				size = esiz;
-			else size = sm_request_to_size(sizes[i]);
+			else size = sm_request_to_size(sizes[indx]);
 
 			rsiz -= size;
 
@@ -3768,15 +3353,15 @@ static void** sm_i_alloc(sm_state_t state, size_t count, size_t* sizes, int opti
 #if DEBUG
 	if (pary != chunks)
 	{
-		if (esiz != 0)
+		if (esiz != UINT64_C(0))
 			assert(rsiz == esiz);
-		else assert(rsiz == sm_request_to_size(sizes[i]));
+		else assert(rsiz == sm_request_to_size(sizes[indx]));
 
-		sm_check_in_use_chunk(state, sm_mem_to_chunk(pary));
+		sm_check_in_use_chunk(state, sm_memory_to_chunk(pary));
 	}
 
-	for (i = 0; i != count; ++i)
-		sm_check_in_use_chunk(state, sm_mem_to_chunk(pary[i]));
+	for (indx = UINT64_C(0); indx != count; ++indx)
+		sm_check_in_use_chunk(state, sm_memory_to_chunk(pary[indx]));
 #endif
 
 	SM_POST_ACTION(state);
@@ -3786,9 +3371,9 @@ static void** sm_i_alloc(sm_state_t state, size_t count, size_t* sizes, int opti
 
 
 // Try to free all pointers in the given array.
-static size_t sm_internal_bulk_free(sm_state_t state, void** array, size_t elements)
+inline static size_t sm_internal_bulk_free(sm_state_t state, void** array, size_t elements)
 {
-	size_t unfr = 0;
+	size_t unfr = UINT64_C(0);
 
 	if (!SM_PRE_ACTION(state))
 	{
@@ -3799,13 +3384,13 @@ static size_t sm_internal_bulk_free(sm_state_t state, void** array, size_t eleme
 		{
 			void* pmem = *aptr;
 
-			if (pmem != 0)
+			if (pmem != NULL)
 			{
-				sm_pchunk_t pchk = sm_mem_to_chunk(pmem);
+				sm_pchunk_t pchk = sm_memory_to_chunk(pmem);
 				size_t psiz = sm_chunk_size(pchk);
 
 #if SM_FOOTERS
-				if (sm_get_mstate_for(pchk) != state)
+				if (sm_get_memory_state_for(pchk) != state)
 				{
 					++unfr;
 					continue;
@@ -3814,31 +3399,32 @@ static size_t sm_internal_bulk_free(sm_state_t state, void** array, size_t eleme
 
 				sm_check_in_use_chunk(state, pchk);
 
-				*aptr = 0;
+				*aptr = NULL;
 
-				if (sm_rt_check(sm_ok_address(state, pchk) && sm_ok_in_use(pchk)))
+				if (sm_runtime_check(sm_is_address_ok(state, pchk) && sm_is_in_use_ok(pchk)))
 				{
-					void** bptr = aptr + 1;
+					void** bptr = aptr + UINT64_C(1);
 					sm_pchunk_t next = sm_next_chunk(pchk);
 
-					if (bptr != fenc && *bptr == sm_chunk_to_mem(next))
+					if (bptr != fenc && *bptr == sm_chunk_to_memory(next))
 					{
 						size_t nsiz = sm_chunk_size(next) + psiz;
 						sm_set_in_use(state, pchk, nsiz);
-						*bptr = sm_chunk_to_mem(pchk);
+						*bptr = sm_chunk_to_memory(pchk);
 					}
 					else sm_dispose_chunk(state, pchk, psiz);
 				}
 				else
 				{
 					SM_CORRUPTION_ERROR_ACTION(state);
+
 					break;
 				}
 			}
 		}
 
 		if (sm_should_trim(state, state->top_size))
-			sm_sys_trim(state, 0);
+			sm_system_trim(state, UINT64_C(0));
 
 		SM_POST_ACTION(state);
 	}
@@ -3849,14 +3435,14 @@ static size_t sm_internal_bulk_free(sm_state_t state, void** array, size_t eleme
 
 // Traversal.
 #if SM_MALLOC_INSPECT_ALL
-static void sm_internal_inspect_all(sm_state_t state, void(*visitor)(void* start, void* end, size_t used, void* argument), void* argument)
+inline static void sm_internal_inspect_all(sm_state_t state, void(*visitor)(void* start, void* end, size_t used, void* argument), void* argument)
 {
 	if (sm_is_initialized(state))
 	{
-		sm_pchunk_t ptop = state->ptop;
+		sm_pchunk_t ptop = state->top;
 		sm_psegment_t sptr;
 
-		for (sptr = &state->segment; sptr != 0; sptr = sptr->next)
+		for (sptr = &state->segment; sptr != NULL; sptr = sptr->next)
 		{
 			sm_pchunk_t qptr = sm_align_as_chunk(sptr->base);
 
@@ -3870,15 +3456,15 @@ static void sm_internal_inspect_all(sm_state_t state, void(*visitor)(void* start
 				if (sm_is_in_use(qptr))
 				{
 					used = csiz - SM_CHUNK_OVERHEAD;
-					strt = sm_chunk_to_mem(qptr);
+					strt = sm_chunk_to_memory(qptr);
 				}
 				else
 				{
-					used = 0;
+					used = UINT64_C(0);
 
 					if (sm_is_small(csiz))
-						strt = (void*)((uint8_t*)qptr + sizeof(struct sm_malloc_chunk));
-					else strt = (void*)((uint8_t*)qptr + sizeof(struct sm_malloc_tree_chunk_t));
+						strt = (void*)((uint8_t*)qptr + sizeof(struct sm_chunk_s));
+					else strt = (void*)((uint8_t*)qptr + sizeof(struct sm_tchunk_s));
 				}
 
 				if (strt < (void*)next)
@@ -3895,10 +3481,7 @@ static void sm_internal_inspect_all(sm_state_t state, void(*visitor)(void* start
 #endif
 
 
-// Exported Realloc, Memalign
-
-
-inline static void* sm_mem_cpy(void *restrict p, const void *restrict q, size_t n)
+inline static void* sm_memory_copy(void *restrict p, const void *restrict q, size_t n)
 {
 	register const uint8_t* s;
 	register uint8_t* d;
@@ -3920,334 +3503,44 @@ inline static void* sm_mem_cpy(void *restrict p, const void *restrict q, size_t 
 }
 
 
-#if !SM_ONLY_MSPACES
-
-
-void* sm_dl_realloc(void* memory, size_t bytes)
-{
-	void* pmem = NULL;
-
-	if (memory == NULL)
-		pmem = sm_dl_malloc(bytes);
-	else if (bytes >= SM_MAX_REQUEST)
-		SM_MALLOC_FAILURE_ACTION;
-#ifdef SM_REALLOC_ZERO_BYTES_FREES
-	else if (bytes == 0)
-		sm_dl_free(memory);
-#endif
-	else
-	{
-		size_t bcnt = sm_request_to_size(bytes);
-		sm_pchunk_t oldp = sm_mem_to_chunk(memory);
-
-#if !SM_FOOTERS
-		sm_state_t m = sm_gm;
-#else
-		sm_state_t m = sm_get_mstate_for(oldp);
-
-		if (!sm_ok_magic(m))
-		{
-			SM_USAGE_ERROR_ACTION(m, memory);
-			return 0;
-		}
-#endif
-
-		if (!SM_PRE_ACTION(m))
-		{
-			sm_pchunk_t newp = sm_try_realloc_chunk(m, oldp, bcnt, 1);
-
-			SM_POST_ACTION(m);
-
-			if (newp != NULL)
-			{
-				sm_check_in_use_chunk(m, newp);
-				pmem = sm_chunk_to_mem(newp);
-			}
-			else
-			{
-				pmem = sm_internal_malloc(m, bytes);
-
-				if (pmem != NULL)
-				{
-					size_t ocsz = sm_chunk_size(oldp) - sm_get_overhead_for(oldp);
-
-					sm_mem_cpy(pmem, memory, (ocsz < bytes) ? ocsz : bytes);
-
-					sm_internal_free(m, memory);
-				}
-			}
-		}
-	}
-
-	return pmem;
-}
-
-
-void* sm_dl_realloc_in_place(void* memory, size_t bytes)
-{
-	void* pmem = NULL;
-
-	if (memory != NULL)
-	{
-		if (bytes >= SM_MAX_REQUEST)
-		{
-			SM_MALLOC_FAILURE_ACTION;
-		}
-		else
-		{
-			size_t bcnt = sm_request_to_size(bytes);
-			sm_pchunk_t oldp = sm_mem_to_chunk(memory);
-
-#if !SM_FOOTERS
-			sm_state_t msta = sm_gm;
-#else
-			sm_state_t msta = sm_get_mstate_for(oldp);
-
-			if (!sm_ok_magic(msta))
-			{
-				SM_USAGE_ERROR_ACTION(msta, memory);
-
-				return NULL;
-			}
-#endif
-
-			if (!SM_PRE_ACTION(msta))
-			{
-				sm_pchunk_t newp = sm_try_realloc_chunk(msta, oldp, bcnt, 0);
-
-				SM_POST_ACTION(msta);
-
-				if (newp == oldp)
-				{
-					sm_check_in_use_chunk(msta, newp);
-					pmem = memory;
-				}
-			}
-		}
-	}
-
-	return pmem;
-}
-
-
-void* sm_dl_mem_align(size_t alignment, size_t bytes)
-{
-	if (alignment <= SM_MALLOC_ALIGNMENT)
-		return sm_dl_malloc(bytes);
-
-	return sm_internal_mem_align(sm_gm, alignment, bytes);
-}
-
-
-int sm_dl_posix_mem_align(void** pp, size_t alignment, size_t bytes)
-{
-	void* pmem = NULL;
-
-	if (alignment == SM_MALLOC_ALIGNMENT)
-		pmem = sm_dl_malloc(bytes);
-	else
-	{
-		size_t d = alignment / sizeof(void*);
-		size_t r = alignment % sizeof(void*);
-
-		if (r != 0 || d == 0 || (d & (d - SM_SIZE_T_ONE)) != 0)
-			return EINVAL;
-		else if (bytes <= SM_MAX_REQUEST - alignment)
-		{
-			if (alignment < SM_MIN_CHUNK_SIZE)
-				alignment = SM_MIN_CHUNK_SIZE;
-
-			pmem = sm_internal_mem_align(sm_gm, alignment, bytes);
-		}
-	}
-
-	if (pmem == 0)
-		return ENOMEM;
-	else
-	{
-		*pp = pmem;
-		return 0;
-	}
-}
-
-
-void* sm_dl_v_alloc(size_t bytes)
-{
-	sm_ensure_initialization();
-	size_t psiz = sm_m_params__.page_size;
-	return sm_dl_mem_align(psiz, bytes);
-}
-
-
-void* sm_dl_pv_alloc(size_t bytes)
-{
-	sm_ensure_initialization();
-	size_t psiz = sm_m_params__.page_size;
-	return sm_dl_mem_align(psiz, (bytes + psiz - SM_SIZE_T_ONE) & ~(psiz - SM_SIZE_T_ONE));
-}
-
-
-void** sm_dl_independent_calloc(size_t count, size_t size, void** chunks)
-{
-	size_t esiz = size;
-	return sm_i_alloc(sm_gm, count, &esiz, 3, chunks);
-}
-
-
-void** sm_dl_independent_co_malloc(size_t count, size_t sizes[], void* chunks[])
-{
-	return sm_i_alloc(sm_gm, count, sizes, 0, chunks);
-}
-
-
-size_t sm_dl_bulk_free(void* array[], size_t count)
-{
-	return sm_internal_bulk_free(sm_gm, array, count);
-}
-
-
-#if SM_MALLOC_INSPECT_ALL
-void dlmalloc_inspect_all(void(*visitor)(void* start, void* end, size_t bytes, void* context), void* context)
-{
-	sm_ensure_initialization();
-
-	if (!SM_PRE_ACTION(sm_gm))
-	{
-		sm_internal_inspect_all(sm_gm, visitor, context);
-		SM_POST_ACTION(sm_gm);
-	}
-}
-#endif
-
-
-int sm_dl_malloc_trim(size_t padding)
-{
-	int result = 0;
-
-	sm_ensure_initialization();
-
-	if (!SM_PRE_ACTION(sm_gm))
-	{
-		result = sm_sys_trim(sm_gm, padding);
-		SM_POST_ACTION(sm_gm);
-	}
-
-	return result;
-}
-
-
-size_t sm_dl_malloc_footprint(void)
-{
-	return sm_gm->foot_print;
-}
-
-
-size_t sm_dl_malloc_max_footprint(void)
-{
-	return sm_gm->max_foot_print;
-}
-
-
-size_t sm_dl_malloc_footprint_limit(void)
-{
-	size_t flim = sm_gm->foot_print_limit;
-	return (flim == 0) ? SM_MAX_SIZE_T : flim;
-}
-
-
-size_t sm_dl_malloc_set_footprint_limit(size_t bytes)
-{
-	size_t rsiz;
-
-	if (bytes == 0)
-		rsiz = sm_granularity_align(1);
-
-	if (bytes == SM_MAX_SIZE_T)
-		rsiz = 0;
-	else rsiz = sm_granularity_align(bytes);
-
-	return (sm_gm->foot_print_limit = rsiz);
-}
-
-
-#if !SM_NO_ALLOCATION_INFO
-struct sm_memory_info_t sm_dl_mem_info(void)
-{
-	return sm_internal_mem_info(sm_gm);
-}
-#endif
-
-
-#if !NO_MALLOC_STATS
-void sm_dl_malloc_stats()
-{
-	sm_internal_malloc_stats(sm_gm);
-}
-#endif
-
-
-int sm_dl_set_mem_opt(int param, int value)
-{
-	return sm_change_param(param, value);
-}
-
-
-size_t sm_dl_malloc_usable_size(void* memory)
-{
-	if (memory != NULL)
-	{
-		sm_pchunk_t ptmp = sm_mem_to_chunk(memory);
-
-		if (sm_is_in_use(ptmp))
-			return sm_chunk_size(ptmp) - sm_get_overhead_for(ptmp);
-	}
-
-	return 0;
-}
-
-
-#endif
-
-
 // User Memory Spaces
 
 
-#if SM_MSPACES
-
-
-static sm_state_t sm_init_user_mstate(uint8_t* base, size_t size)
+inline static sm_state_t sm_initialize_user_memory_state(uint8_t* base, size_t size)
 {
 	size_t msiz = sm_pad_request(sizeof(struct sm_state_s));
 	sm_pchunk_t mnpt, mspt = sm_align_as_chunk(base);
-	sm_state_t m = (sm_state_t)(sm_chunk_to_mem(mspt));
+	sm_state_t state = (sm_state_t)(sm_chunk_to_memory(mspt));
 
-	memset(m, 0, msiz);
+	register uint8_t* mssp = (uint8_t*)state;
+	register size_t msnb = msiz;
+	while (msnb-- > UINT64_C(0)) *mssp++ = 0;
 
-	(void)SM_INITIAL_LOCK(&m->mutex);
+	SM_INITIAL_LOCK(&state->mutex);
 
 	mspt->head = (msiz | SM_IN_USE_BITS);
 
-	m->segment.base = m->least_address = base;
-	m->segment.size = m->foot_print = m->max_foot_print = size;
-	m->magic = sm_m_params__.magic;
-	m->release_checks = SM_MAX_RELEASE_CHECK_RATE;
-	m->flags = sm_m_params__.default_flags;
-	m->external_pointer = 0;
-	m->external_size = 0;
+	state->segment.base = state->least_address = base;
+	state->segment.size = state->foot_print = state->max_foot_print = size;
+	state->magic = sm_m_params__.magic;
+	state->release_checks = SM_MAX_RELEASE_CHECK_RATE;
+	state->flags = sm_m_params__.default_flags;
+	state->external_pointer = NULL;
+	state->external_size = UINT64_C(0);
 
-	sm_disable_contiguous(m);
-	sm_init_bins(m);
-	mnpt = sm_next_chunk(sm_mem_to_chunk(m));
-	sm_init_top(m, mnpt, (size_t)((base + size) - (uint8_t*)mnpt) - SM_TOP_FOOT_SIZE);
-	sm_check_top_chunk(m, m->top);
+	sm_disable_contiguous(state);
+	sm_initialize_bins(state);
+	mnpt = sm_next_chunk(sm_memory_to_chunk(state));
+	sm_initialize_top_chunk(state, mnpt, (size_t)((base + size) - (uint8_t*)mnpt) - SM_TOP_FOOT_SIZE);
+	sm_check_top_chunk(state, state->top);
 
-	return m;
+	return state;
 }
 
 
-sm_space_t sm_create_space(size_t capacity, int locked)
+exported sm_space_t callconv sm_create_space(size_t capacity, uint8_t locked)
 {
-	sm_state_t m = NULL;
+	sm_state_t space = NULL;
 
 	sm_ensure_initialization();
 
@@ -4261,17 +3554,17 @@ sm_space_t sm_create_space(size_t capacity, int locked)
 
 		if (tbas != SM_MC_FAIL)
 		{
-			m = sm_init_user_mstate(tbas, tsiz);
-			m->segment.flags = SM_USE_MMAP_BIT;
-			sm_set_lock(m, locked);
+			space = sm_initialize_user_memory_state(tbas, tsiz);
+			space->segment.flags = SM_USE_MMAP_BIT;
+			sm_set_locked(space, locked);
 		}
 	}
 
-	return (sm_space_t)m;
+	return (sm_space_t)space;
 }
 
 
-sm_space_t sm_create_space_with_base(void* base, size_t capacity, int locked)
+sm_space_t sm_create_space_with_base(void* base, size_t capacity, uint8_t locked)
 {
 	sm_state_t m = NULL;
 
@@ -4281,28 +3574,28 @@ sm_space_t sm_create_space_with_base(void* base, size_t capacity, int locked)
 
 	if (capacity > msiz + SM_TOP_FOOT_SIZE && capacity < (size_t)-(msiz + SM_TOP_FOOT_SIZE + sm_m_params__.page_size))
 	{
-		m = sm_init_user_mstate((uint8_t*)base, capacity);
+		m = sm_initialize_user_memory_state((uint8_t*)base, capacity);
 		m->segment.flags = SM_EXTERN_BIT;
-		sm_set_lock(m, locked);
+		sm_set_locked(m, locked);
 	}
 
 	return (sm_space_t)m;
 }
 
 
-int sm_space_track_large_chunks(sm_space_t space, int enable)
+exported uint8_t callconv sm_space_track_large_chunks(sm_space_t space, uint8_t enable)
 {
-	int retv = 0;
+	uint8_t retv = 0;
 	sm_state_t mspt = (sm_state_t)space;
 
 	if (!SM_PRE_ACTION(mspt))
 	{
-		if (!sm_use_mmap(mspt))
+		if (!sm_use_mapping(mspt))
 			retv = 1;
 
 		if (!enable)
-			sm_enable_mmap(mspt);
-		else sm_disable_mmap(mspt);
+			sm_enable_mapping(mspt);
+		else sm_disable_mapping(mspt);
 
 		SM_POST_ACTION(mspt);
 	}
@@ -4311,17 +3604,17 @@ int sm_space_track_large_chunks(sm_space_t space, int enable)
 }
 
 
-size_t sm_destroy_space(sm_space_t space)
+exported size_t callconv sm_destroy_space(sm_space_t space)
 {
-	size_t free = 0;
+	size_t free = UINT64_C(0);
 	sm_state_t mspt = (sm_state_t)space;
 
-	if (sm_ok_magic(mspt))
+	if (sm_is_magic_ok(mspt))
 	{
 		sm_psegment_t sptr = &mspt->segment;
 		SM_DESTROY_LOCK(&mspt->mutex);
 
-		while (sptr != 0)
+		while (sptr != NULL)
 		{
 			uint8_t* base = sptr->base;
 			size_t size = sptr->size;
@@ -4341,11 +3634,11 @@ size_t sm_destroy_space(sm_space_t space)
 }
 
 
-void* sm_space_malloc(sm_space_t space, size_t bytes)
+exported void* callconv sm_space_allocate(sm_space_t space, size_t bytes)
 {
 	sm_state_t mspt = (sm_state_t)space;
 
-	if (!sm_ok_magic(mspt))
+	if (!sm_is_magic_ok(mspt))
 	{
 		SM_USAGE_ERROR_ACTION(mspt, mspt);
 		return NULL;
@@ -4360,12 +3653,12 @@ void* sm_space_malloc(sm_space_t space, size_t bytes)
 		{
 			bcnt = (bytes < SM_MIN_REQUEST) ? SM_MIN_CHUNK_SIZE : sm_pad_request(bytes);
 
-			sm_bin_index_t indx = sm_small_index(bcnt);
+			sm_bindex_t indx = sm_small_index(bcnt);
 			sm_bin_map_t sbit = mspt->small_map >> indx;
 
-			if ((sbit & 0x3U) != 0)
+			if ((sbit & UINT64_C(3)) != UINT64_C(0))
 			{
-				indx += ~sbit & 1;
+				indx += ~sbit & UINT64_C(1);
 
 				sm_pchunk_t bptr = sm_small_bin_at(mspt, indx);
 				sm_pchunk_t pptr = bptr->forward;
@@ -4375,7 +3668,7 @@ void* sm_space_malloc(sm_space_t space, size_t bytes)
 				sm_unlink_first_small_chunk(mspt, bptr, pptr, indx);
 				sm_set_in_use_and_p_in_use(mspt, pptr, sm_small_index_to_size(indx));
 
-				pmem = sm_chunk_to_mem(pptr);
+				pmem = sm_chunk_to_memory(pptr);
 
 				sm_check_allocated_chunk(mspt, pmem, bcnt);
 
@@ -4383,12 +3676,12 @@ void* sm_space_malloc(sm_space_t space, size_t bytes)
 			}
 			else if (bcnt > mspt->dv_size)
 			{
-				if (sbit != 0)
+				if (sbit != UINT64_C(0))
 				{
 					sm_bin_map_t lfbt = (sbit << indx) & sm_left_bits(sm_index_to_bit(indx));
 					sm_bin_map_t lbit = sm_least_bit(lfbt);
 
-					sm_bin_index_t i;
+					sm_bindex_t i;
 
 					sm_compute_bit_to_index(lbit, i);
 
@@ -4400,7 +3693,7 @@ void* sm_space_malloc(sm_space_t space, size_t bytes)
 					sm_unlink_first_small_chunk(mspt, bptr, pptr, i);
 					size_t rsiz = sm_small_index_to_size(i) - bcnt;
 
-					if (SM_SIZE_T_SIZE != 4 && rsiz < SM_MIN_CHUNK_SIZE)
+					if (SM_SIZE_T_SIZE != UINT64_C(4) && rsiz < SM_MIN_CHUNK_SIZE)
 						sm_set_in_use_and_p_in_use(mspt, pptr, sm_small_index_to_size(i));
 					else
 					{
@@ -4410,12 +3703,12 @@ void* sm_space_malloc(sm_space_t space, size_t bytes)
 						sm_replace_dv(mspt, rptr, rsiz);
 					}
 
-					pmem = sm_chunk_to_mem(pptr);
+					pmem = sm_chunk_to_memory(pptr);
 					sm_check_allocated_chunk(mspt, pmem, bcnt);
 
 					goto LOC_POST_ACTION;
 				}
-				else if (mspt->tree_map != 0 && (pmem = sm_t_malloc_small(mspt, bcnt)) != 0)
+				else if (mspt->tree_map != UINT64_C(0) && (pmem = sm_tree_allocate_small(mspt, bcnt)) != NULL)
 				{
 					sm_check_allocated_chunk(mspt, pmem, bcnt);
 
@@ -4429,7 +3722,7 @@ void* sm_space_malloc(sm_space_t space, size_t bytes)
 		{
 			bcnt = sm_pad_request(bytes);
 
-			if (mspt->tree_map != 0 && (pmem = sm_t_malloc_large(mspt, bcnt)) != 0)
+			if (mspt->tree_map != UINT64_C(0) && (pmem = sm_tree_allocate_large(mspt, bcnt)) != NULL)
 			{
 				sm_check_allocated_chunk(mspt, pmem, bcnt);
 
@@ -4452,12 +3745,12 @@ void* sm_space_malloc(sm_space_t space, size_t bytes)
 			else
 			{
 				size_t dvsz = mspt->dv_size;
-				mspt->dv_size = 0;
-				mspt->dv = 0;
+				mspt->dv_size = UINT64_C(0);
+				mspt->dv = NULL;
 				sm_set_in_use_and_p_in_use(mspt, pptr, dvsz);
 			}
 
-			pmem = sm_chunk_to_mem(pptr);
+			pmem = sm_chunk_to_memory(pptr);
 			sm_check_allocated_chunk(mspt, pmem, bcnt);
 
 			goto LOC_POST_ACTION;
@@ -4470,14 +3763,14 @@ void* sm_space_malloc(sm_space_t space, size_t bytes)
 
 			rptr->head = rsiz | SM_P_IN_USE_BIT;
 			sm_sets_p_inuse_inuse_chunk(mspt, pptr, bcnt);
-			pmem = sm_chunk_to_mem(pptr);
+			pmem = sm_chunk_to_memory(pptr);
 			sm_check_top_chunk(mspt, mspt->top);
 			sm_check_allocated_chunk(mspt, pmem, bcnt);
 
 			goto LOC_POST_ACTION;
 		}
 
-		pmem = sys_alloc(mspt, bcnt);
+		pmem = sm_system_allocate(mspt, bcnt);
 
 	LOC_POST_ACTION:
 
@@ -4490,19 +3783,19 @@ void* sm_space_malloc(sm_space_t space, size_t bytes)
 }
 
 
-void sm_space_free(sm_space_t space, void* memory)
+exported void callconv sm_space_free(sm_space_t space, void* memory)
 {
 	if (memory != NULL)
 	{
-		sm_pchunk_t pchk = sm_mem_to_chunk(memory);
+		sm_pchunk_t pchk = sm_memory_to_chunk(memory);
 
 #if SM_FOOTERS
-		sm_state_t fmst = sm_get_mstate_for(pchk);
+		sm_state_t fmst = sm_get_memory_state_for(pchk);
 #else
 		sm_state_t fmst = (sm_state_t)space;
 #endif
 
-		if (!sm_ok_magic(fmst))
+		if (!sm_is_magic_ok(fmst))
 		{
 			SM_USAGE_ERROR_ACTION(fmst, pchk);
 
@@ -4513,16 +3806,16 @@ void sm_space_free(sm_space_t space, void* memory)
 		{
 			sm_check_in_use_chunk(fmst, pchk);
 
-			if (sm_rt_check(sm_ok_address(fmst, pchk) && sm_ok_in_use(pchk)))
+			if (sm_runtime_check(sm_is_address_ok(fmst, pchk) && sm_is_in_use_ok(pchk)))
 			{
 				size_t psiz = sm_chunk_size(pchk);
 				sm_pchunk_t next = sm_chunk_plus_offset(pchk, psiz);
 
-				if (!sm_p_in_use(pchk))
+				if (!sm_is_p_in_use(pchk))
 				{
 					size_t prvs = pchk->previous;
 
-					if (sm_is_mem_mapped(pchk))
+					if (sm_is_mapped(pchk))
 					{
 						psiz += prvs + SM_MMAP_FOOT_PAD;
 
@@ -4538,7 +3831,7 @@ void sm_space_free(sm_space_t space, void* memory)
 						psiz += prvs;
 						pchk = prev;
 
-						if (sm_rt_check(sm_ok_address(fmst, prev)))
+						if (sm_runtime_check(sm_is_address_ok(fmst, prev)))
 						{
 							if (pchk != fmst->dv)
 							{
@@ -4556,9 +3849,9 @@ void sm_space_free(sm_space_t space, void* memory)
 					}
 				}
 
-				if (sm_rt_check(sm_ok_next(pchk, next) && sm_ok_p_in_use(next)))
+				if (sm_runtime_check(sm_ok_next(pchk, next) && sm_ok_p_in_use(next)))
 				{
-					if (!sm_c_in_use(next))
+					if (!sm_chunk_in_use(next))
 					{
 						if (next == fmst->top)
 						{
@@ -4570,11 +3863,11 @@ void sm_space_free(sm_space_t space, void* memory)
 							if (pchk == fmst->dv)
 							{
 								fmst->dv = 0;
-								fmst->dv_size = 0;
+								fmst->dv_size = UINT64_C(0);
 							}
 
 							if (sm_should_trim(fmst, tsiz))
-								sm_sys_trim(fmst, 0);
+								sm_system_trim(fmst, UINT64_C(0));
 
 							goto LOC_POST_ACTION;
 						}
@@ -4644,7 +3937,7 @@ void* sm_space_calloc(sm_space_t space, size_t count, size_t size)
 	size_t sreq = 0;
 	sm_state_t mspt = (sm_state_t)space;
 
-	if (!sm_ok_magic(mspt))
+	if (!sm_is_magic_ok(mspt))
 	{
 		SM_USAGE_ERROR_ACTION(mspt, mspt);
 
@@ -4659,9 +3952,9 @@ void* sm_space_calloc(sm_space_t space, size_t count, size_t size)
 			sreq = SM_MAX_SIZE_T;
 	}
 
-	pmem = sm_internal_malloc(mspt, sreq);
+	pmem = sm_internal_allocate(mspt, sreq);
 
-	if (pmem != NULL && sm_calloc_must_clear(sm_mem_to_chunk(pmem)))
+	if (pmem != NULL && sm_calloc_must_clear(sm_memory_to_chunk(pmem)))
 	{
 		register uint8_t* mspt = (uint8_t*)pmem;
 		while (sreq-- > 0U) *mspt++ = 0;
@@ -4671,29 +3964,29 @@ void* sm_space_calloc(sm_space_t space, size_t count, size_t size)
 }
 
 
-void* sm_space_realloc(sm_space_t space, void* memory, size_t bytes)
+exported void* callconv sm_space_realloc(sm_space_t space, void* memory, size_t bytes)
 {
 	void* pmem = NULL;
 
 	if (memory == NULL)
-		pmem = sm_space_malloc(space, bytes);
+		pmem = sm_space_allocate(space, bytes);
 	else if (bytes >= SM_MAX_REQUEST)
 		SM_MALLOC_FAILURE_ACTION;
 #ifdef SM_REALLOC_ZERO_BYTES_FREES
-	else if (bytes == 0)
+	else if (bytes == UINT64_C(0))
 		sm_space_free(space, memory);
 #endif
 	else
 	{
 		size_t bcnt = sm_request_to_size(bytes);
-		sm_pchunk_t oldp = sm_mem_to_chunk(memory);
+		sm_pchunk_t oldp = sm_memory_to_chunk(memory);
 
 #if !SM_FOOTERS
 		sm_state_t msta = (sm_state_t)space;
 #else
-		sm_state_t msta = sm_get_mstate_for(oldp);
+		sm_state_t msta = sm_get_memory_state_for(oldp);
 
-		if (!sm_ok_magic(msta))
+		if (!sm_is_magic_ok(msta))
 		{
 			SM_USAGE_ERROR_ACTION(msta, memory);
 
@@ -4703,24 +3996,24 @@ void* sm_space_realloc(sm_space_t space, void* memory, size_t bytes)
 
 		if (!SM_PRE_ACTION(msta))
 		{
-			sm_pchunk_t newp = sm_try_realloc_chunk(msta, oldp, bcnt, 1);
+			sm_pchunk_t newp = sm_try_reallocate_chunk(msta, oldp, bcnt, 1);
 
 			SM_POST_ACTION(msta);
 
 			if (newp != NULL)
 			{
 				sm_check_in_use_chunk(msta, newp);
-				pmem = sm_chunk_to_mem(newp);
+				pmem = sm_chunk_to_memory(newp);
 			}
 			else
 			{
-				pmem = sm_space_malloc(msta, bytes);
+				pmem = sm_space_allocate(msta, bytes);
 
 				if (pmem != NULL)
 				{
 					size_t ocsz = sm_chunk_size(oldp) - sm_get_overhead_for(oldp);
 
-					sm_mem_cpy(pmem, memory, (ocsz < bytes) ? ocsz : bytes);
+					sm_memory_copy(pmem, memory, (ocsz < bytes) ? ocsz : bytes);
 					sm_space_free(msta, memory);
 				}
 			}
@@ -4731,7 +4024,7 @@ void* sm_space_realloc(sm_space_t space, void* memory, size_t bytes)
 }
 
 
-void* sm_space_realloc_in_place(sm_space_t space, void* memory, size_t bytes)
+exported void* callconv sm_space_realloc_in_place(sm_space_t space, void* memory, size_t bytes)
 {
 	void* pmem = NULL;
 
@@ -4744,14 +4037,14 @@ void* sm_space_realloc_in_place(sm_space_t space, void* memory, size_t bytes)
 		else
 		{
 			size_t bcnt = sm_request_to_size(bytes);
-			sm_pchunk_t oldp = sm_mem_to_chunk(memory);
+			sm_pchunk_t oldp = sm_memory_to_chunk(memory);
 
 #if !SM_FOOTERS
 			sm_state_t msta = (sm_state_t)space;
 #else
-			sm_state_t msta = sm_get_mstate_for(oldp);
+			sm_state_t msta = sm_get_memory_state_for(oldp);
 
-			if (!sm_ok_magic(msta))
+			if (!sm_is_magic_ok(msta))
 			{
 				SM_USAGE_ERROR_ACTION(msta, memory);
 
@@ -4761,7 +4054,7 @@ void* sm_space_realloc_in_place(sm_space_t space, void* memory, size_t bytes)
 
 			if (!SM_PRE_ACTION(msta))
 			{
-				sm_pchunk_t newp = sm_try_realloc_chunk(msta, oldp, bcnt, 0);
+				sm_pchunk_t newp = sm_try_reallocate_chunk(msta, oldp, bcnt, 0);
 
 				SM_POST_ACTION(msta);
 
@@ -4778,11 +4071,11 @@ void* sm_space_realloc_in_place(sm_space_t space, void* memory, size_t bytes)
 }
 
 
-void* sm_space_mem_align(sm_space_t space, size_t alignment, size_t bytes)
+exported void* callconv sm_space_memory_align(sm_space_t space, size_t alignment, size_t bytes)
 {
 	sm_state_t msta = (sm_state_t)space;
 
-	if (!sm_ok_magic(msta))
+	if (!sm_is_magic_ok(msta))
 	{
 		SM_USAGE_ERROR_ACTION(msta, msta);
 
@@ -4790,9 +4083,9 @@ void* sm_space_mem_align(sm_space_t space, size_t alignment, size_t bytes)
 	}
 
 	if (alignment <= SM_MALLOC_ALIGNMENT)
-		return sm_space_malloc(space, bytes);
+		return sm_space_allocate(space, bytes);
 
-	return sm_internal_mem_align(msta, alignment, bytes);
+	return sm_internal_memory_align(msta, alignment, bytes);
 }
 
 
@@ -4801,14 +4094,14 @@ void** sm_space_independent_calloc(sm_space_t space, size_t count, size_t size, 
 	size_t rqsz = size;
 	sm_state_t msta = (sm_state_t)space;
 
-	if (!sm_ok_magic(msta))
+	if (!sm_is_magic_ok(msta))
 	{
 		SM_USAGE_ERROR_ACTION(msta, msta);
 
 		return NULL;
 	}
 
-	return sm_i_alloc(msta, count, &rqsz, 3, chunks);
+	return sm_independent_allocate(msta, count, &rqsz, 3, chunks);
 }
 
 
@@ -4816,14 +4109,14 @@ void** sm_space_independent_co_malloc(sm_space_t space, size_t count, size_t* si
 {
 	sm_state_t msta = (sm_state_t)space;
 
-	if (!sm_ok_magic(msta))
+	if (!sm_is_magic_ok(msta))
 	{
 		SM_USAGE_ERROR_ACTION(msta, msta);
 
 		return NULL;
 	}
 
-	return sm_i_alloc(msta, count, sizes, 0, chunks);
+	return sm_independent_allocate(msta, count, sizes, 0, chunks);
 }
 
 
@@ -4834,11 +4127,11 @@ size_t sm_space_bulk_free(sm_space_t space, void** array, size_t count)
 
 
 #if SM_MALLOC_INSPECT_ALL
-void sm_space_inspect_all(sm_space_t space, void(*visitor)(void* start, void* end, size_t bytes, void* argument), void* argument)
+exported void callconv sm_space_inspect_all(sm_space_t space, void(*visitor)(void* start, void* end, size_t bytes, void* argument), void* argument)
 {
 	sm_state_t msta = (sm_state_t)space;
 
-	if (sm_ok_magic(msta))
+	if (sm_is_magic_ok(msta))
 	{
 		if (!SM_PRE_ACTION(msta))
 		{
@@ -4855,16 +4148,16 @@ void sm_space_inspect_all(sm_space_t space, void(*visitor)(void* start, void* en
 #endif
 
 
-int sm_space_trim(sm_space_t space, size_t padding)
+exported uint8_t callconv sm_space_trim(sm_space_t space, size_t padding)
 {
-	int trim = 0;
+	uint8_t trim = 0;
 	sm_state_t msta = (sm_state_t)space;
 
-	if (sm_ok_magic(msta))
+	if (sm_is_magic_ok(msta))
 	{
 		if (!SM_PRE_ACTION(msta))
 		{
-			trim = sm_sys_trim(msta, padding);
+			trim = sm_system_trim(msta, padding);
 
 			SM_POST_ACTION(msta);
 		}
@@ -4878,27 +4171,31 @@ int sm_space_trim(sm_space_t space, size_t padding)
 }
 
 
-#if !NO_MALLOC_STATS
-void sm_space_malloc_stats(sm_space_t space)
+#if !SM_NO_MALLOC_STATS
+exported sm_allocation_stats_t callconv sm_space_allocation_statistics(sm_space_t space)
 {
+	sm_allocation_stats_t stat = { UINT64_C(0), UINT64_C(0), UINT64_C(0) };
+
 	sm_state_t msta = (sm_state_t)space;
 
-	if (sm_ok_magic(msta))
-		sm_internal_malloc_stats(msta);
+	if (sm_is_magic_ok(msta))
+		stat = sm_internal_malloc_stats(msta);
 	else
 	{
 		SM_USAGE_ERROR_ACTION(msta, msta);
 	}
+
+	return stat;
 }
 #endif
 
 
-size_t sm_space_footprint(sm_space_t space)
+exported size_t callconv sm_space_footprint(sm_space_t space)
 {
-	size_t resv = 0;
+	size_t resv = UINT64_C(0);
 	sm_state_t msta = (sm_state_t)space;
 
-	if (sm_ok_magic(msta))
+	if (sm_is_magic_ok(msta))
 		resv = msta->foot_print;
 	else
 	{
@@ -4909,12 +4206,12 @@ size_t sm_space_footprint(sm_space_t space)
 }
 
 
-size_t sm_space_max_footprint(sm_space_t space)
+exported size_t callconv sm_space_maximum_footprint(sm_space_t space)
 {
-	size_t resv = 0;
+	size_t resv = UINT64_C(0);
 	sm_state_t msta = (sm_state_t)space;
 
-	if (sm_ok_magic(msta))
+	if (sm_is_magic_ok(msta))
 		resv = msta->max_foot_print;
 	else
 	{
@@ -4925,15 +4222,15 @@ size_t sm_space_max_footprint(sm_space_t space)
 }
 
 
-size_t sm_space_footprint_limit(sm_space_t space)
+exported size_t callconv sm_space_footprint_limit(sm_space_t space)
 {
-	size_t resv = 0;
+	size_t resv = UINT64_C(0);
 	sm_state_t msta = (sm_state_t)space;
 
-	if (sm_ok_magic(msta))
+	if (sm_is_magic_ok(msta))
 	{
 		size_t mafl = msta->foot_print_limit;
-		resv = (mafl == 0) ? SM_MAX_SIZE_T : mafl;
+		resv = (mafl == UINT64_C(0)) ? SM_MAX_SIZE_T : mafl;
 	}
 	else
 	{
@@ -4944,18 +4241,18 @@ size_t sm_space_footprint_limit(sm_space_t space)
 }
 
 
-size_t sm_space_set_footprint_limit(sm_space_t space, size_t bytes)
+exported size_t callconv sm_space_set_footprint_limit(sm_space_t space, size_t bytes)
 {
-	size_t resv = 0;
+	size_t resv = UINT64_C(0);
 	sm_state_t msta = (sm_state_t)space;
 
-	if (sm_ok_magic(msta))
+	if (sm_is_magic_ok(msta))
 	{
-		if (bytes == 0)
+		if (bytes == UINT64_C(0))
 			resv = sm_granularity_align(1);
 
 		if (bytes == SM_MAX_SIZE_T)
-			resv = 0;
+			resv = UINT64_C(0);
 		else resv = sm_granularity_align(bytes);
 
 		msta->foot_print_limit = resv;
@@ -4970,25 +4267,25 @@ size_t sm_space_set_footprint_limit(sm_space_t space, size_t bytes)
 
 
 #if !SM_NO_ALLOCATION_INFO
-struct sm_memory_info_t sm_space_mem_info(sm_space_t space)
+exported struct sm_memory_info_t callconv sm_space_memory_info(sm_space_t space)
 {
 	sm_state_t msta = (sm_state_t)space;
 
-	if (!sm_ok_magic(msta))
+	if (!sm_is_magic_ok(msta))
 	{
 		SM_USAGE_ERROR_ACTION(msta, msta);
 	}
 
-	return sm_internal_mem_info(msta);
+	return sm_internal_memory_info(msta);
 }
 #endif
 
 
-size_t sm_space_usable_size(const void* memory)
+exported size_t callconv sm_space_usable_size(const void* memory)
 {
 	if (memory != NULL)
 	{
-		sm_pchunk_t pchk = sm_mem_to_chunk(memory);
+		sm_pchunk_t pchk = sm_memory_to_chunk(memory);
 
 		if (sm_is_in_use(pchk))
 			return (sm_chunk_size(pchk) - sm_get_overhead_for(pchk));
@@ -4998,12 +4295,8 @@ size_t sm_space_usable_size(const void* memory)
 }
 
 
-int sm_space_options(int param, int value)
+exported int callconv sm_space_options(int param, int value)
 {
 	return sm_change_param(param, value);
 }
-
-
-#endif // SM_MSPACES
-
 
