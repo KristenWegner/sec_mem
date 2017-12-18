@@ -51,15 +51,12 @@
 #define _WINSOCKAPI_ 1
 #endif
 #include <windows.h>
-#include <winsock2.h>
-#include <process.h>
 typedef uint32_t uid_t;
 typedef int32_t pid_t;
 typedef SSIZE_T ssize_t;
 typedef _locale_t locale_t;
-extern uid_t sm_getuid();
-extern uint64_t sm_getsidh();
-#define getpid _getpid
+extern uid_t getuid();
+extern uint64_t getsidh();
 #define inline __forceinline
 #define restrict __restrict
 #define halign(b) __declspec(align(b))
@@ -70,9 +67,7 @@ extern uint64_t sm_getsidh();
 #define halign(b)
 #define talign(b) __attribute__((aligned(b),packed))
 #include <unistd.h>
-#include <sys/time.h>
-#define sm_getuid getuid
-#define sm_getsidh geteuid
+
 #else
 #define inline
 #define restrict

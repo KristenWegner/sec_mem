@@ -9,8 +9,10 @@
 #include <inttypes.h>
 #include <limits.h>
 #include <float.h>
+#include <fenv.h>
 #include <sys/types.h> 
 #include <sys/timeb.h>
+#include <sys/stat.h>
 
 
 #include "../config.h"
@@ -451,10 +453,14 @@ int evaluate_size(char* entity_size, uint64_t* result)
 	REP(sizeof(uintptr_t));				REP(sizeof(uintptr_t*));
 	REP(sizeof(uid_t));					REP(sizeof(uid_t*));
 	REP(sizeof(pid_t));					REP(sizeof(pid_t*));
+	REP(sizeof(div_t));					REP(sizeof(div_t*));
+	REP(sizeof(fexcept_t));				REP(sizeof(fexcept_t*));
+	REP(sizeof(fpos_t));				REP(sizeof(fpos_t*));
 	REP(sizeof(locale_t));				REP(sizeof(locale_t*));
 	REP(sizeof(struct timeval));		REP(sizeof(struct timeval*));
 	REP(sizeof(struct tm));				REP(sizeof(struct tm*));
 	REP(sizeof(struct timeb));			REP(sizeof(struct timeb*));
+	REP(sizeof(struct stat));			REP(sizeof(struct stat*));
 	REP(sizeof(fd_set));				REP(sizeof(fd_set*));
 	REP(sizeof(FILE*)); 				
 
