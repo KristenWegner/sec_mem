@@ -228,35 +228,29 @@
 #endif 
 
 
-/*
-  mallopt tuning options. SVID/XPG defines four standard parameter
-  numbers for mallopt, normally defined in malloc.h. None of these
-  are used in this malloc, so setting them has no effect. But this
-  malloc does support the following options.
-*/
-
-#define M_TRIM_THRESHOLD     (-1)
-#define M_GRANULARITY        (-2)
-#define M_MMAP_THRESHOLD     (-3)
+// Tuning options. This malloc supports the following options.
+#define SM_M_TRIM_THRESHOLD (-1)
+#define SM_M_GRANULARITY    (-2)
+#define SM_M_MMAP_THRESHOLD (-3)
 
 
 #if !SM_NO_ALLOCATION_INFO
 #ifndef SM_STRUCT_MEM_INFO_DECLARED
 #define SM_STRUCT_MEM_INFO_DECLARED 1
-typedef struct sm_mem_info_t
+typedef struct sm_memory_info_t
 {
-	uint64_t arena;    // Non-mmapped space allocated from system.
-	uint64_t ordblks;  // Number of free chunks.
-	uint64_t smblks;   // Always 0.
-	uint64_t hblks;    // Always 0.
-	uint64_t hblkhd;   // Space in mmapped regions.
-	uint64_t usmblks;  // Maximum total allocated space.
-	uint64_t fsmblks;  // Always 0.
-	uint64_t uordblks; // Total allocated space.
-	uint64_t fordblks; // Total free space.
-	uint64_t keepcost; // Releasable (via malloc_trim) space.
+	uint64_t arena; // Non-mmapped space allocated from system.
+	uint64_t count_free_chunks; // Number of free chunks.
+	uint64_t small_blocks; // Always 0.
+	uint64_t h_blocks; // Always 0.
+	uint64_t memory_mapped_space; // Space in mmapped regions.
+	uint64_t max_total_allocated_space; // Maximum total allocated space.
+	uint64_t fsm_blocks; // Always 0.
+	uint64_t total_allocated_space; // Total allocated space.
+	uint64_t total_free_space; // Total free space.
+	uint64_t keep_cost; // Releasable (via malloc_trim) space.
 }
-sm_mem_info_t;
+sm_memory_info_t;
 #endif
 #endif
 
@@ -265,87 +259,81 @@ sm_mem_info_t;
 
 
 // An opaque type representing an independent region of space.
-typedef void* sm_mspace_t;
+typedef void* sm_space_t;
 
 
 // Creates and returns a new independent space with the given initial capacity, or, if 0, the default granularity size. It
 // returns null if there is no system memory available to create the space. If argument locked is non-zero, the space uses a separate
 // lock to control access. The capacity of the space will grow dynamically as needed to service allocation requests. You can
 // control the sizes of incremental increases of this space by compiling with a different SM_DEFAULT_GRANULARITY or dynamically
-// setting with mallopt(M_GRANULARITY, value).
-SM_ALLOCATOR_EXPORT sm_mspace_t sm_create_mspace(size_t capacity, int locked);
+// setting with mallopt(SM_M_GRANULARITY, value).
+SM_ALLOCATOR_EXPORT sm_space_t sm_create_space(size_t capacity, int locked);
 
 
 // Destroys the given space, and attempts to return all of its memory back to the system, returning the total number of
 // bytes freed. After destruction, the results of access to all memory used by the space become undefined.
-SM_ALLOCATOR_EXPORT size_t sm_destroy_mspace(sm_mspace_t msp);
+SM_ALLOCATOR_EXPORT size_t sm_destroy_space(sm_space_t space);
 
 
 // Uses the memory supplied as the initial base of a new space. Part (less than 128 * sizeof(size_t) bytes) of this
 // space is used for bookkeeping, so the capacity must be at least this large. (Otherwise 0 is returned.) When this initial 
 // space is exhausted, additional memory will be obtained from the system. Destroying this space will deallocate all 
 // additionally  allocated space (if possible) but not the initial base.
-SM_ALLOCATOR_EXPORT sm_mspace_t sm_create_mspace_with_base(void* base, size_t capacity, int locked);
+SM_ALLOCATOR_EXPORT sm_space_t sm_create_space_with_base(void* base, size_t capacity, int locked);
 
 
 // Controls whether requests for large chunks are allocated in their own untracked mmapped regions, separate from
 // others in this space. By default large chunks are not tracked, which reduces fragmentation. However, such chunks are not
 // necessarily released to the system upon destruction. Enabling tracking by setting to true may increase fragmentation, but 
-// avoids leakage when relying on sm_destroy_mspace to release all memory allocated using this space. The function returns the 
+// avoids leakage when relying on sm_destroy_space to release all memory allocated using this space. The function returns the 
 // previous setting.
-SM_ALLOCATOR_EXPORT int sm_mspace_track_large_chunks(sm_mspace_t msp, int enable);
+SM_ALLOCATOR_EXPORT int sm_space_track_large_chunks(sm_space_t space, int enable);
 
-SM_ALLOCATOR_EXPORT void* sm_mspace_malloc(sm_mspace_t msp, size_t bytes);
-SM_ALLOCATOR_EXPORT void sm_mspace_free(sm_mspace_t msp, void* pmem);
-SM_ALLOCATOR_EXPORT void* sm_mspace_realloc(sm_mspace_t msp, void* pmem, size_t newsize);
-SM_ALLOCATOR_EXPORT void* sm_mspace_calloc(sm_mspace_t msp, size_t n_elements, size_t elem_size);
-SM_ALLOCATOR_EXPORT void* sm_mspace_mem_align(sm_mspace_t msp, size_t alignment, size_t bytes);
-SM_ALLOCATOR_EXPORT void** sm_mspace_independent_calloc(sm_mspace_t msp, size_t n_elements, size_t elem_size, void* chunks[]);
-SM_ALLOCATOR_EXPORT void** sm_mspace_independent_co_malloc(sm_mspace_t msp, size_t n_elements, size_t sizes[], void* chunks[]);
+SM_ALLOCATOR_EXPORT void* sm_space_malloc(sm_space_t space, size_t bytes);
+SM_ALLOCATOR_EXPORT void sm_space_free(sm_space_t space, void* memory);
+SM_ALLOCATOR_EXPORT void* sm_space_realloc(sm_space_t space, void* memory, size_t size);
+SM_ALLOCATOR_EXPORT void* sm_space_calloc(sm_space_t space, size_t count, size_t size);
+SM_ALLOCATOR_EXPORT void* sm_space_mem_align(sm_space_t space, size_t alignment, size_t bytes);
+SM_ALLOCATOR_EXPORT void** sm_space_independent_calloc(sm_space_t space, size_t count, size_t size, void** chunks);
+SM_ALLOCATOR_EXPORT void** sm_space_independent_co_malloc(sm_space_t space, size_t count, size_t* sizes, void** chunks);
 
 // Returns the number of bytes obtained from the system for this space.
-SM_ALLOCATOR_EXPORT size_t sm_mspace_footprint(sm_mspace_t msp);
+SM_ALLOCATOR_EXPORT size_t sm_space_footprint(sm_space_t space);
 
 // Returns the peak number of bytes obtained from the system for this space.
-SM_ALLOCATOR_EXPORT size_t sm_mspace_max_footprint(sm_mspace_t msp);
+SM_ALLOCATOR_EXPORT size_t sm_space_max_footprint(sm_space_t space);
 
 
 #if !SM_NO_ALLOCATION_INFO
 // Reports properties of the given space.
-SM_ALLOCATOR_EXPORT struct sm_mem_info_t sm_mspace_mem_info(sm_mspace_t msp);
+SM_ALLOCATOR_EXPORT struct sm_memory_info_t sm_space_mem_info(sm_space_t msp);
 #endif
 
-SM_ALLOCATOR_EXPORT size_t sm_mspace_usable_size(const void* pmem);
-SM_ALLOCATOR_EXPORT void sm_mspace_malloc_stats(sm_mspace_t msp);
-SM_ALLOCATOR_EXPORT int sm_mspace_trim(sm_mspace_t msp, size_t pad);
-SM_ALLOCATOR_EXPORT int sm_mspace_options(int, int);
+SM_ALLOCATOR_EXPORT size_t sm_space_usable_size(const void* memory);
+SM_ALLOCATOR_EXPORT void sm_space_malloc_stats(sm_space_t space);
+SM_ALLOCATOR_EXPORT int sm_space_trim(sm_space_t space, size_t padding);
+SM_ALLOCATOR_EXPORT int sm_space_options(int, int);
 
 #endif
 
 
-/*
-  ========================================================================
-  To make a fully customizable malloc.h header file, cut everything
-  above this line, put into file malloc.h, edit to suit, and #include it
-  on the next line, as well as in programs that use this malloc.
-  ========================================================================
-*/
+// Internal Includes
 
-/* #include "malloc.h" */
 
-/*------------------------------ internal #includes ---------------------- */
-
-#ifdef _MSC_VER
-#pragma warning(disable:4146) /* no "unsigned" warnings */
+#if defined(SM_OS_WINDOWS)
+#pragma warning(disable:4146) // No unsigned warnings.
 #endif
+
 
 #if !NO_MALLOC_STATS
 #include <stdio.h>
 #endif
 
+
 #ifndef SM_LACKS_ERRNO_H
 #include <errno.h>
 #endif
+
 
 #ifdef DEBUG
 #if SM_ABORT_ON_ASSERT_FAILURE
@@ -361,23 +349,28 @@ SM_ALLOCATOR_EXPORT int sm_mspace_options(int, int);
 #define DEBUG 0
 #endif
 
+
 #if !defined(SM_OS_WINDOWS) && !defined(SM_LACKS_TIME_H)
 #include <time.h>
 #endif
+
 
 #ifndef SM_LACKS_STDLIB_H
 #include <stdlib.h>
 #endif
 
+
 #ifndef SM_LACKS_STRING_H
 #include <string.h>
 #endif
+
 
 #if SM_USE_BUILTIN_FFS
 #ifndef SM_LACKS_STRINGS_H
 #include <strings.h>
 #endif
 #endif
+
 
 #if SM_HAS_MMAP
 #ifndef SM_LACKS_SYS_MMAN_H
@@ -394,6 +387,7 @@ SM_ALLOCATOR_EXPORT int sm_mspace_options(int, int);
 #endif
 #endif
 
+
 #ifndef SM_LACKS_UNISTD_H
 #include <unistd.h>
 #else
@@ -401,6 +395,7 @@ SM_ALLOCATOR_EXPORT int sm_mspace_options(int, int);
 extern void* sbrk(ptrdiff_t);
 #endif
 #endif
+
 
 #if SM_USE_LOCKS
 #if !defined(SM_OS_WINDOWS)
@@ -422,11 +417,12 @@ LONG __cdecl _InterlockedExchange(LONG volatile* target, LONG value);
 #define sm_interlocked_compare_exchange _InterlockedCompareExchange
 #define sm_interlocked_exchange _InterlockedExchange
 #elif defined(WIN32) && defined(__GNUC__)
-#define sm_interlocked_compare_exchange(a, b, c) __sync_val_compare_and_swap(a, c, b)
+#define sm_interlocked_compare_exchange(A, B, C) __sync_val_compare_and_swap(A, C, B)
 #define sm_interlocked_exchange __sync_lock_test_and_set
 #endif
 #else
 #endif
+
 
 #ifndef LOCK_AT_FORK
 #define LOCK_AT_FORK 0
@@ -435,8 +431,8 @@ LONG __cdecl _InterlockedExchange(LONG volatile* target, LONG value);
 
 #if defined(SM_OS_WINDOWS)
 #ifndef BitScanForward
-extern unsigned char _BitScanForward(unsigned long* index, unsigned long mask);
-extern unsigned char _BitScanReverse(unsigned long* index, unsigned long mask);
+extern UCHAR _BitScanForward(PULONG index, ULONG mask);
+extern UCHAR _BitScanReverse(PULONG index, ULONG mask);
 #define BitScanForward _BitScanForward
 #define BitScanReverse _BitScanReverse
 #pragma intrinsic(_BitScanForward)
@@ -519,24 +515,26 @@ extern size_t getpagesize();
 
 #if SM_HAS_MMAP
 
+
 #if !defined(SM_OS_WINDOWS)
 
-#define SM_MUNMAP_DEFAULT(A, S)		munmap((A), (S))
-#define SM_MMAP_PROT				(PROT_READ | PROT_WRITE)
+#define SM_MUNMAP_DEFAULT(A, S) munmap((A), (S))
+#define SM_MMAP_PROT (PROT_READ | PROT_WRITE)
 #if !defined(MAP_ANONYMOUS) && defined(MAP_ANON)
-#define MAP_ANONYMOUS				MAP_ANON
+#define MAP_ANONYMOUS MAP_ANON
 #endif
 #ifdef MAP_ANONYMOUS
-#define SM_MMAP_FLAGS				(MAP_PRIVATE | MAP_ANONYMOUS)
-#define SM_MMAP_DEFAULT(S)			mmap(0, (S), SM_MMAP_PROT, SM_MMAP_FLAGS, -1, 0)
+#define SM_MMAP_FLAGS (MAP_PRIVATE | MAP_ANONYMOUS)
+#define SM_MMAP_DEFAULT(S) mmap(0, (S), SM_MMAP_PROT, SM_MMAP_FLAGS, -1, 0)
 #else
-#define SM_MMAP_FLAGS				(MAP_PRIVATE)
+#define SM_MMAP_FLAGS (MAP_PRIVATE)
 static int sm_dev_zero_fd__ = -1; // Cached file descriptor for /dev/zero.
-#define SM_MMAP_DEFAULT(S)			((sm_dev_zero_fd__ < 0) ? (sm_dev_zero_fd__ = open("/dev/zero", O_RDWR), mmap(0, (S), SM_MMAP_PROT, SM_MMAP_FLAGS, sm_dev_zero_fd__, 0)) : mmap(0, (S), SM_MMAP_PROT, SM_MMAP_FLAGS, sm_dev_zero_fd__, 0))
+#define SM_MMAP_DEFAULT(S) ((sm_dev_zero_fd__ < 0) ? (sm_dev_zero_fd__ = open("/dev/zero", O_RDWR), mmap(0, (S), SM_MMAP_PROT, SM_MMAP_FLAGS, sm_dev_zero_fd__, 0)) : mmap(0, (S), SM_MMAP_PROT, SM_MMAP_FLAGS, sm_dev_zero_fd__, 0))
 #endif
-#define SM_DIRECT_MMAP_DEFAULT(S)		SM_MMAP_DEFAULT(S)
+#define SM_DIRECT_MMAP_DEFAULT(S) SM_MMAP_DEFAULT(S)
 
 #else // defined(SM_OS_WINDOWS)
+
 
 inline static void* sm_win_mmap(size_t n)
 {
@@ -544,11 +542,13 @@ inline static void* sm_win_mmap(size_t n)
 	return (!p) ? SM_M_FAIL : p;
 }
 
+
 inline static void* sm_win_direct_mmap(size_t n)
 {
 	void* p = VirtualAlloc(NULL, n, MEM_RESERVE | MEM_COMMIT | MEM_TOP_DOWN, PAGE_READWRITE);
 	return (!p) ? SM_M_FAIL : p;
 }
+
 
 inline static int sm_win_munmap(void* p, size_t n)
 {
@@ -567,9 +567,11 @@ inline static int sm_win_munmap(void* p, size_t n)
 	return 0;
 }
 
+
 #define SM_MMAP_DEFAULT(S)				sm_win_mmap(S)
 #define SM_MUNMAP_DEFAULT(A, S)			sm_win_munmap((A), (S))
 #define SM_DIRECT_MMAP_DEFAULT(S)		sm_win_direct_mmap(S)
+
 
 #endif
 #endif
@@ -577,25 +579,27 @@ inline static int sm_win_munmap(void* p, size_t n)
 
 #if SM_HAVE_MREMAP
 #if !defined(SM_OS_WINDOWS)
-#define MREMAP_DEFAULT(A, O, N, M)	mremap((A), (O), (N), (M))
+#define MREMAP_DEFAULT(A, O, N, M) mremap((A), (O), (N), (M))
 #endif 
 #endif
 
 
 #if SM_HAS_MORE_CORE
 #ifdef MORECORE
-#define SM_CALL_MORE_CORE(S)    MORECORE(S)
+#define SM_CALL_MORE_CORE(S) MORECORE(S)
 #else
-#define SM_CALL_MORE_CORE(S)    MORECORE_DEFAULT(S)
+#define SM_CALL_MORE_CORE(S) MORECORE_DEFAULT(S)
 #endif
 #else
-#define SM_CALL_MORE_CORE(S)        SM_M_FAIL
+#define SM_CALL_MORE_CORE(S) SM_M_FAIL
 #endif
 
 
 #if SM_HAS_MMAP
 
+
 #define SM_USE_MMAP_BIT (SM_SIZE_T_ONE)
+
 
 #ifdef MMAP
 #define SM_CALL_MMAP(S) MMAP(S)
@@ -603,18 +607,19 @@ inline static int sm_win_munmap(void* p, size_t n)
 #define SM_CALL_MMAP(S) SM_MMAP_DEFAULT(S)
 #endif
 
+
 #ifdef MUNMAP
 #define SM_CALL_MUNMAP(A, S) MUNMAP((A), (S))
 #else
 #define SM_CALL_MUNMAP(A, S) SM_MUNMAP_DEFAULT((A), (S))
 #endif
 
+
 #ifdef DIRECT_MMAP
 #define SM_CALL_DIRECT_MMAP(S) DIRECT_MMAP(S)
 #else
 #define SM_CALL_DIRECT_MMAP(S) SM_DIRECT_MMAP_DEFAULT(S)
 #endif
-
 #else
 #define SM_USE_MMAP_BIT (SM_SIZE_T_ZERO)
 #define MMAP(S) SM_M_FAIL
@@ -641,7 +646,7 @@ inline static int sm_win_munmap(void* p, size_t n)
 #define SM_USE_NON_CONTIGUOUS_BIT (4U)
 
 
-// Segment bit set in sm_create_mspace_with_base.
+// Segment bit set in sm_create_space_with_base.
 #define SM_EXTERN_BIT (8U)
 
 
@@ -665,6 +670,8 @@ inline static int sm_win_munmap(void* p, size_t n)
 #define SM_CAS_LOCK(L) __sync_lock_test_and_set(L, 1)
 #define SM_CLR_LOCK(L) __sync_lock_release(L)
 #elif (defined(__GNUC__) && (defined(__i386__) || defined(__x86_64__)))
+
+
 // Custom spin locks for older GCC on x86.
 inline static int sm_cas_lock(int* l)
 {
@@ -672,12 +679,16 @@ inline static int sm_cas_lock(int* l)
 	__asm__ __volatile__("lock; cmpxchgl %1, %2" : "=a" (ret) : "r" (val), "m" (*(l)), "0"(cmp) : "memory", "cc");
 	return ret;
 }
+
+
 inline static void sm_clr_lock(int* l)
 {
 	assert(*l != 0);
 	int ret, prv = 0;
 	__asm__ __volatile__("lock; xchgl %0, %1" : "=r" (ret) : "m" (*(l)), "0"(prv) : "memory");
 }
+
+
 #define SM_CAS_LOCK(L) sm_cas_lock(L)
 #define SM_CLR_LOCK(L) sm_clr_lock(L)
 #else // Windows
@@ -700,6 +711,8 @@ inline static void sm_clr_lock(int* l)
 
 
 #if !defined(SM_USE_RECURSIVE_LOCKS) || (SM_USE_RECURSIVE_LOCKS == 0)
+
+
 // Plain spin locks use single word (embedded in malloc states).
 static int sm_spin_acquire_lock(int* l)
 {
@@ -716,7 +729,10 @@ static int sm_spin_acquire_lock(int* l)
 #define SM_ACQUIRE_LOCK(L) (SM_CAS_LOCK(L) ? sm_spin_acquire_lock(L) : 0)
 #define SM_INITIAL_LOCK(L) (*L = 0)
 #define SM_DESTROY_LOCK(L) (0)
+
+
 static SM_MLOCK_T sm_malloc_global_mutex__ = 0;
+
 
 #else // !SM_USE_RECURSIVE_LOCKS
 
@@ -740,8 +756,12 @@ typedef struct sm_malloc_recursive_lock
 }
 sm_malloc_recursive_lock;
 
+
 #define SM_MLOCK_T sm_malloc_recursive_lock
+
+
 static SM_MLOCK_T sm_malloc_global_mutex__ = { 0, 0, (SM_THREAD_ID_T)0 };
+
 
 inline static void sm_recursive_release_lock(SM_MLOCK_T *l)
 {
@@ -1104,7 +1124,7 @@ static struct sm_malloc_params sm_m_params__;
 
 
 #if !SM_ONLY_MSPACES
-// The global sm_malloc_state used for all non-'sm_mspace_t' calls.
+// The global sm_malloc_state used for all non-'sm_space_t' calls.
 static struct sm_malloc_state sm_gm__;
 #define sm_gm (&sm_gm__)
 #define sm_is_global(M) ((M) == &sm_gm__)
@@ -1541,17 +1561,17 @@ static int sm_change_mparam(int param_number, int value)
 
 	switch (param_number)
 	{
-	case M_TRIM_THRESHOLD:
+	case SM_M_TRIM_THRESHOLD:
 		sm_m_params__.trim_threshold = val;
 		return 1;
-	case M_GRANULARITY:
+	case SM_M_GRANULARITY:
 		if (val >= sm_m_params__.page_size && ((val & (val - 1)) == 0))
 		{
 			sm_m_params__.granularity = val;
 			return 1;
 		}
 		else return 0;
-	case M_MMAP_THRESHOLD:
+	case SM_M_MMAP_THRESHOLD:
 		sm_m_params__.mmap_threshold = val;
 		return 1;
 	default: return 0;
@@ -1910,9 +1930,9 @@ static void sm_do_check_allocation_state(sm_mstate_t m)
 
 
 #if !SM_NO_ALLOCATION_INFO
-static struct sm_mem_info_t sm_internal_mem_info(sm_mstate_t m)
+static struct sm_memory_info_t sm_internal_mem_info(sm_mstate_t m)
 {
-	struct sm_mem_info_t nm = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+	struct sm_memory_info_t nm = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
 	sm_ensure_initialization();
 
@@ -1949,12 +1969,12 @@ static struct sm_mem_info_t sm_internal_mem_info(sm_mstate_t m)
 			}
 
 			nm.arena = sum;
-			nm.ordblks = nfree;
-			nm.hblkhd = m->footprint - sum;
-			nm.usmblks = m->max_footprint;
-			nm.uordblks = m->footprint - mfree;
-			nm.fordblks = mfree;
-			nm.keepcost = m->topsize;
+			nm.count_free_chunks = nfree;
+			nm.memory_mapped_space = m->footprint - sum;
+			nm.max_total_allocated_space = m->max_footprint;
+			nm.total_allocated_space = m->footprint - mfree;
+			nm.total_free_space = mfree;
+			nm.keep_cost = m->topsize;
 		}
 
 		SM_POST_ACTION(m);
@@ -2213,12 +2233,12 @@ inline static void sm_unlink_large_chunk(sm_mstate_t m, sm_tchunk_ptr_t x)
 
 
 #if SM_ONLY_MSPACES
-#define sm_internal_malloc(M, B) sm_mspace_malloc(M, B)
-#define sm_internal_free(M, P) sm_mspace_free(M, P)
+#define sm_internal_malloc(M, B) sm_space_malloc(M, B)
+#define sm_internal_free(M, P) sm_space_free(M, P)
 #else
 #if SM_MSPACES
-#define sm_internal_malloc(M, B) (((M == sm_gm) ? sm_dl_malloc(B) : sm_mspace_malloc(M, B)))
-#define sm_internal_free(M, P) if (M == sm_gm) sm_dl_free(P); else sm_mspace_free(M, P);
+#define sm_internal_malloc(M, B) (((M == sm_gm) ? sm_dl_malloc(B) : sm_space_malloc(M, B)))
+#define sm_internal_free(M, P) if (M == sm_gm) sm_dl_free(P); else sm_space_free(M, P);
 #else
 #define sm_internal_malloc(M, B) sm_dl_malloc(B)
 #define sm_internal_free(M, P) sm_dl_free(P)
@@ -2414,6 +2434,7 @@ static void* sm_prepend_alloc(sm_mstate_t m, uint8_t* newb, uint8_t* oldb, size_
 
 	return sm_chunk_to_mem(pptr);
 }
+
 
 // Add a segment to hold a new non-contiguous region.
 static void sm_add_segment(sm_mstate_t m, uint8_t* tbas, size_t tsiz, sm_flag_t mmap)
@@ -4130,7 +4151,7 @@ size_t sm_dl_malloc_set_footprint_limit(size_t bytes)
 
 
 #if !SM_NO_ALLOCATION_INFO
-struct sm_mem_info_t sm_dl_mem_info(void)
+struct sm_memory_info_t sm_dl_mem_info(void)
 {
 	return sm_internal_mem_info(sm_gm);
 }
@@ -4204,7 +4225,7 @@ static sm_mstate_t sm_init_user_mstate(uint8_t* base, size_t size)
 }
 
 
-sm_mspace_t sm_create_mspace(size_t capacity, int locked)
+sm_space_t sm_create_space(size_t capacity, int locked)
 {
 	sm_mstate_t m = NULL;
 
@@ -4226,11 +4247,11 @@ sm_mspace_t sm_create_mspace(size_t capacity, int locked)
 		}
 	}
 
-	return (sm_mspace_t)m;
+	return (sm_space_t)m;
 }
 
 
-sm_mspace_t sm_create_mspace_with_base(void* base, size_t capacity, int locked)
+sm_space_t sm_create_space_with_base(void* base, size_t capacity, int locked)
 {
 	sm_mstate_t m = NULL;
 
@@ -4245,11 +4266,11 @@ sm_mspace_t sm_create_mspace_with_base(void* base, size_t capacity, int locked)
 		sm_set_lock(m, locked);
 	}
 
-	return (sm_mspace_t)m;
+	return (sm_space_t)m;
 }
 
 
-int sm_mspace_track_large_chunks(sm_mspace_t space, int enable)
+int sm_space_track_large_chunks(sm_space_t space, int enable)
 {
 	int retv = 0;
 	sm_mstate_t mspt = (sm_mstate_t)space;
@@ -4270,7 +4291,7 @@ int sm_mspace_track_large_chunks(sm_mspace_t space, int enable)
 }
 
 
-size_t sm_destroy_mspace(sm_mspace_t space)
+size_t sm_destroy_space(sm_space_t space)
 {
 	size_t free = 0;
 	sm_mstate_t mspt = (sm_mstate_t)space;
@@ -4300,7 +4321,7 @@ size_t sm_destroy_mspace(sm_mspace_t space)
 }
 
 
-void* sm_mspace_malloc(sm_mspace_t space, size_t bytes)
+void* sm_space_malloc(sm_space_t space, size_t bytes)
 {
 	sm_mstate_t mspt = (sm_mstate_t)space;
 
@@ -4449,7 +4470,7 @@ void* sm_mspace_malloc(sm_mspace_t space, size_t bytes)
 }
 
 
-void sm_mspace_free(sm_mspace_t space, void* memory)
+void sm_space_free(sm_space_t space, void* memory)
 {
 	if (memory != NULL)
 	{
@@ -4597,7 +4618,7 @@ void sm_mspace_free(sm_mspace_t space, void* memory)
 }
 
 
-void* sm_mspace_calloc(sm_mspace_t space, size_t count, size_t size)
+void* sm_space_calloc(sm_space_t space, size_t count, size_t size)
 {
 	void* pmem;
 	size_t sreq = 0;
@@ -4630,17 +4651,17 @@ void* sm_mspace_calloc(sm_mspace_t space, size_t count, size_t size)
 }
 
 
-void* sm_mspace_realloc(sm_mspace_t space, void* memory, size_t bytes)
+void* sm_space_realloc(sm_space_t space, void* memory, size_t bytes)
 {
 	void* pmem = NULL;
 
 	if (memory == NULL)
-		pmem = sm_mspace_malloc(space, bytes);
+		pmem = sm_space_malloc(space, bytes);
 	else if (bytes >= SM_MAX_REQUEST)
 		SM_MALLOC_FAILURE_ACTION;
 #ifdef SM_REALLOC_ZERO_BYTES_FREES
 	else if (bytes == 0)
-		sm_mspace_free(space, memory);
+		sm_space_free(space, memory);
 #endif
 	else
 	{
@@ -4673,14 +4694,14 @@ void* sm_mspace_realloc(sm_mspace_t space, void* memory, size_t bytes)
 			}
 			else
 			{
-				pmem = sm_mspace_malloc(msta, bytes);
+				pmem = sm_space_malloc(msta, bytes);
 
 				if (pmem != NULL)
 				{
 					size_t ocsz = sm_chunk_size(oldp) - sm_get_overhead_for(oldp);
 
 					sm_mem_cpy(pmem, memory, (ocsz < bytes) ? ocsz : bytes);
-					sm_mspace_free(msta, memory);
+					sm_space_free(msta, memory);
 				}
 			}
 		}
@@ -4690,7 +4711,7 @@ void* sm_mspace_realloc(sm_mspace_t space, void* memory, size_t bytes)
 }
 
 
-void* sm_mspace_realloc_in_place(sm_mspace_t space, void* memory, size_t bytes)
+void* sm_space_realloc_in_place(sm_space_t space, void* memory, size_t bytes)
 {
 	void* pmem = NULL;
 
@@ -4737,7 +4758,7 @@ void* sm_mspace_realloc_in_place(sm_mspace_t space, void* memory, size_t bytes)
 }
 
 
-void* sm_mspace_mem_align(sm_mspace_t space, size_t alignment, size_t bytes)
+void* sm_space_mem_align(sm_space_t space, size_t alignment, size_t bytes)
 {
 	sm_mstate_t msta = (sm_mstate_t)space;
 
@@ -4749,13 +4770,13 @@ void* sm_mspace_mem_align(sm_mspace_t space, size_t alignment, size_t bytes)
 	}
 
 	if (alignment <= SM_MALLOC_ALIGNMENT)
-		return sm_mspace_malloc(space, bytes);
+		return sm_space_malloc(space, bytes);
 
 	return sm_internal_mem_align(msta, alignment, bytes);
 }
 
 
-void** sm_mspace_independent_calloc(sm_mspace_t space, size_t count, size_t size, void** chunks)
+void** sm_space_independent_calloc(sm_space_t space, size_t count, size_t size, void** chunks)
 {
 	size_t rqsz = size;
 	sm_mstate_t msta = (sm_mstate_t)space;
@@ -4771,7 +4792,7 @@ void** sm_mspace_independent_calloc(sm_mspace_t space, size_t count, size_t size
 }
 
 
-void** sm_mspace_independent_co_malloc(sm_mspace_t space, size_t count, size_t* sizes, void** chunks)
+void** sm_space_independent_co_malloc(sm_space_t space, size_t count, size_t* sizes, void** chunks)
 {
 	sm_mstate_t msta = (sm_mstate_t)space;
 
@@ -4786,14 +4807,14 @@ void** sm_mspace_independent_co_malloc(sm_mspace_t space, size_t count, size_t* 
 }
 
 
-size_t sm_mspace_bulk_free(sm_mspace_t space, void** array, size_t count)
+size_t sm_space_bulk_free(sm_space_t space, void** array, size_t count)
 {
 	return sm_internal_bulk_free((sm_mstate_t)space, array, count);
 }
 
 
 #if SM_MALLOC_INSPECT_ALL
-void sm_mspace_inspect_all(sm_mspace_t space, void(*visitor)(void* start, void* end, size_t bytes, void* argument), void* argument)
+void sm_space_inspect_all(sm_space_t space, void(*visitor)(void* start, void* end, size_t bytes, void* argument), void* argument)
 {
 	sm_mstate_t msta = (sm_mstate_t)space;
 
@@ -4814,7 +4835,7 @@ void sm_mspace_inspect_all(sm_mspace_t space, void(*visitor)(void* start, void* 
 #endif
 
 
-int sm_mspace_trim(sm_mspace_t space, size_t padding)
+int sm_space_trim(sm_space_t space, size_t padding)
 {
 	int trim = 0;
 	sm_mstate_t msta = (sm_mstate_t)space;
@@ -4838,7 +4859,7 @@ int sm_mspace_trim(sm_mspace_t space, size_t padding)
 
 
 #if !NO_MALLOC_STATS
-void sm_mspace_malloc_stats(sm_mspace_t space)
+void sm_space_malloc_stats(sm_space_t space)
 {
 	sm_mstate_t msta = (sm_mstate_t)space;
 
@@ -4852,7 +4873,7 @@ void sm_mspace_malloc_stats(sm_mspace_t space)
 #endif
 
 
-size_t sm_mspace_footprint(sm_mspace_t space)
+size_t sm_space_footprint(sm_space_t space)
 {
 	size_t resv = 0;
 	sm_mstate_t msta = (sm_mstate_t)space;
@@ -4868,7 +4889,7 @@ size_t sm_mspace_footprint(sm_mspace_t space)
 }
 
 
-size_t sm_mspace_max_footprint(sm_mspace_t space)
+size_t sm_space_max_footprint(sm_space_t space)
 {
 	size_t resv = 0;
 	sm_mstate_t msta = (sm_mstate_t)space;
@@ -4884,7 +4905,7 @@ size_t sm_mspace_max_footprint(sm_mspace_t space)
 }
 
 
-size_t sm_mspace_footprint_limit(sm_mspace_t space)
+size_t sm_space_footprint_limit(sm_space_t space)
 {
 	size_t resv = 0;
 	sm_mstate_t msta = (sm_mstate_t)space;
@@ -4903,7 +4924,7 @@ size_t sm_mspace_footprint_limit(sm_mspace_t space)
 }
 
 
-size_t sm_mspace_set_footprint_limit(sm_mspace_t space, size_t bytes)
+size_t sm_space_set_footprint_limit(sm_space_t space, size_t bytes)
 {
 	size_t resv = 0;
 	sm_mstate_t msta = (sm_mstate_t)space;
@@ -4929,7 +4950,7 @@ size_t sm_mspace_set_footprint_limit(sm_mspace_t space, size_t bytes)
 
 
 #if !SM_NO_ALLOCATION_INFO
-struct sm_mem_info_t sm_mspace_mem_info(sm_mspace_t space)
+struct sm_memory_info_t sm_space_mem_info(sm_space_t space)
 {
 	sm_mstate_t msta = (sm_mstate_t)space;
 
@@ -4943,7 +4964,7 @@ struct sm_mem_info_t sm_mspace_mem_info(sm_mspace_t space)
 #endif
 
 
-size_t sm_mspace_usable_size(const void* memory)
+size_t sm_space_usable_size(const void* memory)
 {
 	if (memory != NULL)
 	{
@@ -4957,7 +4978,7 @@ size_t sm_mspace_usable_size(const void* memory)
 }
 
 
-int sm_mspace_options(int param, int value)
+int sm_space_options(int param, int value)
 {
 	return sm_change_mparam(param, value);
 }
