@@ -96,16 +96,36 @@ sm_allocation_stats_t;
 
 typedef struct sm_context_s
 {
+	void* space;
+
+	uint64_t corruption_error_count;
+
+	struct
+	{
+		size_t magic;
+		size_t page_size;
+		size_t granularity;
+		size_t mapping_threshold;
+		size_t trim_threshold;
+		sm_flag_t default_flags;
+	}
+	parameters;
+
 #if defined(SM_OS_WINDOWS)
-	void* (__stdcall *pvalloc)(void*, size_t, unsigned long, unsigned long);
-	size_t (__stdcall *pvquery)(const void*, void*, size_t);
-	int (__stdcall *pvfree)(void*, size_t, unsigned long);
-	long (*pixchng)(long volatile*, long);
-	long (*picxchng)(long volatile*, long, long);
+
+	void* (__stdcall *virtual_alloc)(void*, size_t, unsigned long, unsigned long);
+	size_t (__stdcall *virtual_query)(const void*, void*, size_t);
+	int (__stdcall *virtual_free)(void*, size_t, unsigned long);
+	void (__stdcall *get_system_info)(void*);
+
 #else
 
+	int dev_zero_fd;
+
 #endif
-};
+}
+sm_context_t;
+
 
 // Represents an independent region of memory space.
 typedef void* sm_space_t;

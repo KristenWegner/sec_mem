@@ -316,14 +316,31 @@ LONG _InterlockedExchange(LONG volatile* target, LONG value);
 #define SM_LOCK_AT_FORK 0
 #endif
 
-// https://graphics.stanford.edu/~seander/bithacks.html
 
-inline static uint32_t clz32(uint32_t v)
+inline static uint32_t clz32(register uint32_t v)
 {
-	v = v - ((v >> 1) & 0x55555555);
-	v = (v & 0x33333333) + ((v >> 2) & 0x33333333);
-	return ((v + (v >> 4) & 0xF0F0F0F) * 0x1010101) >> 24;
+	v = v - ((v >> 1) & UINT32_C(0x55555555));
+	v = (v & UINT32_C(0x33333333)) + ((v >> 2) & UINT32_C(0x33333333));
+	return ((v + (v >> 4) & UINT32_C(0xF0F0F0F)) * UINT32_C(0x1010101)) >> 24;
 }
+
+
+inline static uint32_t bsr32(register uint32_t v)
+{
+	register uint32_t c = UINT32_C(0x20);
+
+	v &= -(int32_t)v;
+
+	if (v) c--;
+	if (v & UINT32_C(0x0000FFFF)) c -= UINT32_C(0x10);
+	if (v & UINT32_C(0x00FF00FF)) c -= UINT32_C(0x08);
+	if (v & UINT32_C(0x0F0F0F0F)) c -= UINT32_C(0x04);
+	if (v & UINT32_C(0x33333333)) c -= UINT32_C(0x02);
+	if (v & UINT32_C(0x55555555)) c -= UINT32_C(0x01);
+
+	return c;
+}
+
 
 #if defined(SM_OS_WINDOWS)
 #ifndef BitScanForward
@@ -1043,14 +1060,6 @@ static sm_parameters_t sm_m_params__;
 
 // Ensure sm_m_params__ is initialized.
 #define sm_ensure_initialization() (sm_m_params__.magic != UINT64_C(0) || sm_init_params())
-
-
-#if !SM_ONLY_MSPACES
-// The global sm_state_s used for all non-'sm_space_t' calls.
-static struct sm_state_s sm_gm__;
-#define sm_gm (&sm_gm__)
-#define sm_is_global(M) ((M) == &sm_gm__)
-#endif
 
 
 #define sm_is_initialized(M)  ((M)->top != 0)
@@ -2301,6 +2310,7 @@ inline static void sm_initialize_bins(sm_state_t state)
 	}
 }
 
+
 #if SM_PROCEED_ON_ERROR
 // Default corruption action.
 inline static void sm_reset_on_error(sm_state_t state)
@@ -2316,7 +2326,7 @@ inline static void sm_reset_on_error(sm_state_t state)
 
 	size_t indx;
 
-	for (indx = 0; indx < SM_N_TREE_BINS; ++iindx)
+	for (indx = 0; indx < SM_N_TREE_BINS; ++indx)
 		*sm_tree_bin_at(state, indx) = NULL;
 
 	sm_initialize_bins(state);
@@ -2325,7 +2335,7 @@ inline static void sm_reset_on_error(sm_state_t state)
 
 
 // Allocate chunk and prepend remainder with chunk in successor base.
-inline static void* sm_prepend_alloc(sm_state_t state, uint8_t* next, uint8_t* previous, size_t bytes)
+inline static void* sm_prepend_allocate(sm_state_t state, uint8_t* next, uint8_t* previous, size_t bytes)
 {
 	sm_pchunk_t pptr = sm_align_as_chunk(next);
 	sm_pchunk_t oldf = sm_align_as_chunk(previous);
@@ -2630,7 +2640,7 @@ inline static void* sm_system_allocate(sm_state_t state, size_t bytes)
 					spsg->base = tbas;
 					spsg->size += tsiz;
 
-					return sm_prepend_alloc(state, tbas, obas, bytes);
+					return sm_prepend_allocate(state, tbas, obas, bytes);
 				}
 				else sm_add_segment(state, tbas, tsiz, mflg);
 			}
