@@ -167,13 +167,16 @@ SZ: NAME = EXPR;\n
 */
 
 
+static uint16_t random_state[3] = { 0, 0, 0 };
+
+
 // Makes an 8-character hex alias name, where the initial char is an hex letter digit.
-char* make_alias(char* buffer, void* rnd_state)
+char* make_alias(char* buffer)
 {
 	const char prefixes[6] = { 'a', 'b', 'c', 'd', 'e', 'f' };
-	uint16_t code = (uint16_t)(rnext(rnd_state) ^ rnext(rnd_state));
-	sprintf(buffer, "%c%07x", prefixes[(rnext(rnd_state) + 1) % sizeof(prefixes)], code);
-	buffer[8] = '\0';
+	uint32_t code = (uint32_t)(((uint64_t)rnext(random_state) << 32) ^ (uint64_t)rnext(random_state));
+	sprintf(buffer, "%c%08" PRIx64 "", prefixes[(rnext(random_state) + 1) % sizeof(prefixes)], code);
+	buffer[16] = '\0';
 	return buffer;
 }
 
@@ -211,7 +214,6 @@ int main(int argc, char* argv[])
 
 	char entity_alias_name[128];
 
-	uint16_t random_state[3] = { 0, 0, 0 };
 	rseed(random_state, (uint32_t)make_seed());
 
 	uint32_t i, j;
@@ -302,7 +304,7 @@ int main(int argc, char* argv[])
 				entity_xor_key = (((uint64_t)rnext(random_state) << 32) ^ (uint64_t)rnext(random_state));
 				entity_alias_id = (((uint64_t)rnext(random_state) << 32) ^ (uint64_t)rnext(random_state));
 
-				make_alias(entity_alias_name, random_state);
+				make_alias(entity_alias_name);
 
 				printf("mkc: Generating code for \"%s\" (%s type)...\n", entity_name, kind == 1 ? "data" : kind == 2 ? "function" : "size");
 
@@ -315,7 +317,7 @@ int main(int argc, char* argv[])
 
 					fprintf(target_op_data_file, "#define %s %s\n", entity_name, entity_alias_name);
 
-					make_alias(entity_alias_name, random_state);
+					make_alias(entity_alias_name);
 
 					fprintf(target_op_data_file, "#define %s_key %s\n", entity_name, entity_alias_name);
 					fprintf(target_op_data_file, "static uint64_t %s_key = UINT64_C(0x%" PRIX64 ");\n", entity_name, entity_xor_key);
@@ -344,12 +346,12 @@ int main(int argc, char* argv[])
 				}
 
 				if (strlen(comment))
-					fprintf(target_op_decl_file, "#define sec_op_%s (0x%04XU) // %s: %s\n", entity_name, entity_op_code, kind == 1 ? "Data" : kind == 2 ? "Function" : "Size", comment);
-				else fprintf(target_op_decl_file, "#define sec_op_%s (0x%04XU) // %s.\n", entity_name, entity_op_code, kind == 1 ? "Data" : kind == 2 ? "Function" : "Size");
+					fprintf(target_op_decl_file, "#define sm_op_%s (0x%04XU) // %s: %s\n", entity_name, entity_op_code, kind == 1 ? "Data" : kind == 2 ? "Function" : "Size", comment);
+				else fprintf(target_op_decl_file, "#define sm_op_%s (0x%04XU) // %s.\n", entity_name, entity_op_code, kind == 1 ? "Data" : kind == 2 ? "Function" : "Size");
 
 				if (kind < 3)
-					fprintf(target_op_impl_file, "case sec_op_%s: return (uint64_t)sec_op_load_%s(%s);\n", entity_name, kind == 1 ? "data" : "function", entity_name);
-				else fprintf(target_op_impl_file, "case sec_op_%s: return %s;\n", entity_name, entity_size);
+					fprintf(target_op_impl_file, "case sm_op_%s: return (uint64_t)sm_op_load_%s(%s);\n", entity_name, kind == 1 ? "data" : "function", entity_name);
+				else fprintf(target_op_impl_file, "case sm_op_%s: return %s;\n", entity_name, entity_size);
 
 				comment[0] = '\0';
 				line_buffer[0] = '\0';
