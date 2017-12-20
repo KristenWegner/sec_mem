@@ -53,6 +53,26 @@
 
 // Methods
 
+inline static uint8_t rotl8(uint8_t x, uint8_t n)
+{
+	return (x << n) | (x >> (8 - n));
+}
+
+inline static uint8_t rotr8(uint8_t x, uint8_t n)
+{
+	return ((x >> n) | (x << (8 - n)));
+}
+
+
+inline static uint32_t rotl32(uint32_t x, uint32_t n)
+{
+	return (x << n) | (x >> (32 - n));
+}
+
+inline static uint32_t rotr32(uint32_t x, uint32_t n)
+{
+	return ((x >> n) | (x << (32 - n)));
+}
 
 // Reduces x to [0..n).
 inline static uint32_t sec_reduce_32(uint32_t x, uint32_t n)
