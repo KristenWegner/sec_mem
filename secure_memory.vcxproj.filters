@@ -41,6 +41,9 @@
     <ClCompile Include="allocator.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="precursors\ran.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="mutex.h">

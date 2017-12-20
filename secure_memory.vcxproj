@@ -144,6 +144,14 @@
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
     </Link>
   </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <OmitFramePointers>false</OmitFramePointers>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+    </Link>
+  </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="allocator.c">
       <RuntimeLibrary Condition="'$(Configuration)|$(Platform)'=='Release|x64'">MultiThreaded</RuntimeLibrary>
@@ -169,6 +177,10 @@
       <StringPooling Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</StringPooling>
       <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Release|x64'">StdCall</CallingConvention>
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">CompileAsC</CompileAs>
+      <InlineFunctionExpansion Condition="'$(Configuration)|$(Platform)'=='Release|x64'">AnySuitable</InlineFunctionExpansion>
+      <StructMemberAlignment Condition="'$(Configuration)|$(Platform)'=='Release|x64'">1Byte</StructMemberAlignment>
+      <Optimization Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Full</Optimization>
+      <FavorSizeOrSpeed Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Size</FavorSizeOrSpeed>
     </ClCompile>
     <ClCompile Include="compatibility\gettimeofday.c" />
     <ClCompile Include="compatibility\getuid.c" />
@@ -188,6 +200,7 @@
       <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Release|x64'">StdCall</CallingConvention>
       <OmitDefaultLibName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</OmitDefaultLibName>
     </ClCompile>
+    <ClCompile Include="precursors\ran.c" />
     <ClCompile Include="program.c" />
     <ClCompile Include="utility\string.c" />
   </ItemGroup>

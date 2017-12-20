@@ -107,6 +107,16 @@ inline static uid_t sm_get_token_uid(HANDLE token, uint64_t* hash)
 }
 
 
+uint64_t sm_gettid()
+{
+#if defined(SM_OS_WINDOWS)
+	return (uint64_t)GetThreadId(GetCurrentThread());
+#else
+	return (uint64_t)gettid();
+#endif
+}
+
+
 uid_t sm_getuid()
 {
 	uid_t u = -1;

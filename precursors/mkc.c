@@ -16,6 +16,7 @@
 
 
 #include "../config.h"
+#include "../compatibility/gettimeofday.h"
 
 
 #if defined(SM_OS_WINDOWS)

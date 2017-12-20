@@ -240,7 +240,7 @@ uint64_t sec_op(uint16_t op)
 
 	// Dynamics
 
-	case SEC_OP_HRDRND64: return (uint64_t)LOAD(sm_have_rdrand);
+	/*case SEC_OP_HRDRND64: return (uint64_t)LOAD(sm_have_rdrand);
 	case SEC_OP_RDRAND64: return (uint64_t)LOAD(sm_rdrand);
 	case SEC_OP_SHRGML64: return (uint64_t)LOAD(SHRGML64);
 	case SEC_OP_FS20SD64: return (uint64_t)LOAD(sm_fishman_20_64_seed);
@@ -268,7 +268,7 @@ uint64_t sec_op(uint16_t op)
 	case SEC_OP_MEMXORRG: return (uint64_t)LOAD(sm_mem_xor_func);
 	case SEC_OP_sm_city_64_hash: return (uint64_t)LOAD(sm_city_64_hash);
 	case SEC_OP_sm_murmur_3_32_hash: return (uint64_t)LOAD(sm_murmur_3_32_hash);
-	case SEC_OP_sm_murmur_3_64_hash: return (uint64_t)LOAD(sm_murmur_3_64_hash);
+	case SEC_OP_sm_murmur_3_64_hash: return (uint64_t)LOAD(sm_murmur_3_64_hash);*/
 
 	// State Sizes
 

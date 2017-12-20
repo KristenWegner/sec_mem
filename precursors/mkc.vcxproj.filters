@@ -36,6 +36,9 @@
     <ClCompile Include="..\compatibility\gettimeofday.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\compatibility\getuid.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="precursors-x86-x64.code" />

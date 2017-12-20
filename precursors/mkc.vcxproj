@@ -20,6 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\compatibility\gettimeofday.c" />
+    <ClCompile Include="..\compatibility\getuid.c" />
     <ClCompile Include="cmp.c">
       <InlineFunctionExpansion Condition="'$(Configuration)|$(Platform)'=='Release|x64'">AnySuitable</InlineFunctionExpansion>
       <StringPooling Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</StringPooling>

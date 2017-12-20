@@ -7,12 +7,34 @@
 #include "random.h"
 #include "secure_memory.h"
 #include "embedded.h"
+#include "allocator.h"
 
 
 int main(int argc, char* argv[])
 {
+	void* tmp[8096] = { 0 };
+
+	sm_context_t ctx = sm_allocator_create_context(8096, 0);
+
+	memset(tmp, 0, 8096 * sizeof(void*));
+
+	int i, j;
+	for (i = 0; i < 8096; ++i)
+	{
+		tmp[i] = sm_space_allocate(ctx, 32384);
+
+		if (tmp[i] == NULL)
+			break;
+	}
+
+	for (j = 0; j < i; ++j)
+		sm_space_free(ctx, tmp[j]);
+
+	sm_allocator_destroy_context(ctx);
+
+
 	uint64_t hash = 0;
-	uid_t uid = getuid();
+	uid_t uid = sm_getuid();
 
 	sec_g64_f hrr = sec_op(SEC_OP_HRDRND64);
 	sec_g64_f rdr = sec_op(SEC_OP_RDRAND64);

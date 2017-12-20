@@ -5,10 +5,14 @@
 
 
 #include "../config.h"
+#include "../compatibility/gettimeofday.h"
 
 
-extern uint64_t callconv sm_have_rdrand();
-extern uint64_t callconv sm_rdrand();
+//extern uint64_t callconv sm_have_rdrand();
+//extern uint64_t callconv sm_rdrand();
+
+#define sm_have_rdrand() (0)
+#define sm_rdrand() (0)
 
 
 #define swap64(x) ((uint64_t)( \
@@ -71,7 +75,7 @@ exported uint64_t callconv sm_master_rand()
 
 	if (!init)
 	{
-		sm_master_rand_seed(rsta, r ^ ((uint64_t)time(NULL) ^ ((uint64_t)getpid() << 32) ^ (uint64_t)gettid()) ^ (((uint64_t)sm_getuid() << 16 ^ (uint64_t)sm_getsidh())));
+		sm_master_rand_seed(rsta, r ^ ((uint64_t)time(NULL) ^ ((uint64_t)getpid() << 32) ^ (uint64_t)sm_gettid()) ^ (((uint64_t)sm_getuid() << 16 ^ (uint64_t)sm_getsidh())));
 		n = ((sm_master_rand_next(rsta) + 1) % 0x40);
 		for (i = 1; i < n; ++i) sm_master_rand_next(rsta);
 		init = 1;
