@@ -52,7 +52,7 @@ exported uint64_t callconv sm_master_rand()
 	static uint8_t rdrc = 0xFF;
 
 	if (rdrc == 0xFF) rdrc = (sm_have_rdrand() != 0) ? 1 : 0;
-	if (rdrc) return (sm_rdrand() ^ sm_rdrand());
+	if (rdrc) return sm_rdrand();
 	
 	static uint8_t init = 0;
 	static uint8_t rsta[(sizeof(uint32_t) + (sizeof(uint64_t) * 16))] = { 0 };
@@ -61,8 +61,9 @@ exported uint64_t callconv sm_master_rand()
 	r ^= (((uint64_t)time(NULL)) << 16) ^ UINT64_C(0x136A352B2C8C1);
 
 #if defined(SM_OS_WINDOWS)
-	DWORD tc = GetTickCount();
+	ULONGLONG tc = GetTickCount64();
 	tc = swap64(tc);
+	tc = (tc << 7) | (tc >> ((64 - 7) & 63));
 	r ^= tc;
 #endif
 
@@ -75,54 +76,44 @@ exported uint64_t callconv sm_master_rand()
 
 	if (!init)
 	{
-		sm_master_rand_seed(rsta, r ^ ((uint64_t)time(NULL) ^ ((uint64_t)getpid() << 32) ^ (uint64_t)sm_gettid()) ^ (((uint64_t)sm_getuid() << 16 ^ (uint64_t)sm_getsidh())));
-		n = ((sm_master_rand_next(rsta) + 1) % 0x40);
+		sm_master_rand_seed(rsta, r ^ (((uint64_t)time(NULL)) ^ (((uint64_t)sm_getpid()) << 32) ^ (uint64_t)sm_gettid()) ^ ((((uint64_t)sm_getuid()) << 16 ^ (uint64_t)sm_getsidh())));
+		n = ((sm_master_rand_next(rsta) + 1) % 0x20) + 1;
 		for (i = 1; i < n; ++i) sm_master_rand_next(rsta);
 		init = 1;
 	}
 
-	n = ((sm_master_rand_next(rsta) + 1) % 0x20) + 1;
+	n = ((sm_master_rand_next(rsta) + 1) % 0x10) + 1;
 	for (i = 0; i < n; ++i) r ^= sm_master_rand_next(rsta);
 
 	return r;
 }
 
 
-#define sm_fishman_20_64_max UINT64_C(0x7FFFFFFE)
-#define sm_fishman_20_64_min UINT64_C(1)
+#define sm_fishman_20_32_max UINT64_C(0x7FFFFFFE)
+#define sm_fishman_20_32_min UINT64_C(1)
 #define sm_fishman_20_64_state sizeof(uint64_t)
 
 
-// Fishman-20 64 generate next internal.
-inline static uint64_t sm_fishman_20_64_next(register void *restrict s)
+// Fishman-20 32 generate next internal.
+inline static uint32_t sm_fishman_20_32_next(register void *restrict s)
 {
 	register uint64_t *v = s;
-	const uint64_t x = *v;
-	const int64_t h = x / INT64_C(0xADC8);
+	register const uint64_t x = *v;
+	register const int64_t h = x / INT64_C(0xADC8);
 	const int64_t t = INT64_C(0xBC8F) * (x - h * INT64_C(0xADC8)) - h * INT64_C(0x0D47);
 	if (t < INT64_C(0)) *v = t + INT64_C(0x7FFFFFFF);
 	else *v = t;
-	return *v;
+	return (uint32_t)*v;
 }
 
 
 // Fishman-20 64 generate. 
 exported uint64_t callconv sm_fishman_20_64_rand(void *restrict s)
 {
-	register union
-	{
-		uint32_t d[2];
-		uint64_t q;
-	}
-	r;
-
-	uint32_t m = (uint32_t)sm_fishman_20_64_next(s);
-
-	r.d[0] = (uint32_t)sm_fishman_20_64_next(s);
-	r.d[0] ^= (m << 8);
-	r.d[1] = (uint32_t)sm_fishman_20_64_next(s);
-	r.d[1] ^= ((~m) << 16);
-
+	register union { uint32_t d[2]; uint64_t q; } r;
+	register uint32_t m = sm_fishman_20_32_next(s) | UINT32_C(0x80000001);
+	r.d[0] = sm_fishman_20_32_next(s) ^ m;
+	r.d[1] = sm_fishman_20_32_next(s) ^ ~((m << 16) | (m >> (16 & 31)));
 	return r.q;
 }
 
@@ -139,11 +130,11 @@ exported void callconv sm_fishman_20_64_seed(void *restrict s, uint64_t seed)
 
 #define sm_gfsr4_32_max UINT64_C(0xFFFFFFFF)
 #define sm_gfsr4_32_min UINT64_C(0)
-#define sm_gfsr4_32_state (sizeof(int32_t) + (sizeof(uint32_t) * 0x4000))
+#define sm_gfsr4_64_state (sizeof(int32_t) + (sizeof(uint32_t) * 0x4000))
 
 
-// GFSR4 32 generate.
-exported uint32_t callconv sm_gfsr4_32_rand(void *restrict s)
+// GFSR4 32 next.
+inline static uint32_t sm_gfsr4_32_next(register void *restrict s)
 {
 	register int32_t *n = s;
 	register uint32_t *a = (uint32_t *)&n[1];
@@ -155,11 +146,22 @@ exported uint32_t callconv sm_gfsr4_32_rand(void *restrict s)
 }
 
 
-// GFSR4 32 seed.
-exported void callconv sm_gfsr4_32_seed(void *restrict s, uint64_t seed)
+// GFSR4 64 generate.
+exported uint64_t callconv sm_gfsr4_64_rand(register void *restrict s)
+{
+	register union { uint32_t d[2]; uint64_t q; } r;
+	register uint32_t m = sm_gfsr4_32_next(s);
+	r.d[0] = sm_gfsr4_32_next(s) ^ m;
+	r.d[1] = sm_gfsr4_32_next(s) ^ ~((m << 16) | (m >> (16 & 31)));
+	return r.q;
+}
+
+
+// GFSR4 64 seed.
+exported void callconv sm_gfsr4_64_seed(register void *restrict s, uint64_t seed)
 {
 	register int32_t i, j, k, *n = s;
-	uint32_t t, b, m = UINT32_C(0x80000000), v = UINT32_C(0xFFFFFFFF);
+	register uint32_t t, b, m = UINT32_C(0x80000000), v = UINT32_C(0xFFFFFFFF);
 	register uint32_t *a = (uint32_t*)&n[1];
 
 	if (seed == UINT64_C(0))
@@ -193,13 +195,13 @@ exported void callconv sm_gfsr4_32_seed(void *restrict s, uint64_t seed)
 }
 
 
-#define m_knuth_2002_64_shift_max UINT64_C(0x3FFFFFFF)
-#define m_knuth_2002_64_shift_min UINT64_C(0)
-#define m_knuth_2002_64_shift_state (sizeof(uint32_t) + (sizeof(int64_t) * 0x03F1) + (sizeof(int64_t) * 0x64))
+#define m_knuth_2002_32_max UINT64_C(0x3FFFFFFF)
+#define m_knuth_2002_32_min UINT64_C(0)
+#define m_knuth_2002_64_state (sizeof(uint32_t) + (sizeof(int64_t) * 0x03F1) + (sizeof(int64_t) * 0x64))
 
 
-// Knuth 2002 64 With Random Bit Shift generate next internal.
-inline static uint64_t sm_knuth_2002_64_shift_next(void *restrict s)
+// Knuth 2002 32 next internal.
+inline static uint32_t sm_knuth_2002_32_next(register void *restrict s)
 {
 	register uint32_t *j = s, i = *j, k, l;
 	register int64_t* a = (int64_t *)&j[1];
@@ -217,36 +219,26 @@ inline static uint64_t sm_knuth_2002_64_shift_next(void *restrict s)
 	v = a[i];
 	*j = (i + UINT32_C(1)) % UINT32_C(0x64);
 
-	return v;
+	return (uint32_t)v;
 }
 
 
-// Knuth 2002 64 With Random Bit Shift generate.
-exported uint64_t callconv sm_knuth_2002_64_shift_rand(void *restrict s)
+// Knuth 2002 64 generate.
+exported uint64_t callconv sm_knuth_2002_64_rand(register void *restrict s)
 {
-	register union 
-	{
-		uint32_t d[2];
-		uint64_t q;
-	} 
-	r;
-
-	r.d[0] = (uint32_t)sm_knuth_2002_64_shift_next(s);
-	r.d[0] ^= (uint32_t)(sm_knuth_2002_64_shift_next(s) << 2);
-	r.d[1] = (uint32_t)sm_knuth_2002_64_shift_next(s);
-	r.d[1] ^= (uint32_t)(sm_knuth_2002_64_shift_next(s) << 2);
-
-	uint32_t ss = (r.d[0] ^ r.d[1]);
-	if (!ss) return r.q;
-	return r.q >> (ss % UINT32_C(0x40));
+	register union { uint32_t d[2]; uint64_t q; } r;
+	register uint32_t m = sm_knuth_2002_32_next(s) | UINT32_C(0xC0000000);
+	r.d[0] = sm_knuth_2002_32_next(s) ^ m;
+	r.d[1] = sm_knuth_2002_32_next(s) ^ ~((m << 16) | (m >> (16 & 31)));
+	return r.q;
 }
 
 
-// Knuth 2002 64 With Random Bit Shift seed.
-exported void callconv sm_knuth_2002_64_shift_seed(void *restrict s, uint64_t seed)
+// Knuth 2002 64 seed.
+exported void callconv sm_knuth_2002_64_seed(register void *restrict s, uint64_t seed)
 {
-	uint32_t *i = s;
-	int64_t *a = (int64_t *)&i[1];
+	register uint32_t *i = s;
+	register int64_t *a = (int64_t*)&i[1];
 	int64_t *x = &a[UINT64_C(0x03F1)], y[UINT64_C(0xC7)], v;
 	register int32_t j, k, l, t;
 
@@ -308,11 +300,11 @@ exported void callconv sm_knuth_2002_64_shift_seed(void *restrict s, uint64_t se
 
 #define sm_lecuyer_32_max UINT64_C(0x7FFFFF06)
 #define sm_lecuyer_32_min UINT64_C(1)
-#define sm_lecuyer_32_state sizeof(uint64_t)
+#define sm_lecuyer_64_state sizeof(uint64_t)
 
 
-// L'Ecuyer 32 generate.
-exported uint32_t callconv sm_lecuyer_32_rand(void *restrict s) 
+// L'Ecuyer 32 next.
+inline static uint32_t sm_lecuyer_32_next(register void *restrict s)
 {
 	register uint64_t *x = s;
 	register int32_t y = (int32_t)*x, r = INT32_C(0x0ECF) * (y / INT32_C(0xCE26));
@@ -323,8 +315,19 @@ exported uint32_t callconv sm_lecuyer_32_rand(void *restrict s)
 }
 
 
-// L'Ecuyer 32 seed.
-exported void callconv sm_lecuyer_32_seed(void *restrict s, uint64_t seed)
+// L'Ecuyer 64 generate.
+exported uint64_t callconv sm_lecuyer_64_rand(register void *restrict s)
+{
+	register union { uint32_t d[2]; uint64_t q; } r;
+	register uint32_t m = sm_lecuyer_32_next(s) | UINT32_C(0x800000F9);
+	r.d[0] = sm_lecuyer_32_next(s) ^ m;
+	r.d[1] = sm_lecuyer_32_next(s) ^ ~((m << 16) | (m >> (16 & 31)));
+	return r.q;
+}
+
+
+// L'Ecuyer 64 seed.
+exported void callconv sm_lecuyer_64_seed(void *restrict s, uint64_t seed)
 {
 	uint64_t *x = s;
 	if ((seed % UINT64_C(0x7FFFFF07)) == UINT64_C(0))
@@ -339,7 +342,7 @@ exported void callconv sm_lecuyer_32_seed(void *restrict s, uint64_t seed)
 
 
 // Mersenne Twister 19937 64 seed.
-exported void callconv sm_mersenne_64_seed(void *restrict s, uint64_t seed)
+exported void callconv sm_mersenne_64_seed(register void *restrict s, uint64_t seed)
 {
 	register int32_t *i = s, j;
 	register uint64_t *m = (uint64_t*)&i[1];
@@ -354,7 +357,7 @@ exported void callconv sm_mersenne_64_seed(void *restrict s, uint64_t seed)
 
 
 // Mersenne Twister 19937 64 generate.
-exported uint64_t callconv sm_mersenne_64_rand(void *restrict s)
+exported uint64_t callconv sm_mersenne_64_rand(register void *restrict s)
 {
 	const uint64_t mag[2] = { UINT64_C(0), UINT64_C(0xB5026F5AA96619E9) };
 	register int32_t *i = s, j;
@@ -425,9 +428,9 @@ exported uint64_t callconv sm_splitmix_64_rand(void *restrict s)
 
 
 // Xoroshiro128+ 64 rotate left internal.
-inline static uint64_t sm_xoroshiro_128_64_rotl(const uint64_t x, int32_t k)
+inline static uint64_t sm_xoroshiro_128_64_rotl(register const uint64_t x, register int32_t k)
 {
-	return (x << k) | (x >> (64 - k));
+	return (x << k) | (x >> ((64 - k) & 63));
 }
 
 
@@ -445,29 +448,21 @@ inline static void sm_xoroshiro_128_64_step(uint64_t *restrict s)
 // Xoroshiro128+ 64 jump internal.
 inline static void sm_xoroshiro_128_64_jump(register uint64_t *restrict s) 
 {
-	uint64_t s0 = UINT64_C(0);
-	uint64_t s1 = UINT64_C(0);
+	register uint64_t s0 = UINT64_C(0);
+	register uint64_t s1 = UINT64_C(0);
 	register uint8_t b;
 
 	for (b = UINT8_C(0); b < UINT8_C(0x40); ++b)
 	{
 		if (UINT64_C(0xBEAC0467EBA5FACB) & UINT64_C(1) << b) 
-		{
-			s0 ^= s[0];
-			s1 ^= s[1];
-		}
-
+			s0 ^= s[0], s1 ^= s[1];
 		sm_xoroshiro_128_64_step(s);
 	}
 
 	for (b = UINT8_C(0); b < UINT8_C(0x40); ++b)
 	{
 		if (UINT64_C(0xD86B048B86AA9922) & UINT64_C(1) << b) 
-		{
-			s0 ^= s[0];
-			s1 ^= s[1];
-		}
-
+			s0 ^= s[0], s1 ^= s[1];
 		sm_xoroshiro_128_64_step(s);
 	}
 

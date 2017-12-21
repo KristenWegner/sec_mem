@@ -10,7 +10,7 @@
 
 inline static uint64_t rotl64(uint64_t x, uint64_t b)
 {
-	return (x << b) | (x >> (64 - b));
+	return (x << b) | (x >> ((64 - b) & 63));
 }
 
 
