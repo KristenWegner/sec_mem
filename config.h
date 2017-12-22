@@ -58,6 +58,7 @@ typedef SSIZE_T ssize_t;
 typedef _locale_t locale_t;
 extern uid_t sm_getuid();
 extern uint64_t sm_getsidh();
+#define sm_getpid _getpid
 #define inline __forceinline
 #define restrict __restrict
 #define halign(b) __declspec(align(b))
@@ -68,7 +69,7 @@ extern uint64_t sm_getsidh();
 #define halign(b)
 #define talign(b) __attribute__((aligned(b),packed))
 #include <unistd.h>
-
+#define sm_getpid getpid
 #else
 #define inline
 #define restrict
