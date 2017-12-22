@@ -64,6 +64,13 @@ inline static uint8_t rotr8(uint8_t x, uint8_t n)
 }
 
 
+uint32_t rotl32c(uint32_t x, uint32_t n)
+{
+	assert(n<32);
+	return (x << n) | (x >> (-n & 31));
+}
+
+
 inline static uint32_t rotl32(uint32_t x, uint32_t n)
 {
 	return (x << n) | (x >> (32 - n));
