@@ -46,6 +46,51 @@ inline static uint64_t sm_master_rand_next(void *restrict s)
 }
 
 
+// Performs bit-wise unzip.
+static inline uint64_t sm_unzip(register uint64_t v)
+{
+	register uint64_t u = (v >> 1) & UINT64_C(0x5555555555555555);
+
+	v &= UINT64_C(0x5555555555555555);
+
+	v = (v | (v >> 1)) & UINT64_C(0x3333333333333333);
+	u = (u | (u >> 1)) & UINT64_C(0x3333333333333333);
+	v = (v | (v >> 2)) & UINT64_C(0x0F0F0F0F0F0F0F0F);
+	u = (u | (u >> 2)) & UINT64_C(0x0F0F0F0F0F0F0F0F);
+	v = (v | (v >> 4)) & UINT64_C(0x00FF00FF00FF00FF);
+	u = (u | (u >> 4)) & UINT64_C(0x00FF00FF00FF00FF);
+	v = (v | (v >> 8)) & UINT64_C(0x0000FFFF0000FFFF);
+	u = (u | (u >> 8)) & UINT64_C(0x0000FFFF0000FFFF);
+	v = (v | (v >> 16)) & UINT64_C(0x00000000FFFFFFFF);
+	u = (u | (u >> 16)) & UINT64_C(0x00000000FFFFFFFF);
+
+	v |= (u << 32);
+
+	return v;
+}#pragma intrinsic(sm_unzip)
+
+
+// Computes the green code.
+inline static uint64_t sm_green(register uint64_t v)
+{
+	register uint64_t s = UINT64_C(64) >> 1;
+	register uint64_t m = ~UINT64_C(0) << s;
+
+	do
+	{
+		register uint64_t t = v & m;
+		register uint64_t u = v ^ t;
+		v = u ^ (t >> s);
+		v ^= (u << s);
+		s >>= 1;
+		m ^= (m >> s);
+	}
+	while (s);
+
+	return v;
+}#pragma intrinsic(sm_green)
+
+
 // Makes a new 64-byte value.
 exported uint64_t callconv sm_master_rand()
 {
@@ -58,31 +103,31 @@ exported uint64_t callconv sm_master_rand()
 	static uint8_t rsta[(sizeof(uint32_t) + (sizeof(uint64_t) * 16))] = { 0 };
 
 	uint64_t r = UINT64_C(0x18271B1);
-	r ^= (((uint64_t)time(NULL)) << 16) ^ UINT64_C(0x136A352B2C8C1);
+	r ^= sm_unzip(time(NULL));
 
 #if defined(SM_OS_WINDOWS)
 	ULONGLONG tc = GetTickCount64();
-	tc = swap64(tc);
-	tc = (tc << 7) | (tc >> ((64 - 7) & 63));
-	r ^= tc;
+	r ^= sm_unzip(tc);
 #endif
 
 	extern int gettimeofday(struct timeval*, void*);
+
 	struct timeval tv = { 0, 0 };
 	if (!gettimeofday(&tv, NULL))
-		r ^= ((((uint64_t)tv.tv_sec) << 32) ^ ((uint64_t)tv.tv_usec));
+		r ^= sm_unzip(tv.tv_sec) ^ sm_unzip(tv.tv_usec);
 
 	uint8_t i, n;
 
 	if (!init)
 	{
-		sm_master_rand_seed(rsta, r ^ (((uint64_t)time(NULL)) ^ (((uint64_t)sm_getpid()) << 32) ^ (uint64_t)sm_gettid()) ^ ((((uint64_t)sm_getuid()) << 16 ^ (uint64_t)sm_getsidh())));
+		r ^= sm_unzip(time(NULL)) ^ sm_unzip(sm_getpid()) ^ sm_unzip(sm_gettid()) ^ sm_unzip(sm_getuid()) ^ sm_getsidh();
+		sm_master_rand_seed(rsta, r);
 		n = ((sm_master_rand_next(rsta) + 1) % 0x20) + 1;
 		for (i = 1; i < n; ++i) sm_master_rand_next(rsta);
 		init = 1;
 	}
 
-	n = ((sm_master_rand_next(rsta) + 1) % 0x10) + 1;
+	n = ((sm_master_rand_next(rsta) + 1) % 8) + 1;
 	for (i = 0; i < n; ++i) r ^= sm_master_rand_next(rsta);
 
 	return r;
@@ -113,7 +158,7 @@ exported uint64_t callconv sm_fishman_20_64_rand(void *restrict s)
 	register union { uint32_t d[2]; uint64_t q; } r;
 	register uint32_t m = sm_fishman_20_32_next(s) | UINT32_C(0x80000001);
 	r.d[0] = sm_fishman_20_32_next(s) ^ m;
-	r.d[1] = sm_fishman_20_32_next(s) ^ ~((m << 16) | (m >> (16 & 31)));
+	r.d[1] = sm_fishman_20_32_next(s) ^ sm_unzip(~m);
 	return r.q;
 }
 
@@ -152,7 +197,7 @@ exported uint64_t callconv sm_gfsr4_64_rand(register void *restrict s)
 	register union { uint32_t d[2]; uint64_t q; } r;
 	register uint32_t m = sm_gfsr4_32_next(s);
 	r.d[0] = sm_gfsr4_32_next(s) ^ m;
-	r.d[1] = sm_gfsr4_32_next(s) ^ ~((m << 16) | (m >> (16 & 31)));
+	r.d[1] = sm_gfsr4_32_next(s) ^ sm_unzip(~m);
 	return r.q;
 }
 
@@ -229,7 +274,7 @@ exported uint64_t callconv sm_knuth_2002_64_rand(register void *restrict s)
 	register union { uint32_t d[2]; uint64_t q; } r;
 	register uint32_t m = sm_knuth_2002_32_next(s) | UINT32_C(0xC0000000);
 	r.d[0] = sm_knuth_2002_32_next(s) ^ m;
-	r.d[1] = sm_knuth_2002_32_next(s) ^ ~((m << 16) | (m >> (16 & 31)));
+	r.d[1] = sm_knuth_2002_32_next(s) ^ sm_unzip(~m);
 	return r.q;
 }
 
@@ -321,7 +366,7 @@ exported uint64_t callconv sm_lecuyer_64_rand(register void *restrict s)
 	register union { uint32_t d[2]; uint64_t q; } r;
 	register uint32_t m = sm_lecuyer_32_next(s) | UINT32_C(0x800000F9);
 	r.d[0] = sm_lecuyer_32_next(s) ^ m;
-	r.d[1] = sm_lecuyer_32_next(s) ^ ~((m << 16) | (m >> (16 & 31)));
+	r.d[1] = sm_lecuyer_32_next(s) ^ sm_unzip(~m);
 	return r.q;
 }
 
