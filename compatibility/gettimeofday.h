@@ -1,9 +1,12 @@
 // gettimeofday.h
 
+
+#include "../config.h"
+
+
 #ifndef INCLUDE_GETTIMEOFDAY_H
 #define INCLUDE_GETTIMEOFDAY_H 1
 
-#include "../config.h"
 
 #if defined(SM_OS_WINDOWS)
 

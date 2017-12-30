@@ -104,6 +104,40 @@ exported uint64_t callconv sm_murmur_3_64_hash(const void *restrict p, size_t n)
 	ka = 0;
 	kb = 0;
 
+	uint8_t y = (uint8_t)(n & 15);
+
+	if (y == 15) { kb ^= ((uint64_t)l[14]) << 48; --y; }
+	if (y == 14) { kb ^= ((uint64_t)l[13]) << 40; --y; }
+	if (y == 13) { kb ^= ((uint64_t)l[12]) << 32; --y; }
+	if (y == 12) { kb ^= ((uint64_t)l[11]) << 24; --y; }
+	if (y == 11) { kb ^= ((uint64_t)l[10]) << 16; --y; }
+	if (y == 10) { kb ^= ((uint64_t)l[9]) << 8; --y; }
+	if (y == 9)
+	{
+		kb ^= ((uint64_t)l[8]) << 0;
+		kb *= UINT64_C(0x4CF5AD432745937F);
+		kb = rol64(kb, 33);
+		kb *= UINT64_C(0x87C37B91114253D5);
+		hb ^= kb;
+		--y;
+	}
+	if (y == 8) { ka ^= ((uint64_t)l[7]) << 56; --y; }
+	if (y == 7) { ka ^= ((uint64_t)l[6]) << 48; --y; }
+	if (y == 6) { ka ^= ((uint64_t)l[5]) << 40; --y; }
+	if (y == 5) { ka ^= ((uint64_t)l[4]) << 32; --y; }
+	if (y == 4) { ka ^= ((uint64_t)l[3]) << 24; --y; }
+	if (y == 3) { ka ^= ((uint64_t)l[2]) << 16; --y; }
+	if (y == 2) { ka ^= ((uint64_t)l[1]) << 8; --y; }
+	if (y == 1)
+	{
+		ka ^= ((uint64_t)l[0]) << 0;
+		ka *= UINT64_C(0x87C37B91114253D5);
+		ka = rol64(ka, 31);
+		ka *= UINT64_C(0x4CF5AD432745937F);
+		ha ^= ka;
+	}
+
+	/*
 	switch (n & 15)
 	{
 	case 15: kb ^= ((uint64_t)l[14]) << 48;
@@ -130,6 +164,7 @@ exported uint64_t callconv sm_murmur_3_64_hash(const void *restrict p, size_t n)
 		ka *= UINT64_C(0x4CF5AD432745937F);
 		ha ^= ka;
 	}
+	*/
 
 	ha ^= n;
 	hb ^= n;
@@ -147,7 +182,7 @@ exported uint64_t callconv sm_murmur_3_64_hash(const void *restrict p, size_t n)
 // 32-bit Murmur 3 hash function, by Austin Appleby.
 exported uint32_t callconv sm_murmur_3_32_hash(const void *restrict p, register size_t n)
 {
-	const uint32_t b = (n / UINT32_C(4));
+	const int32_t b = (int32_t)(n / 4);
 	register uint32_t i;
 	register uint32_t k, h = UINT32_C(0x1F36DDD3);
 	register const uint32_t* d = (const uint32_t*)(((const uint8_t*)p) + b * UINT32_C(4));
@@ -199,5 +234,160 @@ exported uint64_t callconv sm_fnv1a_64_hash(const void *restrict p, size_t n)
 	}
 
 	return h;
+}
+
+
+
+////////////////////////////////////////////////////////////////////////
+
+
+#define sm_sha_3_state ((sizeof(uint64_t) * 4) + ((sizeof(uint64_t) * 25)))
+
+#define sm_sha_3_rotl(X, Y) (((X) << (Y)) | ((X) >> ((sizeof(uint64_t) * 8) - (Y))))
+
+
+inline static void sm_sha_3_kk(uint64_t *restrict s)
+{
+	uint64_t rn[24] =
+	{
+		UINT64_C(0x0000000000000001), UINT64_C(0x0000000000008082), UINT64_C(0x800000000000808A), UINT64_C(0x8000000080008000), UINT64_C(0x000000000000808B), UINT64_C(0x0000000080000001), UINT64_C(0x8000000080008081), UINT64_C(0x8000000000008009),
+		UINT64_C(0x000000000000008A), UINT64_C(0x0000000000000088), UINT64_C(0x0000000080008009), UINT64_C(0x000000008000000A), UINT64_C(0x000000008000808B), UINT64_C(0x800000000000008B), UINT64_C(0x8000000000008089), UINT64_C(0x8000000000008003),
+		UINT64_C(0x8000000000008002), UINT64_C(0x8000000000000080), UINT64_C(0x000000000000800A), UINT64_C(0x800000008000000A), UINT64_C(0x8000000080008081), UINT64_C(0x8000000000008080), UINT64_C(0x0000000080000001), UINT64_C(0x8000000080008008)
+	};
+
+	uint32_t rc[24] = { 1, 3, 6, 10, 15, 21, 28, 36, 45, 55, 2, 14, 27, 41, 56, 8, 25, 43, 62, 18, 39, 61, 20, 44 };
+	uint32_t pn[24] = { 10, 7, 11, 17, 18, 3, 5, 16, 8, 21, 24, 4, 15, 23, 19, 13, 12, 2, 20, 14, 22, 9, 6, 1 };
+	uint32_t i, j, r;
+	uint64_t t, b[5];
+
+	for (r = 0; r < 24; ++r) 
+	{
+		for (i = 0; i < 5; ++i)
+			b[i] = s[i] ^ s[i + 5] ^ s[i + 10] ^ s[i + 15] ^ s[i + 20];
+
+		for (i = 0; i < 5; ++i)
+		{
+			t = b[(i + 4) % 5] ^ sm_sha_3_rotl(b[(i + 1) % 5], 1);
+
+			for (j = 0; j < 25; j += 5)
+				s[j + i] ^= t;
+		}
+
+		t = s[1];
+
+		for (i = 0; i < 24; ++i)
+		{
+			j = pn[i];
+			b[0] = s[j];
+			s[j] = sm_sha_3_rotl(t, rc[i]);
+			t = b[0];
+		}
+
+		for (j = 0; j < 25; j += 5) 
+		{
+			for (i = 0; i < 5; ++i)
+				b[i] = s[j + i];
+
+			for (i = 0; i < 5; ++i)
+				s[j + i] ^= (~b[(i + 1) % 5]) & b[(i + 2) % 5];
+		}
+
+		s[0] ^= rn[r];
+	}
+}
+
+
+inline static void sm_sha_3_init(void *restrict s)
+{
+	register uint8_t* p = (uint8_t*)s;
+	register size_t n = sm_sha_3_state;
+	while (n-- > UINT64_C(0)) *p++ = UINT8_C(0);
+	((uint64_t*)s)[3] = (UINT64_C(1024) / (UINT64_C(8) * sizeof(uint64_t)));
+}
+
+
+inline static void sm_sha_3_update(void *restrict s, const uint8_t* b, size_t n)
+{
+	uint64_t* k = (uint64_t*)s;
+	uint64_t t, o = (UINT64_C(8) - k[1]) & UINT64_C(7);
+	size_t i, w;
+
+	if (n < o) 
+	{
+		while (n--) k[0] |= (uint64_t)(*(b++)) << ((k[1]++) * UINT64_C(8));
+		return;
+	}
+
+	if (o) 
+	{
+		n -= o;
+		while (o--) k[0] |= (uint64_t)(*(b++)) << ((k[1]++) * UINT64_C(8));
+
+		(&k[4])[k[2]] ^= k[0];
+		k[1] = UINT64_C(0);
+		k[0] = UINT64_C(0);
+
+		if (++k[2] == (((sizeof(uint64_t) * UINT64_C(25))) - k[3]))
+		{
+			sm_sha_3_kk(&k[4]);
+			k[2] = UINT64_C(0);
+		}
+	}
+
+	w = n / sizeof(uint64_t);
+	t = n - w * sizeof(uint64_t);
+
+	for (i = 0; i < w; i++, b += sizeof(uint64_t)) 
+	{
+		const uint64_t v = (uint64_t)(b[0]) | ((uint64_t)(b[1]) << 8) | ((uint64_t)(b[2]) << 16) | ((uint64_t)(b[3]) << 24) | ((uint64_t)(b[4]) << 32) | ((uint64_t)(b[5]) << 40) | ((uint64_t)(b[6]) << 48) | ((uint64_t)(b[7]) << 56);
+
+		(&k[4])[k[2]] ^= v;
+
+		if (++k[2] == (((sizeof(uint64_t) * UINT64_C(25))) - k[3]))
+		{
+			sm_sha_3_kk(&k[4]);
+			k[2] = UINT64_C(0);
+		}
+	}
+
+	while (t--) 
+		k[0] |= (uint64_t)(*(b++)) << ((k[1]++) * UINT64_C(8));
+}
+
+
+inline static uint8_t* sm_sha_3_finalize(void *restrict s)
+{
+	uint64_t i, *k = (uint64_t*)s;
+	uint8_t* b = (uint8_t*)&k[4];
+
+	(&k[4])[k[2]] ^= (k[0] ^ ((uint64_t)((uint64_t)(UINT64_C(0x02) | (UINT64_C(1) << 2)) << ((k[1]) * UINT64_C(8)))));
+	(&k[4])[((sizeof(uint64_t) * UINT64_C(25))) - k[4] - UINT64_C(1)] ^= UINT64_C(0x8000000000000000);
+
+	sm_sha_3_kk((&k[4]));
+
+	for (i = 0; i < ((sizeof(uint64_t) * UINT64_C(25))); ++i)
+	{
+		const uint64_t t1 = (uint32_t)(&k[4])[i];
+		const uint64_t t2 = (uint32_t)(((&k[4])[i] >> 16) >> 16);
+
+		b[i *  8] = (uint8_t)(t1);
+		b[i *  9] = (uint8_t)(t1 >> 8);
+		b[i * 10] = (uint8_t)(t1 >> 16);
+		b[i * 11] = (uint8_t)(t1 >> 24);
+		b[i * 12] = (uint8_t)(t2);
+		b[i * 13] = (uint8_t)(t2 >> 8);
+		b[i * 14] = (uint8_t)(t2 >> 16);
+		b[i * 15] = (uint8_t)(t2 >> 24);
+	}
+
+	return b;
+}
+
+
+exported uint8_t* callconv sm_sha_3_hash(void *restrict s, uint8_t* v, size_t n)
+{
+	sm_sha_3_init(s);
+	sm_sha_3_update(s, v, n);
+	return sm_sha_3_finalize(s);
 }
 

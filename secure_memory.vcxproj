@@ -204,15 +204,20 @@
       <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Release|x64'">StdCall</CallingConvention>
       <OmitDefaultLibName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</OmitDefaultLibName>
     </ClCompile>
+    <ClCompile Include="hash_table.c" />
+    <ClCompile Include="master_rand.c" />
     <ClCompile Include="precursors\ran.c" />
     <ClCompile Include="program.c" />
+    <ClCompile Include="transcode.c" />
     <ClCompile Include="utility\string.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="allocator_internal.h" />
+    <ClInclude Include="bits.h" />
     <ClInclude Include="checksum.h" />
+    <ClInclude Include="compatibility\gettimeofday.h" />
+    <ClInclude Include="compatibility\getuid.h" />
     <ClInclude Include="config.h" />
-    <ClInclude Include="crctab.h" />
     <ClInclude Include="discontinuous_array.h" />
     <ClInclude Include="embedded.h" />
     <ClInclude Include="hashing.h" />
@@ -223,6 +228,7 @@
     <ClInclude Include="memory.h" />
     <ClInclude Include="random\ldexp.h" />
     <ClInclude Include="secure_memory.h" />
+    <ClInclude Include="sm.h" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="precursors\rdr.asm">

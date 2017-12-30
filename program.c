@@ -8,15 +8,61 @@
 #include "secure_memory.h"
 #include "embedded.h"
 #include "allocator.h"
+#include "sm.h"
+#include "bits.h"
+
+
+extern uint64_t callconv sm_xorshift_1024_64_rand(void *restrict s);
+extern void callconv sm_xorshift_1024_64_seed(void *restrict s, uint64_t seed);
+
+
+
+char* ltostr(uint64_t x, char* s, size_t n)
+{
+	memset(s, ' ', n);
+	int pos = 64;
+
+	while (pos >= 0)
+	{
+		s[pos--] = (x & 1) ? '1' : '0';
+		x >>= 1;
+	}
+
+	s[64] = '\0';
+
+	return s;
+}
 
 
 int main(int argc, char* argv[])
 {
 	void* tmp[8096] = { 0 };
 
-	sm_context_t ctx = sm_allocator_create_context(8096, 0);
+	sm_context_t ctx = sm_allocator_create_context(8096, 1);
 
-	memset(tmp, 0, 8096 * sizeof(void*));
+	char buf[128];
+
+	uint64_t v = UINT64_C(0xFFFFFFFF00000000);
+	
+	printf("%s\n", ltostr(v, buf, 128));
+
+	v = sm_yellow_64(v);
+
+	printf("%s\n", ltostr(v, buf, 128));
+
+	
+
+	uint32_t i = 0;
+	for (i = 0; i < 1024; ++i)
+	{
+		v = i; //sm_master_rand();
+		printf("[%d] N %s\n", i, ltostr(v, buf, 128));
+		printf("[%d] Y %s\n", i, ltostr(sm_yellow_64(v), buf, 128));
+		printf("[%d] R %s\n", i, ltostr(sm_red_64(v), buf, 128));
+		printf("[%d] G %s\n\n", i, ltostr(sm_green_64(v), buf, 128));
+	}
+
+	/*memset(tmp, 0, 8096 * sizeof(void*));
 
 	int i, j;
 	for (i = 0; i < 8096; ++i)
@@ -25,25 +71,37 @@ int main(int argc, char* argv[])
 
 		if (tmp[i] == NULL)
 			break;
+
+		strcpy(tmp[i], "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789--");
+		size_t sl = strlen(tmp[i]);
+
+		uint8_t rs[(sizeof(uint32_t) + (sizeof(uint64_t) * 16))] = { 0 };
+
+		sm_transcode(1, tmp[i], sl, 7777777, rs, sizeof(rs), sm_xorshift_1024_64_seed, sm_xorshift_1024_64_rand);
+
+		sm_transcode(0, tmp[i], sl, 7777777, rs, sizeof(rs), sm_xorshift_1024_64_seed, sm_xorshift_1024_64_rand);
 	}
 
 	for (j = 0; j < i; ++j)
-		sm_space_free(ctx, tmp[j]);
+		sm_space_free(ctx, tmp[j]);*/
+
 
 	sm_allocator_destroy_context(ctx);
 
 
+
+	/*
 	uint64_t hash = 0;
 	uid_t uid = sm_getuid();
 
-	sec_g64_f hrr = sec_op(SEC_OP_HRDRND64);
-	sec_g64_f rdr = sec_op(SEC_OP_RDRAND64);
-	sec_srs_f fss = sec_op(SEC_OP_FS20SD64);
-	sec_r64_f fsg = sec_op(SEC_OP_FS20RG64);
-	sec_srs_f krs = sec_op(SEC_OP_KN02SD64);
-	sec_r64_f krg = sec_op(SEC_OP_KN02RG64);
-	sec_srs_f xrs = sec_op(SEC_OP_MERSSR64);
-	sec_r64_f xrg = sec_op(SEC_OP_MERSRG64);
+	sm_g64_f hrr = sec_op(SEC_OP_HRDRND64);
+	sm_g64_f rdr = sec_op(SEC_OP_RDRAND64);
+	sm_srs_f fss = sec_op(SEC_OP_FS20SD64);
+	sm_r64_f fsg = sec_op(SEC_OP_FS20RG64);
+	sm_srs_f krs = sec_op(SEC_OP_KN02SD64);
+	sm_r64_f krg = sec_op(SEC_OP_KN02RG64);
+	sm_srs_f xrs = sec_op(SEC_OP_MERSSR64);
+	sm_r64_f xrg = sec_op(SEC_OP_MERSRG64);
 
 	if (hrr())
 	{
@@ -78,6 +136,7 @@ int main(int argc, char* argv[])
 	free(krg);
 	free(xrs);
 	free(xrg);
+	*/
 
 	return 0;
 }

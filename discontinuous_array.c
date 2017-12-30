@@ -45,13 +45,13 @@ bool sm_discontinuous_array_create(sm_discontinuous_array** object, size_t spaci
 	register size_t i, n = sizeof(sm_discontinuous_array);
 	while (n-- > 0U) *t++ = 0;
 
-	if (!mutex_create(&result->mutex))
+	if (!sm_mutex_create(&result->mutex))
 	{
 		free(result);
 		return false;
 	}
 
-	mutex_lock(&result->mutex);
+	sm_mutex_lock(&result->mutex);
 
 	result->seed = sm_master_rand();
 	result->spacing = spacing;
@@ -65,8 +65,8 @@ bool sm_discontinuous_array_create(sm_discontinuous_array** object, size_t spaci
 
 	if (!result->data)
 	{
-		mutex_unlock(&result->mutex);
-		mutex_destroy(&result->mutex);
+		sm_mutex_unlock(&result->mutex);
+		sm_mutex_destroy(&result->mutex);
 		free(result);
 		return false;
 	}
@@ -77,7 +77,7 @@ bool sm_discontinuous_array_create(sm_discontinuous_array** object, size_t spaci
 	result->index = 0;
 	result->pointer = NULL;
 
-	mutex_unlock(&result->mutex);
+	sm_mutex_unlock(&result->mutex);
 
 	*object = result;
 
@@ -87,5 +87,9 @@ bool sm_discontinuous_array_create(sm_discontinuous_array** object, size_t spaci
 void* sm_discontinuous_array_get(sm_discontinuous_array* object, uint64_t index)
 {
 	if (!object) return NULL;
+
+	// TODO
+
+	return NULL;
 }
 

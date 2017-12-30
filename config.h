@@ -56,6 +56,7 @@ typedef uint32_t uid_t;
 typedef int32_t pid_t;
 typedef SSIZE_T ssize_t;
 typedef _locale_t locale_t;
+#include <process.h>
 extern uid_t sm_getuid();
 extern uint64_t sm_getsidh();
 #define sm_getpid _getpid

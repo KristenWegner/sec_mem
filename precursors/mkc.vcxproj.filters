@@ -39,6 +39,12 @@
     <ClCompile Include="..\compatibility\getuid.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\master_rand.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\transcode.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="precursors-x86-x64.code" />

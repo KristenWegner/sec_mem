@@ -19,6 +19,6 @@ exported uint64_t callconv sm_crc_64(uint64_t c, register const uint8_t *restric
 	register const uint64_t* tab = t;
 	while (n--)
 		c = tab[(uint8_t)c ^ *p++] ^ (c >> 8);
-	return c;
+	return c ^ ~UINT64_C(0);
 }
 

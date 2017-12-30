@@ -40,7 +40,7 @@ typedef halign(1) struct sm_discontinuous_array
 	void* pointer;
 
 	// Mutex.
-	mutex_t mutex;
+	sm_mutex_t mutex;
 }
 talign(1)
 sm_discontinuous_array;

@@ -70,53 +70,10 @@
 
 
 // Gets the specified element, or zero. If the request is for a procedure, it must be freed when no longer needed.
-uint64_t sec_op(uint16_t);
+uint64_t sec_op(uint16_t, uint64_t);
 
 
-// Function Types
 
-
-// Multiply using Schrage's method.
-typedef uint64_t (*sec_sch_t)(uint64_t, uint64_t, uint64_t, uint64_t);
-
-// Function that accepts no arguments and returns a 64-bit integer.
-typedef uint64_t (*sec_g64_f)(void);
-
-// Seeds the specified RNG state vector with the given seed.
-typedef void (*sec_srs_f)(void* state, uint64_t seed);
-
-// Gets a random 64-bit integer in [0..0xFFFFFFFFFFFFFFFF], given the specified state vector.
-typedef uint64_t (*sec_r64_f)(void* state);
-
-// Gets a random 32-bit integer in [0..0xFFFFFFFF], given the specified state vector.
-typedef uint32_t (*sec_r32_f)(void* state);
-
-// Compute 64-bit CRC with starting seed, data array, size in bytes, and tab. Call SEC_OP_CRC64TAB to get standard tab.
-typedef uint64_t (*sec_c64_f)(uint64_t seed, const uint8_t* data, uint64_t size, void* tab);
-
-// Compute 32-bit CRC with starting seed, data array, size in bytes, and tab. Call SEC_OP_CRC32TAB to get standard tab.
-typedef uint32_t (*sec_c32_f)(uint32_t seed, const uint8_t* data, uint64_t size, void* tab);
-
-// Compress from src to dst. Size of temporary param htab must be determined by SEC_OP_COMPHTAB. Returns 0 on no error.
-typedef uint8_t (*sec_cpr_f)(const void *const src, const uint64_t slen, void *dst, uint64_t *const dlen, void* htab);
-
-// Decompress from src to dst. Returns 0 on no error. If dst is null and *dlen is zero, will set *dlen to to required dst buffer size.
-typedef uint8_t (*sec_dcp_f)(const void* src, uint64_t slen, void* dst, uint64_t* dlen);
-
-// Performs ptr[i] = ptr[i] ^ ran(state), for the given count of bytes (len). Returns ptr.
-typedef void* (*sec_mxr_f)(void* ptr, uint64_t len, sec_r64_f ran, void* state);
-
-// Returns the first occurrence of q of length n in p of length m. If not found, or m less than n, returns null. Returns p if n is zero.
-typedef void* (*sec_mem_f)(const void* p, size_t m, const void* q, size_t n);
-
-// Copies n bytes from memory region q to region p. Returns p.
-typedef void* (*sec_cpy_f)(void* p, const void* q, size_t n);
-
-// 64-bit hash bytes.
-typedef uint64_t (*sec_h64_f)(const void*, size_t);
-
-// 32-bit hash bytes.
-typedef uint32_t (*sec_h32_f)(const void*, size_t);
 
 
 #endif // INCLUDE_EMBEDDED_H

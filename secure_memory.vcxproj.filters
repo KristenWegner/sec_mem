@@ -44,6 +44,15 @@
     <ClCompile Include="precursors\ran.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="master_rand.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="transcode.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="hash_table.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="mutex.h">
@@ -79,14 +88,23 @@
     <ClInclude Include="embedded.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="crctab.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="discontinuous_array.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="allocator_internal.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="sm.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="bits.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="compatibility\getuid.h">
+      <Filter>Source Files\compatibility</Filter>
+    </ClInclude>
+    <ClInclude Include="compatibility\gettimeofday.h">
+      <Filter>Source Files\compatibility</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

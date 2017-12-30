@@ -107,17 +107,15 @@ inline static uid_t sm_get_token_uid(HANDLE token, uint64_t* hash)
 }
 
 
-uint64_t sm_gettid()
+// Get thread ID.
+exported uint64_t callconv sm_gettid()
 {
-#if defined(SM_OS_WINDOWS)
 	return (uint64_t)GetThreadId(GetCurrentThread());
-#else
-	return (uint64_t)gettid();
-#endif
 }
 
 
-uid_t sm_getuid()
+// Get user ID.
+exported uid_t callconv sm_getuid()
 {
 	uid_t u = -1;
 	HANDLE token = NULL;
@@ -130,7 +128,8 @@ uid_t sm_getuid()
 }
 
 
-uint64_t sm_getsidh()
+// Get hash of user name.
+exported uint64_t callconv sm_getunh()
 {
 	uint64_t sh = 0;
 	uid_t u = -1;
@@ -145,9 +144,12 @@ uint64_t sm_getsidh()
 
 #else
 
+
 #include <pwd.h>
 
-uint64_t sm_getsidh()
+
+// Get hash of user name.
+exported uint64_t callconv sm_getunh()
 {
 	struct passwd* pw = getpwuid(geteuid());
 	if (pw) return hash64(pw->pw_name, strlen(pw->pw_name));
