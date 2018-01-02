@@ -4,11 +4,11 @@
 #include "allocator_internal.h"
 
 
-extern sm_context_t callconv sm_create_space(sm_context_t context, size_t capacity, uint8_t locked);
-extern size_t callconv sm_destroy_space(sm_context_t context);
+extern sm_allocator_internal_t callconv sm_create_space(sm_allocator_internal_t context, size_t capacity, uint8_t locked);
+extern size_t callconv sm_destroy_space(sm_allocator_internal_t context);
 
 
-exported size_t callconv sm_allocator_destroy_context(sm_context_t context)
+exported size_t callconv sm_allocator_destroy_context(sm_allocator_internal_t context)
 {
 	if (!context) return 0;
 
@@ -18,7 +18,7 @@ exported size_t callconv sm_allocator_destroy_context(sm_context_t context)
 		r = sm_destroy_space(context);
 
 	register uint8_t* p = (uint8_t*)context;
-	register size_t n = sizeof(struct sm_context_s);
+	register size_t n = sizeof(struct sm_allocator_internal_s);
 	while (n-- > 0) *p++ = 0;
 
 	free(context);
@@ -27,23 +27,23 @@ exported size_t callconv sm_allocator_destroy_context(sm_context_t context)
 }
 
 
-exported sm_context_t callconv sm_allocator_create_context(size_t capacity, uint8_t locked)
+exported sm_allocator_internal_t callconv sm_allocator_create_context(size_t capacity, uint8_t locked)
 {
-	sm_context_t context;
+	sm_allocator_internal_t context;
 
-	context = malloc(sizeof(struct sm_context_s));
+	context = malloc(sizeof(struct sm_allocator_internal_s));
 
 	if (context == NULL) return NULL;
 
 	register uint8_t* p = (uint8_t*)context;
-	register size_t n = sizeof(struct sm_context_s);
+	register size_t n = sizeof(struct sm_allocator_internal_s);
 	while (n-- > 0) *p++ = 0;
 
 	context->space = NULL;
 	context->mutex_status = 0;
 
 #if defined(SM_OS_WINDOWS)
-	// context->mutex;
+	// context->mutex; // Nothing to do.
 #elif defined(_POSIX_THREADS)
 	context->mutex = PTHREAD_MUTEX_INITIALIZER;
 #else

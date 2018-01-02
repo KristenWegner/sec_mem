@@ -5,7 +5,7 @@
 #include "discontinuous_array.h"
 
 
-extern uint64_t callconv sm_master_rand();
+extern uint64_t callconv sm_random();
 
 
 inline static uint64_t rnext(void *restrict s)
@@ -53,7 +53,7 @@ bool sm_discontinuous_array_create(sm_discontinuous_array** object, size_t spaci
 
 	sm_mutex_lock(&result->mutex);
 
-	result->seed = sm_master_rand();
+	result->seed = sm_random();
 	result->spacing = spacing;
 	result->element = element;
 	result->count = count;
@@ -72,7 +72,7 @@ bool sm_discontinuous_array_create(sm_discontinuous_array** object, size_t spaci
 	}
 
 	for (i = 0; i < result->size; ++i)
-		result->data[i] = (uint8_t)sm_master_rand();
+		result->data[i] = (uint8_t)sm_random();
 
 	result->index = 0;
 	result->pointer = NULL;

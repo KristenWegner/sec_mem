@@ -20,7 +20,7 @@ inline static uint64_t sm_qrand(register uint64_t *restrict v)
 // Do a single XOR pass on the given data using XorShift1024* 64-bit values
 // generated using the given seed (key).
 ////////////////////////////////////////////////////////////////////////////////
-void* sm_xor_pass(void *restrict data, register size_t bytes, uint64_t key)
+exported void* callconv sm_xor_pass(void *restrict data, register size_t bytes, uint64_t key)
 {
 	uint64_t v[16] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 	register uint8_t i, p = 0;
@@ -64,7 +64,7 @@ void* sm_xor_pass(void *restrict data, register size_t bytes, uint64_t key)
 // first seed), while byte by byte recoding src again using key2 (the second 
 // seed). Returns dst.
 ////////////////////////////////////////////////////////////////////////////////
-void* sm_xor_cross(void *restrict dst, void *restrict src, register size_t bytes, uint64_t key1, uint64_t key2)
+exported void* callconv sm_xor_cross(void *restrict dst, void *restrict src, register size_t bytes, uint64_t key1, uint64_t key2)
 {
 	const uint64_t ca = UINT64_C(0x9E3779B97F4A7C15);
 	const uint64_t cb = UINT64_C(0xBF58476D1CE4E5B9);

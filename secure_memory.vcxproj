@@ -189,7 +189,7 @@
     <ClCompile Include="compatibility\gettimeofday.c" />
     <ClCompile Include="compatibility\getuid.c" />
     <ClCompile Include="discontinuous_array.c" />
-    <ClCompile Include="embedded.c">
+    <ClCompile Include="sm.c">
       <DebugInformationFormat Condition="'$(Configuration)|$(Platform)'=='Release|x64'">None</DebugInformationFormat>
       <SDLCheck Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</SDLCheck>
       <MultiProcessorCompilation Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</MultiProcessorCompilation>
@@ -229,6 +229,7 @@
     <ClInclude Include="random\ldexp.h" />
     <ClInclude Include="secure_memory.h" />
     <ClInclude Include="sm.h" />
+    <ClInclude Include="sm_internal.h" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="precursors\rdr.asm">

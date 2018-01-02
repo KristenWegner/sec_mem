@@ -1,4 +1,4 @@
-// allocator_internal.c - Derived from Doug Lea's sm_dl_malloc (see: http://g.oswego.edu/dl/html/malloc.html).
+// allocator_internal.c - Derived from Doug Lea's dlmalloc (see: http://g.oswego.edu/dl/html/malloc.html).
 
 
 #include "config.h"
@@ -479,21 +479,21 @@ extern UCHAR _BitScanReverse(PULONG index, ULONG mask);
 #else // defined(SM_OS_WINDOWS)
 
 
-inline static void* sm_win_mmap(sm_context_t context, size_t n)
+inline static void* sm_win_mmap(sm_allocator_internal_t context, size_t n)
 {
 	void* p = context->methods.virtual_alloc_fptr(NULL, n, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 	return (!p) ? SM_M_FAIL : p;
 }
 
 
-inline static void* sm_win_direct_mmap(sm_context_t context, size_t n)
+inline static void* sm_win_direct_mmap(sm_allocator_internal_t context, size_t n)
 {
 	void* p = context->methods.virtual_alloc_fptr(NULL, n, MEM_RESERVE | MEM_COMMIT | MEM_TOP_DOWN, PAGE_READWRITE);
 	return (!p) ? SM_M_FAIL : p;
 }
 
 
-inline static int sm_win_munmap(sm_context_t context, void* p, size_t n)
+inline static int sm_win_munmap(sm_allocator_internal_t context, void* p, size_t n)
 {
 	MEMORY_BASIC_INFORMATION i = { 0 };
 	uint8_t* b = (uint8_t*)p;
@@ -657,7 +657,7 @@ inline static void sm_clr_lock(int* l)
 
 
 // Plain spin locks use single word (embedded in malloc states).
-static int sm_spin_acquire_lock(sm_context_t context, int* l)
+static int sm_spin_acquire_lock(sm_allocator_internal_t context, int* l)
 {
 	int s = 0;
 	while (*(volatile int*)l != 0 || SM_CAS_LOCK(context, l))
@@ -694,7 +694,7 @@ static int sm_spin_acquire_lock(sm_context_t context, int* l)
 static SM_MLOCK_T sm_malloc_global_mutex__ = { 0, 0, (SM_THREAD_ID_T)0 };
 
 
-inline static void sm_recursive_release_lock(sm_context_t context, SM_MLOCK_T *l)
+inline static void sm_recursive_release_lock(sm_allocator_internal_t context, SM_MLOCK_T *l)
 {
 	assert(l->sl != 0);
 
@@ -702,7 +702,7 @@ inline static void sm_recursive_release_lock(sm_context_t context, SM_MLOCK_T *l
 		SM_CLR_LOCK(context, &l->sl);
 }
 
-inline static int sm_recursive_acquire_lock(sm_context_t context, SM_MLOCK_T* l)
+inline static int sm_recursive_acquire_lock(sm_allocator_internal_t context, SM_MLOCK_T* l)
 {
 	SM_THREAD_ID_T id = SM_CURRENT_THREAD(context);
 	int s = 0;
@@ -731,7 +731,7 @@ inline static int sm_recursive_acquire_lock(sm_context_t context, SM_MLOCK_T* l)
 	}
 }
 
-inline static int sm_recursive_try_lock(sm_context_t context, SM_MLOCK_T* l)
+inline static int sm_recursive_try_lock(sm_allocator_internal_t context, SM_MLOCK_T* l)
 {
 	SM_THREAD_ID_T id = SM_CURRENT_THREAD(context);
 
@@ -776,7 +776,7 @@ inline static int sm_recursive_try_lock(sm_context_t context, SM_MLOCK_T* l)
 
 
 // Use spin loop to initialize global lock.
-static void sm_init_malloc_global_mutex(sm_context_t context)
+static void sm_init_malloc_global_mutex(sm_allocator_internal_t context)
 {
 	for (;;)
 	{
@@ -813,7 +813,7 @@ static void sm_init_malloc_global_mutex(sm_context_t context)
 #endif
 
 
-static int pthread_init_lock(sm_context_t* context, SM_MLOCK_T* l)
+static int pthread_init_lock(sm_allocator_internal_t* context, SM_MLOCK_T* l)
 {
 	pthread_mutexattr_t a;
 	if (context->methods.p_thread_mutex_attr_init_fptr(&a)) return 1;
@@ -1181,7 +1181,7 @@ inline static uint8_t sm_has_segment_link(sm_state_t m, sm_psegment_t s)
 
 
 // Default corruption action.
-static void sm_reset_on_error(sm_context_t context, sm_state_t state);
+static void sm_reset_on_error(sm_allocator_internal_t context, sm_state_t state);
 
 #define SM_CORRUPTION_ERROR_ACTION(C, M) sm_reset_on_error(C, M)
 #define SM_USAGE_ERROR_ACTION(M, P)
@@ -1393,7 +1393,7 @@ static size_t sm_traverse_and_check(sm_state_t state);
 #endif
 
 
-inline static uint8_t sm_init_params(sm_context_t context)
+inline static uint8_t sm_init_params(sm_allocator_internal_t context)
 {
 #ifdef SM_NEED_GLOBAL_LOCK_INIT
 	if (context->mutex_status <= 0)
@@ -1469,7 +1469,7 @@ inline static uint8_t sm_init_params(sm_context_t context)
 }
 
 
-inline static uint8_t sm_change_param(sm_context_t context, int param, int value)
+inline static uint8_t sm_change_param(sm_allocator_internal_t context, int param, int value)
 {
 	sm_ensure_initialization(context);
 
@@ -1502,7 +1502,7 @@ inline static uint8_t sm_change_param(sm_context_t context, int param, int value
 
 
 // Check properties of any chunk, whether free, inuse, mmapped etc.
-inline static void sm_do_check_any_chunk(sm_context_t context, sm_state_t state, sm_pchunk_t chunk)
+inline static void sm_do_check_any_chunk(sm_allocator_internal_t context, sm_state_t state, sm_pchunk_t chunk)
 {
 	assert((sm_is_aligned(sm_chunk_to_memory(chunk))) || (chunk->head == SM_FENCE_POST_HEAD));
 	assert(sm_is_address_ok(state, chunk));
@@ -1510,7 +1510,7 @@ inline static void sm_do_check_any_chunk(sm_context_t context, sm_state_t state,
 
 
 // Check properties of top chunk.
-inline static void sm_do_check_top_chunk(sm_context_t context, sm_state_t state, sm_pchunk_t chunk)
+inline static void sm_do_check_top_chunk(sm_allocator_internal_t context, sm_state_t state, sm_pchunk_t chunk)
 {
 	sm_psegment_t sp = sm_segment_holding(state, (uint8_t*)chunk);
 	size_t sz = chunk->head & ~SM_IN_USE_BITS;
@@ -1527,7 +1527,7 @@ inline static void sm_do_check_top_chunk(sm_context_t context, sm_state_t state,
 
 
 // Check properties of (in-use) mmapped chunks.
-inline static void sm_do_check_mapped_chunk(sm_context_t context, sm_state_t state, sm_pchunk_t chunk)
+inline static void sm_do_check_mapped_chunk(sm_allocator_internal_t context, sm_state_t state, sm_pchunk_t chunk)
 {
 	size_t sz = sm_chunk_size(chunk);
 	size_t ln = (sz + (chunk->previous) + SM_MMAP_FOOT_PAD);
@@ -1544,7 +1544,7 @@ inline static void sm_do_check_mapped_chunk(sm_context_t context, sm_state_t sta
 
 
 // Check properties of in-use chunks.
-inline static void sm_do_check_in_use_chunk(sm_context_t context, sm_state_t state, sm_pchunk_t chunk)
+inline static void sm_do_check_in_use_chunk(sm_allocator_internal_t context, sm_state_t state, sm_pchunk_t chunk)
 {
 	sm_do_check_any_chunk(state, chunk);
 
@@ -1558,7 +1558,7 @@ inline static void sm_do_check_in_use_chunk(sm_context_t context, sm_state_t sta
 
 
 // Check properties of free chunks.
-inline static void sm_do_check_free_chunk(sm_context_t context, sm_state_t state, sm_pchunk_t chunk)
+inline static void sm_do_check_free_chunk(sm_allocator_internal_t context, sm_state_t state, sm_pchunk_t chunk)
 {
 	size_t size = sm_chunk_size(chunk);
 	sm_pchunk_t next = sm_chunk_plus_offset(chunk, size);
@@ -1586,7 +1586,7 @@ inline static void sm_do_check_free_chunk(sm_context_t context, sm_state_t state
 }
 
 // Check properties of malloced chunks at the point they are malloced.
-inline static void sm_do_check_allocated_chunk(sm_context_t context, sm_state_t state, void* memory, size_t size)
+inline static void sm_do_check_allocated_chunk(sm_allocator_internal_t context, sm_state_t state, void* memory, size_t size)
 {
 	if (memory != NULL)
 	{
@@ -1604,7 +1604,7 @@ inline static void sm_do_check_allocated_chunk(sm_context_t context, sm_state_t 
 
 
 // Check a tree and its subtrees.
-inline static void sm_do_check_tree(sm_context_t context, sm_state_t state, sm_ptchunk_t chunk)
+inline static void sm_do_check_tree(sm_allocator_internal_t context, sm_state_t state, sm_ptchunk_t chunk)
 {
 	sm_ptchunk_t head = NULL;
 	sm_ptchunk_t uchk = chunk;
@@ -1673,7 +1673,7 @@ inline static void sm_do_check_tree(sm_context_t context, sm_state_t state, sm_p
 
 
 // Check all the chunks in a tree bin.
-inline static void sm_do_check_tree_bin(sm_context_t context, sm_state_t state, sm_bindex_t index)
+inline static void sm_do_check_tree_bin(sm_allocator_internal_t context, sm_state_t state, sm_bindex_t index)
 {
 	sm_ptbin_t* tb = sm_tree_bin_at(state, index);
 	sm_ptchunk_t tc = *tb;
@@ -1686,7 +1686,7 @@ inline static void sm_do_check_tree_bin(sm_context_t context, sm_state_t state, 
 
 
 // Check all the chunks in a small bin.
-inline static void sm_do_check_small_bin(sm_context_t context, sm_state_t state, sm_bindex_t index)
+inline static void sm_do_check_small_bin(sm_allocator_internal_t context, sm_state_t state, sm_bindex_t index)
 {
 	sm_psbin_t sbin = sm_small_bin_at(state, index);
 	sm_pchunk_t pbak = sbin->backward;
@@ -1763,7 +1763,7 @@ inline static uint8_t sm_bin_find(sm_state_t state, sm_pchunk_t chunk)
 
 
 // Traverse each chunk and check it; return total.
-inline static size_t sm_traverse_and_check(sm_context_t context, sm_state_t state)
+inline static size_t sm_traverse_and_check(sm_allocator_internal_t context, sm_state_t state)
 {
 	size_t ssum = UINT64_C(0);
 
@@ -1811,7 +1811,7 @@ inline static size_t sm_traverse_and_check(sm_context_t context, sm_state_t stat
 
 
 // Check all properties of sm_state_s.
-inline static void sm_do_check_allocation_state(sm_context_t context, sm_state_t state)
+inline static void sm_do_check_allocation_state(sm_allocator_internal_t context, sm_state_t state)
 {
 	sm_bindex_t bidx;
 	size_t totl;
@@ -1849,7 +1849,7 @@ inline static void sm_do_check_allocation_state(sm_context_t context, sm_state_t
 
 
 #if !SM_NO_ALLOCATION_INFO
-inline static struct sm_allocation_info_t sm_internal_memory_info(sm_context_t context, sm_state_t state)
+inline static struct sm_allocation_info_t sm_internal_memory_info(sm_allocator_internal_t context, sm_state_t state)
 {
 	struct sm_allocation_info_t imem = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
@@ -1905,7 +1905,7 @@ inline static struct sm_allocation_info_t sm_internal_memory_info(sm_context_t c
 
 
 #if !SM_NO_MALLOC_STATS
-inline static sm_allocation_stats_t sm_internal_malloc_stats(sm_context_t context, sm_state_t state)
+inline static sm_allocation_stats_t sm_internal_malloc_stats(sm_allocator_internal_t context, sm_state_t state)
 {
 	sm_allocation_stats_t stat = { UINT64_C(0), UINT64_C(0), UINT64_C(0) };
 
@@ -1985,7 +1985,7 @@ inline static sm_allocation_stats_t sm_internal_malloc_stats(sm_context_t contex
 
 
 // Insert chunk into tree.
-inline static void sm_insert_large_chunk(sm_context_t context, register sm_state_t state, register sm_ptchunk_t chunk, size_t size)
+inline static void sm_insert_large_chunk(sm_allocator_internal_t context, register sm_state_t state, register sm_ptchunk_t chunk, size_t size)
 {
 	sm_ptbin_t* hptb;
 	sm_bindex_t bidx;
@@ -2057,7 +2057,7 @@ inline static void sm_insert_large_chunk(sm_context_t context, register sm_state
 }
 
 
-inline static void sm_unlink_large_chunk(sm_context_t context, sm_state_t state, sm_ptchunk_t chunk)
+inline static void sm_unlink_large_chunk(sm_allocator_internal_t context, sm_state_t state, sm_ptchunk_t chunk)
 {
 	sm_ptchunk_t cppt = chunk->parent;
 	sm_ptchunk_t rchk;
@@ -2164,7 +2164,7 @@ inline static void sm_unlink_large_chunk(sm_context_t context, sm_state_t state,
 
 
 // Malloc using mmap.
-inline static void* sm_map_allocate(sm_context_t context, sm_state_t state, size_t bytes)
+inline static void* sm_map_allocate(sm_allocator_internal_t context, sm_state_t state, size_t bytes)
 {
 	size_t msiz = sm_map_align(context, bytes + SM_SIX_SIZE_T_SIZES + SM_CHUNK_ALIGN_MASK);
 
@@ -2211,7 +2211,7 @@ inline static void* sm_map_allocate(sm_context_t context, sm_state_t state, size
 
 
 // Realloc using memory mapping.
-inline static sm_pchunk_t sm_map_resize(sm_context_t context, sm_state_t state, sm_pchunk_t chunk, size_t bytes, int flags)
+inline static sm_pchunk_t sm_map_resize(sm_allocator_internal_t context, sm_state_t state, sm_pchunk_t chunk, size_t bytes, int flags)
 {
 	size_t osiz = sm_chunk_size(chunk);
 
@@ -2258,7 +2258,7 @@ inline static sm_pchunk_t sm_map_resize(sm_context_t context, sm_state_t state, 
 
 
 // Initialize top chunk and its size.
-inline static void sm_initialize_top_chunk(sm_context_t context, sm_state_t state, sm_pchunk_t chunk, size_t size)
+inline static void sm_initialize_top_chunk(sm_allocator_internal_t context, sm_state_t state, sm_pchunk_t chunk, size_t size)
 {
 	size_t offs = sm_align_offset(sm_chunk_to_memory(chunk));
 	chunk = (sm_pchunk_t)((uint8_t*)chunk + offs);
@@ -2286,7 +2286,7 @@ inline static void sm_initialize_bins(sm_state_t state)
 
 #if SM_PROCEED_ON_ERROR
 // Default corruption action.
-inline static void sm_reset_on_error(sm_context_t context, sm_state_t state)
+inline static void sm_reset_on_error(sm_allocator_internal_t context, sm_state_t state)
 {
 	context->corruption_error_count++;
 
@@ -2308,7 +2308,7 @@ inline static void sm_reset_on_error(sm_context_t context, sm_state_t state)
 
 
 // Allocate chunk and prepend remainder with chunk in successor base.
-inline static void* sm_prepend_allocate(sm_context_t context, sm_state_t state, uint8_t* next, uint8_t* previous, size_t bytes)
+inline static void* sm_prepend_allocate(sm_allocator_internal_t context, sm_state_t state, uint8_t* next, uint8_t* previous, size_t bytes)
 {
 	sm_pchunk_t pptr = sm_align_as_chunk(next);
 	sm_pchunk_t oldf = sm_align_as_chunk(previous);
@@ -2357,7 +2357,7 @@ inline static void* sm_prepend_allocate(sm_context_t context, sm_state_t state, 
 
 
 // Add a segment to hold a new non-contiguous region.
-inline static void sm_add_segment(sm_context_t context, sm_state_t state, uint8_t* base, size_t size, sm_flag_t mapped)
+inline static void sm_add_segment(sm_allocator_internal_t context, sm_state_t state, uint8_t* base, size_t size, sm_flag_t mapped)
 {
 	uint8_t* oldt = (uint8_t*)state->top;
 	sm_psegment_t ospc = sm_segment_holding(state, oldt);
@@ -2417,7 +2417,7 @@ inline static void sm_add_segment(sm_context_t context, sm_state_t state, uint8_
 
 
 // Get memory from system using MORECORE or SM_MMAP.
-inline static void* sm_system_allocate(sm_context_t context, sm_state_t state, size_t bytes)
+inline static void* sm_system_allocate(sm_allocator_internal_t context, sm_state_t state, size_t bytes)
 {
 	uint8_t* tbas = SM_MC_FAIL;
 	size_t tsiz = UINT64_C(0);
@@ -2645,7 +2645,7 @@ inline static void* sm_system_allocate(sm_context_t context, sm_state_t state, s
 
 
 // Unmap and unlink any mmapped segments that don't contain used chunks.
-inline static size_t sm_release_unused_segments(sm_context_t context, sm_state_t state)
+inline static size_t sm_release_unused_segments(sm_allocator_internal_t context, sm_state_t state)
 {
 	size_t nrel = UINT64_C(0);
 	int nseg = 0;
@@ -2700,7 +2700,7 @@ inline static size_t sm_release_unused_segments(sm_context_t context, sm_state_t
 }
 
 
-inline static uint8_t sm_system_trim(sm_context_t context, sm_state_t state, size_t padding)
+inline static uint8_t sm_system_trim(sm_allocator_internal_t context, sm_state_t state, size_t padding)
 {
 	size_t nrel = UINT64_C(0);
 
@@ -2774,7 +2774,7 @@ inline static uint8_t sm_system_trim(sm_context_t context, sm_state_t state, siz
 
 
 // Consolidate and bin a chunk. Differs from exported versions of free mainly in that the chunk need not be marked as in-use.
-inline static void sm_dispose_chunk(sm_context_t context, sm_state_t state, sm_pchunk_t chunk, size_t size)
+inline static void sm_dispose_chunk(sm_allocator_internal_t context, sm_state_t state, sm_pchunk_t chunk, size_t size)
 {
 	sm_pchunk_t next = sm_chunk_plus_offset(chunk, size);
 
@@ -2873,7 +2873,7 @@ inline static void sm_dispose_chunk(sm_context_t context, sm_state_t state, sm_p
 
 
 // Allocate a large request from the best fitting chunk in a tree bin.
-inline static void* sm_tree_allocate_large(sm_context_t context, sm_state_t state, size_t bytes)
+inline static void* sm_tree_allocate_large(sm_allocator_internal_t context, sm_state_t state, size_t bytes)
 {
 	sm_ptchunk_t vptr = NULL;
 	size_t rsiz = -bytes;
@@ -2976,7 +2976,7 @@ inline static void* sm_tree_allocate_large(sm_context_t context, sm_state_t stat
 
 
 // Allocate a small request from the best fitting chunk in a tree bin.
-inline static void* sm_tree_allocate_small(sm_context_t context, sm_state_t state, size_t bytes)
+inline static void* sm_tree_allocate_small(sm_allocator_internal_t context, sm_state_t state, size_t bytes)
 {
 	sm_ptchunk_t tptr, vptr;
 	size_t rsiz;
@@ -3032,7 +3032,7 @@ inline static void* sm_tree_allocate_small(sm_context_t context, sm_state_t stat
 
 
 // Try to realloc; only in-place unless can_move true.
-inline static sm_pchunk_t sm_try_reallocate_chunk(sm_context_t context, sm_state_t state, sm_pchunk_t chunk, size_t bytes, uint8_t movable)
+inline static sm_pchunk_t sm_try_reallocate_chunk(sm_allocator_internal_t context, sm_state_t state, sm_pchunk_t chunk, size_t bytes, uint8_t movable)
 {
 	sm_pchunk_t newp = NULL;
 	size_t osiz = sm_chunk_size(chunk);
@@ -3145,10 +3145,10 @@ inline static sm_pchunk_t sm_try_reallocate_chunk(sm_context_t context, sm_state
 }
 
 
-exported void* callconv sm_space_allocate(sm_context_t context, size_t bytes);
+exported void* callconv sm_space_allocate(sm_allocator_internal_t context, size_t bytes);
 
 
-inline static void* sm_internal_memory_align(sm_context_t context, sm_state_t state, size_t alignment, size_t bytes)
+inline static void* sm_internal_memory_align(sm_allocator_internal_t context, sm_state_t state, size_t alignment, size_t bytes)
 {
 	void* pmem = NULL;
 
@@ -3241,7 +3241,7 @@ inline static void* sm_internal_memory_align(sm_context_t context, sm_state_t st
 
 // Common support for independent routines, handling all of the combinations that can result.
 // The opts arg has: bit 0 set if all elements are same size (using sizes[0]) and bit 1 set if elements should be zeroed
-inline static void** sm_independent_allocate(sm_context_t context, sm_state_t state, size_t count, size_t* sizes, uint8_t options, void** chunks)
+inline static void** sm_independent_allocate(sm_allocator_internal_t context, sm_state_t state, size_t count, size_t* sizes, uint8_t options, void** chunks)
 {
 	size_t indx, size, esiz, csiz, asiz, rsiz;
 	void *pmem, **pary;
@@ -3357,7 +3357,7 @@ inline static void** sm_independent_allocate(sm_context_t context, sm_state_t st
 
 
 // Try to free all pointers in the given array.
-inline static size_t sm_internal_bulk_free(sm_context_t context, sm_state_t state, void** array, size_t elements)
+inline static size_t sm_internal_bulk_free(sm_allocator_internal_t context, sm_state_t state, void** array, size_t elements)
 {
 	size_t unfr = UINT64_C(0);
 
@@ -3492,7 +3492,7 @@ inline static void* sm_memory_copy(void *restrict p, const void *restrict q, siz
 // User Memory Spaces
 
 
-inline static sm_state_t sm_initialize_user_memory_state(sm_context_t context, uint8_t* base, size_t size)
+inline static sm_state_t sm_initialize_user_memory_state(sm_allocator_internal_t context, uint8_t* base, size_t size)
 {
 	size_t msiz = sm_pad_request(sizeof(struct sm_state_s));
 	sm_pchunk_t mnpt, mspt = sm_align_as_chunk(base);
@@ -3524,7 +3524,7 @@ inline static sm_state_t sm_initialize_user_memory_state(sm_context_t context, u
 }
 
 
-exported sm_context_t callconv sm_create_space(sm_context_t context, size_t capacity, uint8_t locked)
+exported sm_allocator_internal_t callconv sm_create_space(sm_allocator_internal_t context, size_t capacity, uint8_t locked)
 {
 	sm_state_t space = NULL;
 
@@ -3554,7 +3554,7 @@ exported sm_context_t callconv sm_create_space(sm_context_t context, size_t capa
 }
 
 
-exported sm_context_t callconv sm_create_space_with_base(sm_context_t context, void* base, size_t capacity, uint8_t locked)
+exported sm_allocator_internal_t callconv sm_create_space_with_base(sm_allocator_internal_t context, void* base, size_t capacity, uint8_t locked)
 {
 	sm_state_t space = NULL;
 
@@ -3577,7 +3577,7 @@ exported sm_context_t callconv sm_create_space_with_base(sm_context_t context, v
 }
 
 
-exported uint8_t callconv sm_space_track_large_chunks(sm_context_t context, uint8_t enable)
+exported uint8_t callconv sm_space_track_large_chunks(sm_allocator_internal_t context, uint8_t enable)
 {
 	uint8_t retv = 0;
 	sm_state_t mspt = (sm_state_t)context->space;
@@ -3598,7 +3598,7 @@ exported uint8_t callconv sm_space_track_large_chunks(sm_context_t context, uint
 }
 
 
-exported size_t callconv sm_destroy_space(sm_context_t context)
+exported size_t callconv sm_destroy_space(sm_allocator_internal_t context)
 {
 	size_t free = UINT64_C(0);
 	sm_state_t mspt = (sm_state_t)context->space;
@@ -3630,7 +3630,7 @@ exported size_t callconv sm_destroy_space(sm_context_t context)
 }
 
 
-exported void* callconv sm_space_allocate(sm_context_t context, size_t bytes)
+exported void* callconv sm_space_allocate(sm_allocator_internal_t context, size_t bytes)
 {
 	sm_state_t mspt = (sm_state_t)context->space;
 
@@ -3779,7 +3779,7 @@ exported void* callconv sm_space_allocate(sm_context_t context, size_t bytes)
 }
 
 
-exported void callconv sm_space_free(sm_context_t context, void* memory)
+exported void callconv sm_space_free(sm_allocator_internal_t context, void* memory)
 {
 	if (memory != NULL)
 	{
@@ -3927,7 +3927,7 @@ exported void callconv sm_space_free(sm_context_t context, void* memory)
 }
 
 
-exported void* callconv sm_space_calloc(sm_context_t context, size_t count, size_t size)
+exported void* callconv sm_space_calloc(sm_allocator_internal_t context, size_t count, size_t size)
 {
 	void* pmem;
 	size_t sreq = 0;
@@ -3960,7 +3960,7 @@ exported void* callconv sm_space_calloc(sm_context_t context, size_t count, size
 }
 
 
-exported void* callconv sm_space_realloc(sm_context_t context, void* memory, size_t bytes)
+exported void* callconv sm_space_realloc(sm_allocator_internal_t context, void* memory, size_t bytes)
 {
 	void* pmem = NULL;
 
@@ -4020,7 +4020,7 @@ exported void* callconv sm_space_realloc(sm_context_t context, void* memory, siz
 }
 
 
-exported void* callconv sm_space_realloc_in_place(sm_context_t context, void* memory, size_t bytes)
+exported void* callconv sm_space_realloc_in_place(sm_allocator_internal_t context, void* memory, size_t bytes)
 {
 	void* pmem = NULL;
 
@@ -4067,7 +4067,7 @@ exported void* callconv sm_space_realloc_in_place(sm_context_t context, void* me
 }
 
 
-exported void* callconv sm_space_memory_align(sm_context_t context, size_t alignment, size_t bytes)
+exported void* callconv sm_space_memory_align(sm_allocator_internal_t context, size_t alignment, size_t bytes)
 {
 	sm_state_t msta = (sm_state_t)context->space;
 
@@ -4085,7 +4085,7 @@ exported void* callconv sm_space_memory_align(sm_context_t context, size_t align
 }
 
 
-void** sm_space_independent_calloc(sm_context_t context, size_t count, size_t size, void** chunks)
+void** sm_space_independent_calloc(sm_allocator_internal_t context, size_t count, size_t size, void** chunks)
 {
 	size_t rqsz = size;
 	sm_state_t msta = (sm_state_t)context->space;
@@ -4101,7 +4101,7 @@ void** sm_space_independent_calloc(sm_context_t context, size_t count, size_t si
 }
 
 
-void** sm_space_independent_co_malloc(sm_context_t context, size_t count, size_t* sizes, void** chunks)
+void** sm_space_independent_co_malloc(sm_allocator_internal_t context, size_t count, size_t* sizes, void** chunks)
 {
 	sm_state_t msta = (sm_state_t)context->space;
 
@@ -4116,14 +4116,14 @@ void** sm_space_independent_co_malloc(sm_context_t context, size_t count, size_t
 }
 
 
-size_t sm_space_bulk_free(sm_context_t context, void** array, size_t count)
+size_t sm_space_bulk_free(sm_allocator_internal_t context, void** array, size_t count)
 {
 	return sm_internal_bulk_free(context, (sm_state_t)context->space, array, count);
 }
 
 
 #if SM_MALLOC_INSPECT_ALL
-exported void callconv sm_space_inspect_all(sm_context_t context, void(*visitor)(void* start, void* end, size_t bytes, void* argument), void* argument)
+exported void callconv sm_space_inspect_all(sm_allocator_internal_t context, void(*visitor)(void* start, void* end, size_t bytes, void* argument), void* argument)
 {
 	sm_state_t msta = (sm_state_t)context->space;
 
@@ -4144,7 +4144,7 @@ exported void callconv sm_space_inspect_all(sm_context_t context, void(*visitor)
 #endif
 
 
-exported uint8_t callconv sm_space_trim(sm_context_t context, size_t padding)
+exported uint8_t callconv sm_space_trim(sm_allocator_internal_t context, size_t padding)
 {
 	uint8_t trim = 0;
 	sm_state_t msta = (sm_state_t)context->space;
@@ -4168,7 +4168,7 @@ exported uint8_t callconv sm_space_trim(sm_context_t context, size_t padding)
 
 
 #if !SM_NO_MALLOC_STATS
-exported sm_allocation_stats_t callconv sm_space_allocation_statistics(sm_context_t context)
+exported sm_allocation_stats_t callconv sm_space_allocation_statistics(sm_allocator_internal_t context)
 {
 	sm_allocation_stats_t stat = { UINT64_C(0), UINT64_C(0), UINT64_C(0) };
 
@@ -4186,7 +4186,7 @@ exported sm_allocation_stats_t callconv sm_space_allocation_statistics(sm_contex
 #endif
 
 
-exported size_t callconv sm_space_footprint(sm_context_t context)
+exported size_t callconv sm_space_footprint(sm_allocator_internal_t context)
 {
 	size_t resv = UINT64_C(0);
 	sm_state_t msta = (sm_state_t)context->space;
@@ -4202,7 +4202,7 @@ exported size_t callconv sm_space_footprint(sm_context_t context)
 }
 
 
-exported size_t callconv sm_space_maximum_footprint(sm_context_t context)
+exported size_t callconv sm_space_maximum_footprint(sm_allocator_internal_t context)
 {
 	size_t resv = UINT64_C(0);
 	sm_state_t msta = (sm_state_t)context->space;
@@ -4218,7 +4218,7 @@ exported size_t callconv sm_space_maximum_footprint(sm_context_t context)
 }
 
 
-exported size_t callconv sm_space_footprint_limit(sm_context_t context)
+exported size_t callconv sm_space_footprint_limit(sm_allocator_internal_t context)
 {
 	size_t resv = UINT64_C(0);
 	sm_state_t msta = (sm_state_t)context->space;
@@ -4237,7 +4237,7 @@ exported size_t callconv sm_space_footprint_limit(sm_context_t context)
 }
 
 
-exported size_t callconv sm_space_set_footprint_limit(sm_context_t context, size_t bytes)
+exported size_t callconv sm_space_set_footprint_limit(sm_allocator_internal_t context, size_t bytes)
 {
 	size_t resv = UINT64_C(0);
 	sm_state_t msta = (sm_state_t)context->space;
@@ -4263,7 +4263,7 @@ exported size_t callconv sm_space_set_footprint_limit(sm_context_t context, size
 
 
 #if !SM_NO_ALLOCATION_INFO
-exported struct sm_allocation_info_t callconv sm_space_memory_info(sm_context_t context)
+exported struct sm_allocation_info_t callconv sm_space_memory_info(sm_allocator_internal_t context)
 {
 	sm_state_t msta = (sm_state_t)context->space;
 
@@ -4291,7 +4291,7 @@ exported size_t callconv sm_space_usable_size(const void* memory)
 }
 
 
-exported int callconv sm_space_options(sm_context_t context, int param, int value)
+exported int callconv sm_space_options(sm_allocator_internal_t context, int param, int value)
 {
 	return sm_change_param(context, param, value);
 }

@@ -96,7 +96,7 @@ typedef struct sm_malloc_recursive_lock_t
 sm_malloc_recursive_lock_t;
 
 
-typedef struct sm_context_s
+typedef struct sm_allocator_internal_s
 {
 	void* space; // Represents an independent region of memory space.
 
@@ -174,7 +174,7 @@ typedef struct sm_context_s
 	}
 	methods;
 }
-*sm_context_t;
+*sm_allocator_internal_t;
 
 
 #endif // INCLUDE_ALLOCATOR_INTERNAL_H

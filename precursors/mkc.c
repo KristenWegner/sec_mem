@@ -43,6 +43,7 @@ static uint8_t sm_rdrand[] = { 0x48, 0x0F, 0xC7, 0xF0, 0x73, 0xFA, 0xC3 };
 
 
 #include "crctab.h"
+;
 
 extern void callconv sm_xorshift_1024_64_seed(void* state, uint64_t seed);
 extern uint64_t callconv sm_xorshift_1024_64_rand(void* state);
@@ -139,8 +140,8 @@ static uint8_t random_state[(sizeof(int32_t) + (sizeof(uint64_t) * 16))];
 char* make_alias(char* buffer)
 {
 	const char prefixes[6] = { 'a', 'b', 'c', 'd', 'e', 'f' };
-	uint64_t code = sm_master_rand();
-	sprintf(buffer, "%c%08" PRIx64 "", prefixes[(sm_master_rand() + 1) % sizeof(prefixes)], code);
+	uint64_t code = sm_random(NULL);
+	sprintf(buffer, "%c%08" PRIx64 "", prefixes[(sm_random(NULL) + 1) % sizeof(prefixes)], code);
 	buffer[16] = '\0';
 	return buffer;
 }
@@ -196,6 +197,41 @@ int main(int argc, char* argv[])
 {
 	printf("MKC Code Generator for Secure Memory Library\n");
 	printf("Copyright (C) 2017 by the Secure Memory Project, All rights Reserved\n");
+
+	if (argc == 2 && strcmp(argv[1], "crc") == 0)
+	{
+		uint64_t ent_code_len = sizeof(sm_crc_64_tab);
+		uint8_t* ent_bytes = (void*)sm_crc_64_tab;
+
+		uint64_t j;
+
+		fprintf(stdout, "# CRC 64-Bit LUT.\n");
+		fprintf(stdout, "DA: sm_crc_64_tab = ");
+
+		for (j = 0; j < ent_code_len; ++j)
+		{
+			fprintf(stdout, "%02X", ent_bytes[j]);
+			if (j < (ent_code_len - 1)) fprintf(stdout, " ");
+		}
+
+		fprintf(stdout, ";\n\n");
+
+		ent_code_len = sizeof(sm_crc_32_tab);
+		ent_bytes = (void*)sm_crc_32_tab;
+
+		fprintf(stdout, "# CRC 32-Bit LUT.\n");
+		fprintf(stdout, "DA: sm_crc_32_tab = ");
+
+		for (j = 0; j < ent_code_len; ++j)
+		{
+			fprintf(stdout, "%02X", ent_bytes[j]);
+			if (j < (ent_code_len - 1)) fprintf(stdout, " ");
+		}
+
+		fprintf(stdout, ";\n\n");
+
+		return 0;
+	}
 
 	if (argc < 3)
 	{
@@ -331,12 +367,12 @@ int main(int argc, char* argv[])
 					strcpy(entity_size, tok);
 				}
 
-				entity_xor_key = sm_master_rand();
-				entity_alias_id = sm_master_rand();
+				entity_xor_key = sm_random(NULL);
+				entity_alias_id = sm_random(NULL);
 
 				entity_op_code = 0;
 				while (entity_op_code < 0x100)
-					entity_op_code = UINT16_C(0xFF) + 1 + (sm_master_rand() % UINT64_C(0xFEFE));
+					entity_op_code = UINT16_C(0xFF) + 1 + (sm_random(NULL) % UINT64_C(0xFEFE));
 
 				strcpy(entity_name_upper, entity_name);
 				strupr(entity_name_upper);
@@ -368,8 +404,8 @@ int main(int argc, char* argv[])
 					for (j = 0; j < entity_code_len; ++j)
 					{
 						fprintf(target_op_data_file, "0x%02X", entity_bytes[j]);
-						if (i < (entity_code_len - 1)) fprintf(target_op_data_file, ", ");
-						if (j && j % 80 == 0) fprintf(target_op_data_file, "\n\t");
+						if (j < (entity_code_len - 1)) fprintf(target_op_data_file, ", ");
+						if (j && j % 16 == 0) fprintf(target_op_data_file, "\n\t");
 					}
 
 					fprintf(target_op_data_file, " };\n\n");
@@ -393,10 +429,10 @@ int main(int argc, char* argv[])
 				if (strlen(comment))
 					fprintf(target_op_decl_file, "#define %s (0x%04XU) // %s: %s\n", entity_name_upper, entity_op_code, get_descriptor(kind), comment);
 				else fprintf(target_op_decl_file, "#define %s (0x%04XU) // %s.\n", entity_name_upper, entity_op_code, get_descriptor(kind));
-				
 
 				if (kind < KIND_SIZE)
-					fprintf(target_op_impl_file, "case %s: return (uint64_t)sm_op_load_%s(%s_data, %s_size, %s_key, %s_crc);\n", entity_name_upper, get_entity_tag(kind), entity_name, entity_name, entity_name, entity_name);
+					fprintf(target_op_impl_file, "case %s: return (uint64_t)sm_load_entity(context, %d, %s_data, %s_size, &%s_key, &%s_crc);\n", entity_name_upper, 
+						(kind == KIND_FUNCTION || kind == KIND_INTEGRAL) ? 1 : 0, entity_name, entity_name, entity_name, entity_name);
 				else fprintf(target_op_impl_file, "case %s: return %s;\n", entity_name_upper, entity_size);
 
 				comment[0] = '\0';

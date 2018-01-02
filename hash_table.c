@@ -10,118 +10,132 @@
 #include <intrin.h>
 #include <limits.h>
 
-#include "secure_memory.h"
+#include "sm.h"
 #include "hash_table.h"
+#include "mutex.h"
+#include "allocator.h"
+
+
+extern uint64_t callconv sm_random();
 
 
 // Methods
 
 
-sec_rc sec_hash_table_create(sec_hash_table** object, size_t size, sec_hash_table_hasher hasher, bool mutex)
+sm_rc sec_hash_table_create(sm_allocator_internal_t allocator, sm_hash_table_t** object, size_t size, sec_hash_table_hasher hasher)
 {
-	sec_rc rc;
-	sec_hash_table* temp;
+	sm_rc rc;
+	sm_hash_table_t* temp;
 
-	if (object == NULL) return SEC_RC_OBJECT_NULL;
-	if (hasher == NULL) return SEC_RC_ARGUMENT_NULL;
+	if (object == NULL) return SM_RC_OBJECT_NULL;
+	if (hasher == NULL) return SM_RC_ARGUMENT_NULL;
 
 	*object = NULL;
 
-	temp = (sec_hash_table*)malloc(sizeof(sec_hash_table));
+	temp = (sm_hash_table_t*)sm_space_allocate(allocator, sizeof(sm_hash_table_t));
 
-	if (temp == NULL) return SEC_RC_ALLOCATION_FAILED;
+	if (temp == NULL) return SM_RC_ALLOCATION_FAILED;
 
-	memset(temp, 0, sizeof(sec_hash_table));
+	register uint8_t* p = (uint8_t*)temp;
+	register size_t n = sizeof(sm_hash_table_t);
+	while (n-- > 0U) *p++ = 0;
 
+	temp->allocator = allocator;
 	temp->hasher = hasher;
 	temp->size = size;
 
-	if (mutex)
+	if (!sm_mutex_create(&temp->mutex))
 	{
-		if ((rc = sb_mutex_create(&(temp->mutex))) != SEC_RC_NO_ERROR)
-		{
-			free(temp);
-			return rc;
-		}
+		p = (uint8_t*)temp;
+		n = sizeof(sm_hash_table_t);
+		while (n-- > 0U) *p++ = (uint8_t)sm_random(NULL);
+
+		sm_space_free(allocator, temp);
+
+		return SM_RC_ALLOCATION_FAILED;
 	}
-	else temp->mutex = NULL;
 
 	*object = temp;
 
-	return SEC_RC_NO_ERROR;
+	return SM_RC_NO_ERROR;
 }
 
 
-sec_rc sec_hash_table_destroy(sec_hash_table** object)
+sm_rc sec_hash_table_destroy(sm_hash_table_t** object)
 {
-	sec_hash_table* temp;
+	sm_hash_table_t* temp;
 
-	if (object == NULL || *object == NULL) return SEC_RC_OBJECT_NULL;
+	if (object == NULL || *object == NULL) return SM_RC_OBJECT_NULL;
 
 	temp = *object;
 
-	if (!sb_lockx__(temp)) return SEC_RC_OPERATION_BLOCKED;
+	if (!sm_mutex_lock(&temp->mutex)) return SM_RC_OPERATION_BLOCKED;
 
 	*object = NULL;
 
-	free(temp->keys);
+	sm_allocator_internal_t allocator = temp->allocator;
+
+	sm_space_free(allocator, temp->keys);
 	temp->keys = NULL;
 
-	free(temp->flags);
+	sm_space_free(allocator, temp->flags);
 	temp->flags = NULL;
 
-	free(temp->values);
+	sm_space_free(allocator, temp->values);
 	temp->values = NULL;
 
-	if (temp->mutex != NULL)
-	{
-		sb_mutex_unlock_final(temp->mutex);
-		sb_mutex_destroy(&(temp->mutex));
-	}
+	sm_mutex_unlock(&temp->mutex);
+	sm_mutex_destroy(&temp->mutex);
 
-	free(temp);
+	register uint8_t* p = (uint8_t*)temp;
+	register size_t n = sizeof(sm_hash_table_t);
+	while (n-- > 0U) *p++ = (uint8_t)sm_random(NULL);
 
-	return SEC_RC_NO_ERROR;
+	sm_space_free(allocator, temp);
+
+	return SM_RC_NO_ERROR;
 }
 
 
-sec_rc sec_hash_table_clear(sec_hash_table *restrict object)
+sm_rc sec_hash_table_clear(sm_hash_table_t *restrict object)
 {
 	uint64_t buckets;
 
-	if (object == NULL) return SEC_RC_OBJECT_NULL;
+	if (object == NULL) return SM_RC_OBJECT_NULL;
 
-	if (!sb_lockx__(object)) return SEC_RC_OPERATION_BLOCKED;
+	if (!sm_mutex_lock(&object->mutex)) return SM_RC_OPERATION_BLOCKED;
 
 	if (object->flags == NULL)
 	{
-		sb_unlockx__(object);
+		sm_mutex_unlock(&object->mutex);
 
-		return SEC_RC_INTERNAL_REFERENCE_NULL;
+		return SM_RC_INTERNAL_REFERENCE_NULL;
 	}
 
 	buckets = object->buckets;
 
-	memset(object->flags, 0xAA, (buckets < 16ULL ? 1ULL : buckets >> 4ULL) * sizeof(uint64_t));
+	register uint8_t* p = (uint8_t*)object->flags;
+	register size_t n = (buckets < 16ULL ? 1ULL : buckets >> 4ULL) * sizeof(uint64_t);
+	while (n-- > 0U) *p++ = 0xAA;
 
 	object->count = object->occupied = 0;
 	
-	sb_unlockx__(object);
+	sm_mutex_unlock(&object->mutex);
 
-	return SEC_RC_NO_ERROR;
+	return SM_RC_NO_ERROR;
 }
 
 
-sec_rc sec_hash_table_find(sec_hash_table *restrict object, void* key, sec_hash_table_iterator* result)
+sm_rc sec_hash_table_find(sm_hash_table_t *restrict object, void* key, sec_hash_table_iterator* result)
 {
 	uint64_t k, i, last, mask, step = 0;
 
-	if (object == NULL) return SEC_RC_OBJECT_NULL;
-	if (result == NULL) return SEC_RC_ARGUMENT_NULL;
+	if (object == NULL) return SM_RC_OBJECT_NULL;
+	if (result == NULL) return SM_RC_ARGUMENT_NULL;
 
 	*result = 0;
 
-	if (!sb_lockx__(object)) return SEC_RC_OPERATION_BLOCKED;
+	if (!sm_mutex_lock(&object->mutex)) return SM_RC_OPERATION_BLOCKED;
 
 	if (object->buckets)
 	{
@@ -140,92 +154,92 @@ sec_rc sec_hash_table_find(sec_hash_table *restrict object, void* key, sec_hash_
 			{
 				*result = object->buckets;
 
-				sb_unlockx__(object);
+				sm_mutex_unlock(&object->mutex);
 
-				return SEC_RC_NO_ERROR;
+				return SM_RC_NO_ERROR;
 			}
 		}
 
 		*result = ((object->flags[i >> 4ULL] >> ((i & 15ULL) << 1ULL)) & 3ULL) ? object->buckets : i;
 
-		sb_unlockx__(object);
+		sm_mutex_unlock(&object->mutex);
 
-		return SEC_RC_NO_ERROR;
+		return SM_RC_NO_ERROR;
 	}
 	
-	sb_unlockx__(object);
+	sm_mutex_unlock(&object->mutex);
 
-	return SEC_RC_NOT_FOUND;
+	return SM_RC_NOT_FOUND;
 }
 
 
-static bool sec_hash_table_resize__(sec_hash_table *restrict object, uint64_t buckets);
+static bool sec_hash_table_resize__(sm_hash_table_t *restrict object, uint64_t buckets);
 
 
-sec_rc sec_hash_table_resize(sec_hash_table *restrict object, uint64_t buckets)
+sm_rc sec_hash_table_resize(sm_hash_table_t *restrict object, uint64_t buckets)
 {
-	if (object == NULL) return SEC_RC_OBJECT_NULL;
+	if (object == NULL) return SM_RC_OBJECT_NULL;
 
-	if (!sb_lockx__(object)) return SEC_RC_OPERATION_BLOCKED;
+	if (!sm_mutex_lock(&object->mutex)) return SM_RC_OPERATION_BLOCKED;
 
 	if (!sec_hash_table_resize__(object, buckets))
 	{
-		sb_unlockx__(object);
+		sm_mutex_unlock(&object->mutex);
 
-		return SEC_RC_ALLOCATION_FAILED;
+		return SM_RC_ALLOCATION_FAILED;
 	}
 
-	sb_unlockx__(object);
+	sm_mutex_unlock(&object->mutex);
 
-	return SEC_RC_NO_ERROR;
+	return SM_RC_NO_ERROR;
 }
 
 
-sec_rc sec_hash_table_contains(sec_hash_table *restrict object, void* key, bool* result)
+sm_rc sec_hash_table_contains(sm_hash_table_t *restrict object, void* key, bool* result)
 {
-	sec_rc rc;
+	sm_rc rc;
 	sec_hash_table_iterator it = 0;
-	if ((rc = sec_hash_table_find(object, key, &it)) != SEC_RC_NO_ERROR) return rc;
+	if ((rc = sec_hash_table_find(object, key, &it)) != SM_RC_NO_ERROR) return rc;
 	return sec_hash_table_exists_at(object, it, result);
 }
 
 
-sec_rc sec_hash_table_set(sec_hash_table *restrict object, void* key, void* value)
+sm_rc sec_hash_table_set(sm_hash_table_t *restrict object, void* key, void* value)
 {
 	sec_hash_table_iterator it = 0;
 	return sec_hash_table_insert(object, key, value, &it);
 }
 
 
-sec_rc sec_hash_table_get(sec_hash_table *restrict object, void* key, void** result)
+sm_rc sec_hash_table_get(sm_hash_table_t *restrict object, void* key, void** result)
 {
-	sec_rc rc;
+	sm_rc rc;
 	sec_hash_table_iterator it = 0;
-	if ((rc = sec_hash_table_find(object, key, &it)) != SEC_RC_NO_ERROR) return rc;
+	if ((rc = sec_hash_table_find(object, key, &it)) != SM_RC_NO_ERROR) return rc;
 	return sec_hash_table_get_value(object, it, result);
 }
 
 
-sec_rc sec_hash_table_remove(sec_hash_table *restrict object, void* key)
+sm_rc sec_hash_table_remove(sm_hash_table_t *restrict object, void* key)
 {
-	sec_rc rc;
+	sm_rc rc;
 	sec_hash_table_iterator it = 0;
-	if ((rc = sec_hash_table_find(object, key, &it)) != SEC_RC_NO_ERROR) return rc;
+	if ((rc = sec_hash_table_find(object, key, &it)) != SM_RC_NO_ERROR) return rc;
 	return sec_hash_table_remove_at(object, it);
 }
 
 
-sec_rc sec_hash_table_insert(sec_hash_table *restrict object, void* key, void* value, sec_hash_table_iterator* result)
+sm_rc sec_hash_table_insert(sm_hash_table_t *restrict object, void* key, void* value, sec_hash_table_iterator* result)
 {
-	sec_rc rc;
+	sm_rc rc;
 	uint64_t x, k, i, site, last, mask, step;
 
-	if (object == NULL) return SEC_RC_OBJECT_NULL;
-	if (key == NULL || result == NULL) return SEC_RC_ARGUMENT_NULL;
+	if (object == NULL) return SM_RC_OBJECT_NULL;
+	if (key == NULL || result == NULL) return SM_RC_ARGUMENT_NULL;
 
 	*result = 0;
 
-	if (!sb_lockx__(object)) return SEC_RC_OPERATION_BLOCKED;
+	if (!sm_mutex_lock(&object->mutex)) return SM_RC_OPERATION_BLOCKED;
 
 	if (object->occupied >= object->upper)
 	{
@@ -235,18 +249,18 @@ sec_rc sec_hash_table_insert(sec_hash_table *restrict object, void* key, void* v
 			{
 				*result = object->buckets;
 
-				sb_unlockx__(object);
+				sm_mutex_unlock(&object->mutex);
 
-				return SEC_RC_ALLOCATION_FAILED;
+				return SM_RC_ALLOCATION_FAILED;
 			}
 		}
 		else if (!sec_hash_table_resize__(object, object->buckets + 1)) // Expand.
 		{
 			*result = object->buckets;
 
-			sb_unlockx__(object);
+			sm_mutex_unlock(&object->mutex);
 
-			return SEC_RC_ALLOCATION_FAILED;
+			return SM_RC_ALLOCATION_FAILED;
 		}
 	}
 
@@ -292,7 +306,7 @@ sec_rc sec_hash_table_insert(sec_hash_table *restrict object, void* key, void* v
 		object->count++; 
 		object->occupied++;
 
-		rc = SEC_RC_NO_ERROR;
+		rc = SM_RC_NO_ERROR;
 	}
 	else if (((object->flags[x >> 4ULL] >> ((x & 15ULL) << 1ULL)) & 1ULL)) // Deleted.
 	{
@@ -301,23 +315,23 @@ sec_rc sec_hash_table_insert(sec_hash_table *restrict object, void* key, void* v
 		object->flags[x >> 4ULL] &= ~(3ULL << ((x & 15ULL) << 1ULL));
 		object->count++;
 
-		rc = SEC_RC_NO_ERROR;
+		rc = SM_RC_NO_ERROR;
 	}
-	else rc = SEC_RC_NO_ERROR;
+	else rc = SM_RC_NO_ERROR;
 
 	*result = x;
 
-	sb_unlockx__(object);
+	sm_mutex_unlock(&object->mutex);
 
 	return rc;
 }
 
 
-sec_rc sec_hash_table_remove_at(sec_hash_table *restrict object, sec_hash_table_iterator iterator)
+sm_rc sec_hash_table_remove_at(sm_hash_table_t *restrict object, sec_hash_table_iterator iterator)
 {
-	if (object == NULL) return SEC_RC_OBJECT_NULL;
+	if (object == NULL) return SM_RC_OBJECT_NULL;
 
-	if (!sb_lockx__(object)) return SEC_RC_OPERATION_BLOCKED;
+	if (!sm_mutex_lock(&object->mutex)) return SM_RC_OPERATION_BLOCKED;
 
 	if (iterator != object->buckets && !((object->flags[iterator >> 4ULL] >> ((iterator & 15ULL) << 1ULL)) & 3ULL))
 	{
@@ -325,163 +339,163 @@ sec_rc sec_hash_table_remove_at(sec_hash_table *restrict object, sec_hash_table_
 		object->count--;
 	}
 
-	sb_unlockx__(object);
+	sm_mutex_unlock(&object->mutex);
 
-	return SEC_RC_NO_ERROR;
+	return SM_RC_NO_ERROR;
 }
 
 
-sec_rc sec_hash_table_exists_at(sec_hash_table *restrict object, sec_hash_table_iterator iterator, bool* result)
+sm_rc sec_hash_table_exists_at(sm_hash_table_t *restrict object, sec_hash_table_iterator iterator, bool* result)
 {
-	if (object == NULL) return SEC_RC_OBJECT_NULL;
-	if (result == NULL) return SEC_RC_ARGUMENT_NULL;
+	if (object == NULL) return SM_RC_OBJECT_NULL;
+	if (result == NULL) return SM_RC_ARGUMENT_NULL;
 
 	*result = false;
 
-	if (!sb_lockx__(object)) return SEC_RC_OPERATION_BLOCKED;
+	if (!sm_mutex_lock(&object->mutex)) return SM_RC_OPERATION_BLOCKED;
 
 	*result = !((object->flags[iterator >> 4ULL] >> ((iterator & 0xFULL) << 1ULL)) & 3ULL);
 
-	sb_unlockx__(object);
+	sm_mutex_unlock(&object->mutex);
 
-	return SEC_RC_NO_ERROR;
+	return SM_RC_NO_ERROR;
 }
 
 
-sec_rc sec_hash_table_get_key(sec_hash_table *restrict object, sec_hash_table_iterator iterator, void** result)
+sm_rc sec_hash_table_get_key(sm_hash_table_t *restrict object, sec_hash_table_iterator iterator, void** result)
 {
-	if (object == NULL) return SEC_RC_OBJECT_NULL;
-	if (result == NULL) return SEC_RC_ARGUMENT_NULL;
+	if (object == NULL) return SM_RC_OBJECT_NULL;
+	if (result == NULL) return SM_RC_ARGUMENT_NULL;
 
 	*result = NULL;
 
-	if (!sb_lockx__(object)) return SEC_RC_OPERATION_BLOCKED;
+	if (!sm_mutex_lock(&object->mutex)) return SM_RC_OPERATION_BLOCKED;
 
 	if (object->keys == NULL || object->values == NULL)
 	{
-		sb_unlockx__(object);
+		sm_mutex_unlock(&object->mutex);
 
-		return SEC_RC_INTERNAL_REFERENCE_NULL;
+		return SM_RC_INTERNAL_REFERENCE_NULL;
 	}
 
 	*result = object->keys[iterator];
 
-	sb_unlockx__(object);
+	sm_mutex_unlock(&object->mutex);
 
-	return SEC_RC_NO_ERROR;
+	return SM_RC_NO_ERROR;
 }
 
 
-sec_rc sec_hash_table_get_value(sec_hash_table *restrict object, sec_hash_table_iterator iterator, void** result)
+sm_rc sec_hash_table_get_value(sm_hash_table_t *restrict object, sec_hash_table_iterator iterator, void** result)
 {
-	if (object == NULL) return SEC_RC_OBJECT_NULL;
-	if (result == NULL) return SEC_RC_ARGUMENT_NULL;
+	if (object == NULL) return SM_RC_OBJECT_NULL;
+	if (result == NULL) return SM_RC_ARGUMENT_NULL;
 
 	*result = NULL;
 
-	if (!sb_lockx__(object)) return SEC_RC_OPERATION_BLOCKED;
+	if (!sm_mutex_lock(&object->mutex)) return SM_RC_OPERATION_BLOCKED;
 
 	if (object->keys == NULL || object->values == NULL)
 	{
-		sb_unlockx__(object);
+		sm_mutex_unlock(&object->mutex);
 
-		return SEC_RC_INTERNAL_REFERENCE_NULL;
+		return SM_RC_INTERNAL_REFERENCE_NULL;
 	}
 
 	*result = object->values[iterator];
 
-	sb_unlockx__(object);
+	sm_mutex_unlock(&object->mutex);
 
-	return SEC_RC_NO_ERROR;
+	return SM_RC_NO_ERROR;
 }
 
-sec_rc sec_hash_table_iterate_begin(sec_hash_table *restrict object, sec_hash_table_iterator* result)
+sm_rc sec_hash_table_iterate_begin(sm_hash_table_t *restrict object, sec_hash_table_iterator* result)
 {
-	if (object == NULL) return SEC_RC_OBJECT_NULL;
-	if (result == NULL) return SEC_RC_ARGUMENT_NULL;
+	if (object == NULL) return SM_RC_OBJECT_NULL;
+	if (result == NULL) return SM_RC_ARGUMENT_NULL;
 
 	*result = 0;
 
-	if (!sb_lockx__(object)) return SEC_RC_OPERATION_BLOCKED;
+	if (!sm_mutex_lock(&object->mutex)) return SM_RC_OPERATION_BLOCKED;
 
 	if (object->keys == NULL || object->values == NULL)
 	{
-		sb_unlockx__(object);
+		sm_mutex_unlock(&object->mutex);
 
-		return SEC_RC_INTERNAL_REFERENCE_NULL;
+		return SM_RC_INTERNAL_REFERENCE_NULL;
 	}
 
-	sb_unlockx__(object);
+	sm_mutex_unlock(&object->mutex);
 
-	return SEC_RC_NO_ERROR;
+	return SM_RC_NO_ERROR;
 }
 
 
-sec_rc sec_hash_table_iterate_end(sec_hash_table *restrict object, sec_hash_table_iterator* result)
+sm_rc sec_hash_table_iterate_end(sm_hash_table_t *restrict object, sec_hash_table_iterator* result)
 {
-	if (object == NULL) return SEC_RC_OBJECT_NULL;
-	if (result == NULL) return SEC_RC_ARGUMENT_NULL;
+	if (object == NULL) return SM_RC_OBJECT_NULL;
+	if (result == NULL) return SM_RC_ARGUMENT_NULL;
 
 	*result = 0;
 
-	if (!sb_lockx__(object)) return SEC_RC_OPERATION_BLOCKED;
+	if (!sm_mutex_lock(&object->mutex)) return SM_RC_OPERATION_BLOCKED;
 
 	*result = (sec_hash_table_iterator)object->buckets;
 
-	sb_unlockx__(object);
+	sm_mutex_unlock(&object->mutex);
 
-	return SEC_RC_NO_ERROR;
+	return SM_RC_NO_ERROR;
 }
 
 
-sec_rc sec_hash_table_count(sec_hash_table *restrict object, uint64_t* result)
+sm_rc sec_hash_table_count(sm_hash_table_t *restrict object, uint64_t* result)
 {
-	if (object == NULL) return SEC_RC_OBJECT_NULL;
-	if (result == NULL) return SEC_RC_ARGUMENT_NULL;
+	if (object == NULL) return SM_RC_OBJECT_NULL;
+	if (result == NULL) return SM_RC_ARGUMENT_NULL;
 
 	*result = 0;
 
-	if (!sb_lockx__(object)) return SEC_RC_OPERATION_BLOCKED;
+	if (!sm_mutex_lock(&object->mutex)) return SM_RC_OPERATION_BLOCKED;
 
 	*result = object->count;
 
-	sb_unlockx__(object);
+	sm_mutex_unlock(&object->mutex);
 
-	return SEC_RC_NO_ERROR;
+	return SM_RC_NO_ERROR;
 }
 
 
-sec_rc sec_hash_table_buckets(sec_hash_table *restrict object, uint64_t* result)
+sm_rc sec_hash_table_buckets(sm_hash_table_t *restrict object, uint64_t* result)
 {
-	if (object == NULL) return SEC_RC_OBJECT_NULL;
-	if (result == NULL) return SEC_RC_ARGUMENT_NULL;
+	if (object == NULL) return SM_RC_OBJECT_NULL;
+	if (result == NULL) return SM_RC_ARGUMENT_NULL;
 
 	*result = 0;
 
-	if (!sb_lockx__(object)) return SEC_RC_OPERATION_BLOCKED;
+	if (!sm_mutex_lock(&object->mutex)) return SM_RC_OPERATION_BLOCKED;
 
 	*result = object->buckets;
 
-	sb_unlockx__(object);
+	sm_mutex_unlock(&object->mutex);
 
-	return SEC_RC_NO_ERROR;
+	return SM_RC_NO_ERROR;
 }
 
 
-sec_rc sec_hash_table_iterate(sec_hash_table *restrict object, sec_hash_table_visitor visitor, void* context)
+sm_rc sec_hash_table_iterate(sm_hash_table_t *restrict object, sec_hash_table_visitor visitor, void* context)
 {
 	register uint64_t i, n;
 
-	if (object == NULL) return SEC_RC_OBJECT_NULL;
-	if (visitor == NULL) return SEC_RC_ARGUMENT_NULL;
+	if (object == NULL) return SM_RC_OBJECT_NULL;
+	if (visitor == NULL) return SM_RC_ARGUMENT_NULL;
 
-	if (!sb_lockx__(object)) return SEC_RC_OPERATION_BLOCKED;
+	if (!sm_mutex_lock(&object->mutex)) return SM_RC_OPERATION_BLOCKED;
 
 	if (object->flags == NULL || object->keys == NULL || object->values == NULL)
 	{
-		sb_unlockx__(object);
+		sm_mutex_unlock(&object->mutex);
 
-		return SEC_RC_INTERNAL_REFERENCE_NULL;
+		return SM_RC_INTERNAL_REFERENCE_NULL;
 	}
 
 	n = object->buckets;
@@ -495,9 +509,9 @@ sec_rc sec_hash_table_iterate(sec_hash_table *restrict object, sec_hash_table_vi
 			break;
 	}
 
-	sb_unlockx__(object);
+	sm_mutex_unlock(&object->mutex);
 
-	return SEC_RC_NO_ERROR;
+	return SM_RC_NO_ERROR;
 }
 
 
@@ -519,7 +533,7 @@ uint64_t sec_hash_table_default_hasher(const void* data, size_t size)
 // Internals
 
 
-static bool sec_hash_table_resize__(sec_hash_table *restrict object, uint64_t buckets)
+static bool sec_hash_table_resize__(sm_hash_table_t *restrict object, uint64_t buckets)
 {
 	static const double upper = 0.77;
 
@@ -544,15 +558,17 @@ static bool sec_hash_table_resize__(sec_hash_table *restrict object, uint64_t bu
 	{
 		nnb = (buckets < 16 ? 1 : buckets >> 4ULL);
 
-		flags = (uint32_t*)malloc(nnb * sizeof(uint32_t));
+		flags = (uint32_t*)sm_space_allocate(object->allocator, nnb * sizeof(uint32_t));
 
 		if (flags == NULL) return false;
 
-		memset(flags, 0xAA, nnb * sizeof(uint32_t));
+		register uint8_t* p = (uint8_t*)flags;
+		register size_t n = nnb * sizeof(uint32_t);
+		while (n-- > 0U) *p++ = 0xAA;
 
 		if (object->buckets < buckets)
 		{
-			keys = (void**)realloc(object->keys, buckets * sizeof(void*));
+			keys = (void**)sm_space_realloc(object->allocator, object->keys, buckets * sizeof(void*));
 
 			if (keys == NULL)
 			{
@@ -563,11 +579,11 @@ static bool sec_hash_table_resize__(sec_hash_table *restrict object, uint64_t bu
 
 			object->keys = keys;
 
-			vals = (void**)realloc(object->values, buckets * sizeof(void*));
+			vals = (void**)sm_space_realloc(object->allocator, object->values, buckets * sizeof(void*));
 
 			if (vals == NULL)
 			{
-				free(flags);
+				sm_space_free(object->allocator, flags);
 
 				return false;
 			}
@@ -626,20 +642,20 @@ static bool sec_hash_table_resize__(sec_hash_table *restrict object, uint64_t bu
 
 		if (object->buckets > buckets) // Shrink.
 		{
-			ppt = (void**)realloc(object->keys, buckets * sizeof(void*));
+			ppt = (void**)sm_space_realloc(object->allocator, object->keys, buckets * sizeof(void*));
 
 			if (ppt == NULL) return false;
 
 			object->keys = ppt;
 
-			ppt = (void**)realloc(object->values, buckets * sizeof(void*));
+			ppt = (void**)sm_space_realloc(object->allocator, object->values, buckets * sizeof(void*));
 
 			if (ppt == NULL) return false;
 
 			object->values = ppt;
 		}
 
-		free(object->flags);
+		sm_space_free(object->allocator, object->flags);
 
 		object->flags = flags;
 		object->buckets = buckets;

@@ -45,29 +45,29 @@ sm_allocation_info_t;
 
 
 // Pointer to a memory context.
-typedef void* sm_context_t;
+typedef void* sm_allocator_internal_t;
 
 
-exported sm_context_t callconv sm_allocator_create_context(size_t capacity, uint8_t locked);
-exported size_t callconv sm_allocator_destroy_context(sm_context_t context);
+exported sm_allocator_internal_t callconv sm_allocator_create_context(size_t capacity, uint8_t locked);
+exported size_t callconv sm_allocator_destroy_context(sm_allocator_internal_t context);
 
 
-exported uint8_t callconv sm_space_track_large_chunks(sm_context_t context, uint8_t enable);
-exported struct sm_allocation_info_t callconv sm_space_memory_info(sm_context_t context);
-exported int callconv sm_space_options(sm_context_t context, int id, int value);
-exported void* callconv sm_space_allocate(sm_context_t context, size_t bytes);
-exported void callconv sm_space_free(sm_context_t context, void* memory);
-exported void* callconv sm_space_realloc(sm_context_t context, void* memory, size_t size);
-exported void* callconv sm_space_realloc_in_place(sm_context_t context, void* memory, size_t size);
-exported void* callconv sm_space_memory_align(sm_context_t context, size_t alignment, size_t bytes);
+exported uint8_t callconv sm_space_track_large_chunks(sm_allocator_internal_t context, uint8_t enable);
+exported struct sm_allocation_info_t callconv sm_space_memory_info(sm_allocator_internal_t context);
+exported int callconv sm_space_options(sm_allocator_internal_t context, int id, int value);
+exported void* callconv sm_space_allocate(sm_allocator_internal_t context, size_t bytes);
+exported void callconv sm_space_free(sm_allocator_internal_t context, void* memory);
+exported void* callconv sm_space_realloc(sm_allocator_internal_t context, void* memory, size_t size);
+exported void* callconv sm_space_realloc_in_place(sm_allocator_internal_t context, void* memory, size_t size);
+exported void* callconv sm_space_memory_align(sm_allocator_internal_t context, size_t alignment, size_t bytes);
 exported size_t callconv sm_space_usable_size(const void* memory);
-exported uint8_t callconv sm_space_trim(sm_context_t context, size_t padding);
-exported size_t callconv sm_space_footprint(sm_context_t context);
-exported size_t callconv sm_space_maximum_footprint(sm_context_t context);
-exported size_t callconv sm_space_footprint_limit(sm_context_t context);
-exported size_t callconv sm_space_set_footprint_limit(sm_context_t context, size_t bytes);
-exported void callconv sm_space_inspect_all(sm_context_t context, void (*visitor)(void* start, void* end, size_t bytes, void* argument), void* argument);
-exported sm_allocation_stats_t callconv sm_space_allocation_statistics(sm_context_t context);
+exported uint8_t callconv sm_space_trim(sm_allocator_internal_t context, size_t padding);
+exported size_t callconv sm_space_footprint(sm_allocator_internal_t context);
+exported size_t callconv sm_space_maximum_footprint(sm_allocator_internal_t context);
+exported size_t callconv sm_space_footprint_limit(sm_allocator_internal_t context);
+exported size_t callconv sm_space_set_footprint_limit(sm_allocator_internal_t context, size_t bytes);
+exported void callconv sm_space_inspect_all(sm_allocator_internal_t context, void (*visitor)(void* start, void* end, size_t bytes, void* argument), void* argument);
+exported sm_allocation_stats_t callconv sm_space_allocation_statistics(sm_allocator_internal_t context);
 
 
 #endif // INCLUDE_ALLOCATOR_H

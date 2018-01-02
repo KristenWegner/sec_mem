@@ -50,56 +50,29 @@ typedef uint16_t sm_opcode_t;
 // Reference type. Returned by sm_op.
 typedef uint64_t sm_ref_t;
 
+// Context type.
+typedef void* sm_t;
 
-////////////////////////////////////////////////////////////////////////////////
+
+// Methods
+
+
 // Master entropic/quasi-entropic random number generator. Uses RDRAND if 
 // present, else uses XorShift1024* 64-bit with random intermittent 
-// re-seeding.
-////////////////////////////////////////////////////////////////////////////////
-extern uint64_t sm_master_rand();
+// re-seeding. If sm_t is null, uses default RNG support.
+extern uint64_t sm_random(sm_t);
 
+// Creates a new context with the initial count of space in bytes.
+extern sm_t callconv sm_create(uint64_t bytes);
 
-////////////////////////////////////////////////////////////////////////////////
-// In-place transcode (scramble/unscramble) data of count bytes using sequence 
-// with state seeded by key. Transcode encode and transcode decode are 
-// symmetrical given the same key, and random seed/generation function 
-// pair.
-//
-// Parameters:
-//
-//     - encode: If true then encode, else decode.
-//     - data: Pointer to data to encode.
-//     - bytes: Count of bytes to starting at data.
-//     - key: The random key (seed).
-//     - state: Pointer to random state vector.
-//     - size: Random state vector size in bytes.
-//     - seed: Pointer to random seed function.
-//     - random: Pointer to random generate function.
-// 
-// Returns a pointer to the start of the transcoded buffer.
-////////////////////////////////////////////////////////////////////////////////
-extern void* callconv sm_transcode(uint8_t encode, void *restrict data, register size_t bytes, uint64_t key, void* state, size_t size, void(*seed)(void*, uint64_t), uint64_t(*random)(void*));
+// Destroys the specified context.
+extern void callconv sm_destroy(sm_t);
 
+// Set the error handler for the specified context.
+extern void callconv sm_set_error_handler(sm_t* sm, sm_err_f handler);
 
-////////////////////////////////////////////////////////////////////////////////
-// Do a single XOR pass on the given data using XorShift1024* 64-bit values
-// generated using the given seed (key).
-////////////////////////////////////////////////////////////////////////////////
-extern void* sm_xor_pass(void *restrict data, register size_t bytes, uint64_t key);
-
-
-////////////////////////////////////////////////////////////////////////////////
-// Cross XOR using XorShift1024* 64-bit, decoding into dst using key1 (the 
-// first seed), while byte by byte recoding src again using key2 (the second 
-// seed). Returns dst.
-////////////////////////////////////////////////////////////////////////////////
-extern void* sm_xor_cross(void *restrict dst, void *restrict src, register size_t bytes, uint64_t key1, uint64_t key2);
-
-
-////////////////////////////////////////////////////////////////////////////////
-// Nexus command. See SM_OP_*.
-////////////////////////////////////////////////////////////////////////////////
-extern sm_ref_t sm_op(sm_opcode_t op, uint64_t arg1, uint64_t arg2, uint64_t arg3);
+// Get protected entity.
+extern sm_ref_t callconv sm_get_entity(sm_t* sm, uint16_t op);
 
 
 // Error Codes
@@ -111,6 +84,7 @@ extern sm_ref_t sm_op(sm_opcode_t op, uint64_t arg1, uint64_t arg2, uint64_t arg
 #define SM_ERR_INVALID_POINTER		(1 << 4) // Invalid or null pointer/reference.
 #define SM_ERR_INVALID_CRC			(1 << 5) // Invalid CRC encountered.
 #define SM_ERR_OUT_OF_MEMORY		(1 << 6) // Out of memory or allocation failed.
+#define SM_ERR_CANNOT_MAKE_EXEC		(1 << 7) // Failed to make memory page executable.
 
 
 // Built-In Opcodes
@@ -130,6 +104,11 @@ extern sm_ref_t sm_op(sm_opcode_t op, uint64_t arg1, uint64_t arg2, uint64_t arg
 #define SM_OP_ARRAY_ELEMENT_SET		(0x000C)
 #define SM_OP_ARRAY_SIZE_GET		(0x000D)
 #define SM_OP_ARRAY_SIZE_SET		(0x000E)
+
+
+// Add additional opcodes declarations here.
+#include "precursors/rdrnd_op_decl.h"
+#include "precursors/crc_op_decl.h"
 
 
 #endif // INCLUDE_SM_H
