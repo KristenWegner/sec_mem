@@ -1,6 +1,8 @@
 // sm.c - Core functions for secure memory library.
 
 
+#include <time.h>
+
 #ifdef _DEBUG
 #include <stdio.h>
 #endif
@@ -11,7 +13,8 @@
 #include "mutex.h"
 #include "sm.h"
 #include "sm_internal.h"
-#include "precursors/crctab.h"
+#include "compatibility/gettimeofday.h"
+#include "compatibility/getuid.h"
 #include "bits.h"
 
 
@@ -22,25 +25,21 @@
 
 #include <sys/mman.h>
 
-static int (*em_mp__)(void*,size_t,int) = mprotect;
-
 // Makes the specified page executable, Linux version.
-inline static bool sm_make_executable(void* p, size_t n)
+inline static bool sm_make_executable(sm_context_t* context, void* p, size_t n)
 {
-	return (em_mp__(p, n, PROT_READ|PROT_WRITE|PROT_EXEC) == 0);
+	return (context->protect(p, n, PROT_READ|PROT_WRITE|PROT_EXEC) == 0);
 }
 
 #elif defined(SM_OS_WINDOWS)
 
 #include <windows.h>
 
-static BOOL (__stdcall *em_mp__)(LPVOID, SIZE_T, DWORD, PDWORD) = VirtualProtect;
-
 // Makes the specified page executable, Windows version.
-inline static bool sm_make_executable(void* p, size_t n)
+inline static bool sm_make_executable(sm_context_t* context, void* p, size_t n)
 {
 	DWORD d;
-	return (em_mp__(p, n, PAGE_EXECUTE_READWRITE, &d) != 0);
+	return (context->protect(p, n, PAGE_EXECUTE_READWRITE, &d) != 0);
 }
 
 #else
@@ -89,7 +88,6 @@ inline static void* sm_memcpy(void *restrict p, const void *restrict q, size_t n
 
 extern sm_allocator_internal_t callconv sm_allocator_create_context(size_t capacity, uint8_t locked);
 extern uint64_t callconv sm_random(sm_t sm);
-extern uint64_t callconv sm_crc_64(uint64_t c, register const uint8_t *restrict p, uint64_t n, void* t);
 extern void* callconv sm_xor_cross(void *restrict dst, void *restrict src, register size_t bytes, uint64_t key1, uint64_t key2);
 
 
@@ -101,48 +99,48 @@ inline static void sm_mem_rand(sm_context_t* context, register uint8_t* p, regis
 
 inline static bool sm_register_integral_rand(sm_context_t* context, uint8_t* seed_ptr, uint64_t seed_size, uint64_t* seed_key, uint8_t* next_ptr, uint64_t next_size, uint64_t* next_key, uint64_t state_size)
 {
-	if (!context || !seed_ptr || !seed_key || !next_key || !next_key || context->rng_count == 0xFF) 
+	if (!context || !seed_ptr || !seed_key || !next_key || !next_key || context->random.integral.count == 0xFF) 
 		return false;
 
-	uint8_t* seed_mem = sm_space_allocate(context->allocator, seed_size);
+	uint8_t* seed_mem = sm_space_allocate(context->memory.allocator, seed_size);
 	if (!seed_mem) return false;
 	uint64_t seed_key2 = sm_random(context);
 	sm_xor_cross(seed_mem, seed_ptr, seed_size, *seed_key, seed_key2);
 	*seed_key = seed_key2;
-	if (!sm_make_executable(seed_mem, seed_size))
+	if (!sm_make_executable(context, seed_mem, seed_size))
 	{
 		sm_mem_rand(context, seed_mem, seed_size);
-		sm_space_free(context->allocator, seed_mem);
+		sm_space_free(context->memory.allocator, seed_mem);
 		return false;
 	}
 
-	uint8_t* next_mem = sm_space_allocate(context->allocator, next_size);
+	uint8_t* next_mem = sm_space_allocate(context->memory.allocator, next_size);
 	if (!next_mem)
 	{
-		sm_space_free(context->allocator, seed_mem);
+		sm_space_free(context->memory.allocator, seed_mem);
 		return false;
 	}
 	uint64_t next_key2 = sm_random(context);
 	sm_xor_cross(next_mem, next_ptr, next_size, *next_key, next_key2);
 	*next_key = next_key2;
-	if (!sm_make_executable(next_mem, next_size))
+	if (!sm_make_executable(context, next_mem, next_size))
 	{
 		sm_mem_rand(context, next_mem, next_size);
-		sm_space_free(context->allocator, next_mem);
+		sm_space_free(context->memory.allocator, next_mem);
 		sm_mem_rand(context, seed_mem, seed_size);
-		sm_space_free(context->allocator, seed_mem);
+		sm_space_free(context->memory.allocator, seed_mem);
 		return false;
 	}
 
-	uint8_t r = context->rng_count;
+	uint8_t r = context->random.integral.count;
 
-	context->rng_tab[r].state_size = state_size;
-	context->rng_tab[r].seed_function = (sm_srs64_f)seed_mem;
-	context->rng_tab[r].seed_size = seed_size;
-	context->rng_tab[r].next_function = (sm_ran64_f)next_mem;
-	context->rng_tab[r].next_size = next_size;
+	context->random.integral.table[r].state_size = state_size;
+	context->random.integral.table[r].seed_function = (sm_srs64_f)seed_mem;
+	context->random.integral.table[r].seed_size = seed_size;
+	context->random.integral.table[r].next_function = (sm_ran64_f)next_mem;
+	context->random.integral.table[r].next_size = next_size;
 
-	context->rng_count++;
+	context->random.integral.count++;
 
 	return true;
 }
@@ -151,26 +149,26 @@ inline static bool sm_register_integral_rand(sm_context_t* context, uint8_t* see
 static void sm_free_integral_rands(sm_context_t* context)
 {
 	void* tmp;
-	register uint8_t i, n = context->rng_count;
+	register uint8_t i, n = context->random.integral.count;
 
 	for (i = 0; i < n; ++i)
 	{
-		tmp = context->rng_tab[i].seed_function;
-		context->rng_tab[i].seed_function = (sm_srs64_f)sm_random(context);
-		sm_mem_rand(context, tmp, context->rng_tab[i].seed_size);
-		context->rng_tab[i].seed_size = sm_random(context);
-		sm_space_free(context->allocator, tmp);
+		tmp = context->random.integral.table[i].seed_function;
+		context->random.integral.table[i].seed_function = (sm_srs64_f)sm_random(context);
+		sm_mem_rand(context, tmp, context->random.integral.table[i].seed_size);
+		context->random.integral.table[i].seed_size = sm_random(context);
+		sm_space_free(context->memory.allocator, tmp);
 
-		tmp = context->rng_tab[i].next_function;
-		context->rng_tab[i].next_function = (sm_ran64_f)sm_random(context);
-		sm_mem_rand(context, tmp, context->rng_tab[i].next_size);
-		context->rng_tab[i].next_size = sm_random(context);
-		sm_space_free(context->allocator, tmp);
+		tmp = context->random.integral.table[i].next_function;
+		context->random.integral.table[i].next_function = (sm_ran64_f)sm_random(context);
+		sm_mem_rand(context, tmp, context->random.integral.table[i].next_size);
+		context->random.integral.table[i].next_size = sm_random(context);
+		sm_space_free(context->memory.allocator, tmp);
 
-		context->rng_tab[i].state_size = sm_random(context);
+		context->random.integral.table[i].state_size = sm_random(context);
 	}
 
-	context->rng_count = 0;
+	context->random.integral.count = 0;
 }
 
 
@@ -179,7 +177,7 @@ static void* sm_load_entity(sm_context_t* context, uint8_t executable, void *res
 {
 	if (!context || !data || !bytes || !key || !crc) return NULL;
 
-	void* r = sm_space_allocate(context->allocator, bytes);
+	void* r = sm_space_allocate(context->memory.allocator, bytes);
 
 	if (!r) return NULL;
 
@@ -187,34 +185,34 @@ static void* sm_load_entity(sm_context_t* context, uint8_t executable, void *res
 
 	r = sm_xor_cross(r, data, bytes, *key, key2);
 
-	if (context->crc_64_function && *crc != 0)
+	if (context->checking.crc_64 && *crc != 0)
 	{
-		uint64_t c = context->crc_64_function(*key, r, bytes, context->crc_64_tab);
+		uint64_t c = context->checking.crc_64(*key, r, bytes, context->checking.tab_64);
 
 		if (c != *crc)
 		{
 			sm_mem_rand(context, r, bytes);
-			sm_space_free(context->allocator, r);
+			sm_space_free(context->memory.allocator, r);
 
-			if (context->error_handler)
-				context->error_handler(SM_ERR_INVALID_CRC);
+			if (context->error)
+				context->error(SM_ERR_INVALID_CRC);
 
 			return NULL;
 		}
 
-		*crc = context->crc_64_function(key2, r, bytes, context->crc_64_tab);
+		*crc = context->checking.crc_64(key2, r, bytes, context->checking.tab_64);
 	}
 	else *crc = 0;
 
 	*key = key2;
 
-	if (executable && !sm_make_executable(r, bytes))
+	if (executable && !sm_make_executable(context, r, bytes))
 	{
 		sm_mem_rand(context, r, bytes);
-		sm_space_free(context->allocator, r);
+		sm_space_free(context->memory.allocator, r);
 
-		if (context->error_handler)
-			context->error_handler(SM_ERR_CANNOT_MAKE_EXEC);
+		if (context->error)
+			context->error(SM_ERR_CANNOT_MAKE_EXEC);
 
 		return NULL;
 	}
@@ -250,7 +248,7 @@ exported sm_t callconv sm_create(uint64_t bytes)
 
 	context->size = sizeof(sm_context_t);
 	context->initialized = 1;
-	context->rng_count = 0;
+	context->random.integral.count = 0;
 	context->crc = 0;
 
 	if (!sm_mutex_create(&context->mutex))
@@ -265,22 +263,38 @@ exported sm_t callconv sm_create(uint64_t bytes)
 	sm_mutex_lock(&context->mutex);
 
 #ifdef _DEBUG
-	context->error_handler = sm_default_error_handler;
+	context->error = sm_default_error_handler;
+#else
+	context->error = NULL;
 #endif
 
-	context->allocator = allocator;
+	context->memory.allocator = allocator;
 
-	context->crc_64_tab = sm_load_entity(context, 0, sm_crc_64_tab_data, sm_crc_64_tab_size, &sm_crc_64_tab_key, &sm_crc_64_tab_crc);
-	context->crc_64_function = (sm_crc64_f)sm_load_entity(context, 1, sm_crc_64_data, sm_crc_64_size, &sm_crc_64_key, &sm_crc_64_crc);
+	context->checking.tab_64 = sm_load_entity(context, 0, sm_crc_64_tab_data, sm_crc_64_tab_size, &sm_crc_64_tab_key, &sm_crc_64_tab_crc);
+	context->checking.crc_64 = (sm_crc64_f)sm_load_entity(context, 1, sm_crc_64_data, sm_crc_64_size, &sm_crc_64_key, &sm_crc_64_crc);
 
-	context->crc_32_tab = sm_load_entity(context, 0, sm_crc_32_tab_data, sm_crc_32_tab_size, &sm_crc_32_tab_key, &sm_crc_32_tab_crc);
-	context->crc_32_function = (sm_crc32_f)sm_load_entity(context, 1, sm_crc_32_data, sm_crc_32_size, &sm_crc_32_key, &sm_crc_32_crc);
+	context->checking.tab_32 = sm_load_entity(context, 0, sm_crc_32_tab_data, sm_crc_32_tab_size, &sm_crc_32_tab_key, &sm_crc_32_tab_crc);
+	context->checking.crc_32 = (sm_crc32_f)sm_load_entity(context, 1, sm_crc_32_data, sm_crc_32_size, &sm_crc_32_key, &sm_crc_32_crc);
 
-	context->have_rdrand = (sm_get64_f)sm_load_entity(context, 1, sm_have_rdrand_data, sm_have_rdrand_size, &sm_have_rdrand_key, &sm_have_rdrand_crc);
-	context->next_rdrand = (sm_get64_f)sm_load_entity(context, 1, sm_next_rdrand_data, sm_next_rdrand_size, &sm_next_rdrand_key, &sm_next_rdrand_crc);
+	context->random.rdrand.exists = (sm_get64_f)sm_load_entity(context, 1, sm_have_rdrand_data, sm_have_rdrand_size, &sm_have_rdrand_key, &sm_have_rdrand_crc);
+	context->random.rdrand.next = (sm_get64_f)sm_load_entity(context, 1, sm_next_rdrand_data, sm_next_rdrand_size, &sm_next_rdrand_key, &sm_next_rdrand_crc);
 
-	context->rand_initialized = 0;
-	context->rand_rdrand = 0xFF;
+	context->random.initialized = 0;
+	sm_mutex_create(&context->random.mutex); // Init the random mutex.
+	context->random.rdrand.available = 0xFF;
+
+	context->random.entropy.get_tim = time;
+	context->random.entropy.get_tod = gettimeofday;
+	context->random.entropy.get_clk = clock;
+	context->random.entropy.get_pid = getpid;
+	context->random.entropy.get_tid = gettid;
+	context->random.entropy.get_uid = getuid;
+	context->random.entropy.get_unh = getunh;
+#if defined(SM_OS_WINDOWS)
+	context->random.entropy.get_tik = GetTickCount64;
+#endif
+	context->random.srand = srand;
+	context->random.rand = rand;
 
 	sm_random(context);
 
@@ -288,8 +302,8 @@ exported sm_t callconv sm_create(uint64_t bytes)
 
 	sm_mutex_unlock(&context->mutex);
 
-	if (context->crc_64_function)
-		context->crc = context->crc_64_function(context->size, (uint8_t*)context, context->size, context->crc_64_tab);
+	if (context->checking.crc_64)
+		context->crc = context->checking.crc_64(context->size, (uint8_t*)context, context->size, context->checking.tab_64);
 	else context->crc = UINT64_MAX;
 
 	return (sm_t)context;
@@ -301,7 +315,7 @@ static void sm_free_entity(sm_context_t* context, void** bytes, size_t size)
 	void* tmp = *bytes;
 	*bytes = NULL;
 	sm_mem_rand(context, tmp, size);
-	sm_space_free(context->allocator, tmp);
+	sm_space_free(context->memory.allocator, tmp);
 }
 
 
@@ -313,26 +327,27 @@ exported void callconv sm_destroy(sm_t sm)
 
 	sm_mutex_lock(&context->mutex);
 
-	if (context->rand_initialized)
+	if (context->random.initialized)
 	{
-		sm_mutex_lock(&context->rand_mutex);
+		sm_mutex_lock(&context->random.mutex);
 
-		context->rand_initialized = 0;
+		context->random.initialized = 0;
 
-		sm_mutex_unlock(&context->rand_mutex);
-		sm_mutex_destroy(&context->rand_mutex);
+		sm_mutex_unlock(&context->random.mutex);
 	}
+
+	sm_mutex_destroy(&context->random.mutex);
 
 	sm_free_integral_rands(context);
 
-	sm_free_entity(context, (void**)&context->crc_32_tab, sm_crc_32_tab_size);
-	sm_free_entity(context, (void**)&context->crc_32_function, sm_crc_32_size);
-	sm_free_entity(context, (void**)&context->crc_64_tab, sm_crc_64_tab_size);
-	sm_free_entity(context, (void**)&context->crc_64_function, sm_crc_64_size);
-	sm_free_entity(context, (void**)&context->have_rdrand, sm_have_rdrand_size);
-	sm_free_entity(context, (void**)&context->next_rdrand, sm_next_rdrand_size);
+	sm_free_entity(context, (void**)&context->checking.tab_32, sm_crc_32_tab_size);
+	sm_free_entity(context, (void**)&context->checking.crc_32, sm_crc_32_size);
+	sm_free_entity(context, (void**)&context->checking.tab_64, sm_crc_64_tab_size);
+	sm_free_entity(context, (void**)&context->checking.crc_64, sm_crc_64_size);
+	sm_free_entity(context, (void**)&context->random.rdrand.exists, sm_have_rdrand_size);
+	sm_free_entity(context, (void**)&context->random.rdrand.next, sm_next_rdrand_size);
 
-	sm_allocator_internal_t allocator = context->allocator;
+	sm_allocator_internal_t allocator = context->memory.allocator;
 
 	context->crc = 0;
 	context->initialized = 0;
@@ -355,18 +370,18 @@ exported void callconv sm_set_error_handler(sm_t* sm, sm_err_f handler)
 	if (!sm) return;
 	sm_context_t* context = (sm_context_t*)sm;
 	sm_mutex_lock(&context->mutex);
-	context->error_handler = handler;
+	context->error = handler;
 	sm_mutex_unlock(&context->mutex);
 }
 
 
-exported sm_ref_t callconv sm_get_entity(sm_t* sm, uint16_t op)
+exported sm_ref_t callconv sm_get_entity(sm_t* sm, uint16_t id)
 {
 	if (!sm) return UINT64_C(0);
 
 	sm_context_t* context = (sm_context_t*)sm;
 
-	switch (op)
+	switch (id)
 	{
 	// Add additional opcode implementations here.
 #include "precursors/rdrnd_op_impl.h"
@@ -375,8 +390,8 @@ exported sm_ref_t callconv sm_get_entity(sm_t* sm, uint16_t op)
 	// Failure
 
 	default:
-		if (context && context->error_handler)
-			context->error_handler(SM_ERR_NO_SUCH_COMMAND);
+		if (context->error)
+			context->error(SM_ERR_NO_SUCH_COMMAND);
 		return UINT64_C(0);
 	}
 }

@@ -31,55 +31,109 @@ typedef struct sm_context_s
 	uint8_t initialized; // Initialized flag.
 	uint64_t crc; // 64-bit CRC of this.
 
-	uint8_t padding_1[4];
+	uint8_t __padding_a[4];
 
 	sm_mutex_t mutex; // Context/initialization mutex.
 	
-	uint8_t padding_2[8];
+	uint8_t __padding_b[8];
 
-	sm_err_f error_handler; // Error handler.
+	sm_err_f error; // Error handler.
 
-	uint8_t padding_3[16];
+	uint8_t __padding_c[16];
 
-	// Integral RNGs.
+#if defined(SM_OS_WINDOWS)
+	BOOL (__stdcall *protect)(LPVOID, SIZE_T, DWORD, PDWORD); // Used to make pages executable.
+#else
+	int (*protect)(void*, size_t, int); // Used to make pages executable.
+#endif
 
-	uint8_t rng_count; // Count of RNG entries in tab.
-	sm_rng_entry_t rng_tab[0xFF]; // Registered RNG entries.
-
-	uint8_t padding_4[32];
+	uint8_t __padding_d[32];
 
 	// Random support.
+	struct
+	{
+		sm_mutex_t mutex; // Mutex for the random master.
+		uint8_t initialized; // Initialization flag.
 
-	sm_mutex_t rand_mutex; // Mutex for the random master.
-	uint8_t rand_initialized; // Initialization flag.
-	uint8_t rand_state[(sizeof(uint32_t) + (sizeof(uint64_t) * 16))]; // The  XorShift1024* state, if needed.
-	uint8_t rand_rdrand; // RDRAND availability flag, 0xFF if not known yet, otherwise 0 or 1.
-	sm_get64_f have_rdrand; // Test for RDRAND function.
-	sm_get64_f next_rdrand; // Get next RDRAND function.
+		uint8_t __padding_e[64];
 
-	uint8_t padding_5[64];
+		uint8_t state[(sizeof(uint32_t) + (sizeof(uint64_t) * 16))]; // The  XorShift1024* state, if needed.
+
+		uint8_t __padding_f[32];
+
+		// RDRAND support.
+		struct
+		{
+			uint8_t available; // RDRAND availability flag, 0xFF if not known yet, otherwise 0 or 1.
+			sm_get64_f exists; // Test for RDRAND function.
+			sm_get64_f next; // Get next RDRAND function.
+		}
+		rdrand;
+
+		uint8_t __padding_g[16];
+
+		// Integral RNGs.
+		struct
+		{
+			uint8_t count; // Count of RNG entries in tab.
+			sm_rng_entry_t table[0xFF]; // Registered RNG entries.
+		}
+		integral;
+
+		uint8_t __padding_h[8];
+
+		// Functions used for seeding entropy, if needed.
+		struct
+		{
+			time_t (*get_tim)(void*);
+			int (*get_tod)(void*, void*);
+			clock_t (*get_clk)();
+			pid_t (*get_pid)();
+			pid_t (*get_tid)();
+			uid_t (*get_uid)();
+			uint64_t (*get_unh)();
+#if defined(SM_OS_WINDOWS)
+			uint64_t (*get_tik)();
+#endif
+		}
+		entropy;
+
+		void (*srand)(unsigned int);
+		int (*rand)();
+
+		uint8_t padding_i[4];
+	}
+	random;
+
+	uint8_t __padding_j[8];
 
 	// CRC support.
+	struct
+	{
+		void* tab_32; // The 32-bit CRC LUT.
+		sm_crc32_f crc_32; // The 32-bit CRC function.
 
-	void* crc_32_tab; // The 32-bit CRC LUT.
-	sm_crc32_f crc_32_function; // The 32-bit CRC function.
+		void* tab_64; // The 64-bit CRC LUT.
+		sm_crc64_f crc_64; // The 64-bit CRC function.
+	}
+	checking;
 
-	void* crc_64_tab; // The 64-bit CRC LUT.
-	sm_crc64_f crc_64_function; // The 64-bit CRC function.
-
-	uint8_t padding_6[128];
+	uint8_t __padding_k[16];
 
 	// Memory management.
+	struct
+	{
+		sm_allocator_internal_t allocator; // Global allocator.
 
-	sm_allocator_internal_t allocator; // Global allocator.
+		uint8_t __padding_l[32];
 
-	uint8_t padding_7[256];
+		sm_hash_table_t* keys; // Key store.
+		sm_hash_table_t* data; // Data store.
+		sm_hash_table_t* meta; // Meta store.
+	}
+	memory;
 
-	sm_hash_table_t* keys; // Key store.
-	sm_hash_table_t* data; // Data store.
-	sm_hash_table_t* meta; // Meta store.
-
-	uint8_t padding_8[512];
+	uint8_t __padding_m[64];
 }
 sm_context_t;
 
@@ -89,11 +143,11 @@ typedef struct sm_key_entry_s
 	size_t size; // Size of this.
 	uint8_t initialized; // Initialized flag.
 	uint64_t crc; // 64-bit CRC of this.
-	uint8_t padding_1[8];
+	uint8_t __padding_a[4];
 	uint64_t key; // Key.
-	uint8_t padding_2[16];
+	uint8_t __padding_b[8];
 	uint32_t check; // 32-bit CRC of key.
-	uint8_t padding_3[32];
+	uint8_t __padding_c[4];
 }
 sm_key_entry_t;
 
@@ -103,9 +157,11 @@ typedef struct sm_data_entry_s
 	size_t size; // Size of this.
 	uint8_t initialized; // Initialized flag.
 	uint64_t crc; // 64-bit CRC of this.
-	uint8_t padding_1[8];
+	uint8_t __padding_a[4];
 	void* data;
-	uint8_t padding_2[16];
+	uint8_t __padding_b[8];
+	uint32_t check; // 32-bit CRC of data ptr.
+	uint8_t __padding_c[4];
 }
 sm_data_entry_t;
 
@@ -115,13 +171,13 @@ typedef struct sm_meta_entry_s
 	size_t size; // Size of this.
 	uint8_t initialized; // Initialized flag.
 	uint64_t crc; // 64-bit CRC of this.
-	uint8_t padding_1[8];
+	uint8_t __padding_a[4];
 	size_t bytes;
-	uint8_t padding_2[16];
+	uint8_t __padding_b[8];
 	size_t element;
-	uint8_t padding_3[32];
+	uint8_t __padding_c[16];
 	size_t count;
-	uint8_t padding_4[64];
+	uint8_t __padding_d[8];
 }
 sm_meta_entry_t;
 

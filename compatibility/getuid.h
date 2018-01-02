@@ -11,12 +11,15 @@
 #if defined(SM_OS_WINDOWS)
 
 
+#define getpid _getpid
+
+
 // Get 64-bit thread ID.
-exported uint64_t callconv sm_gettid();
+exported pid_t callconv gettid();
 
 
 // Get user ID.
-exported uid_t callconv sm_getuid();
+exported uid_t callconv getuid();
 
 
 #else
@@ -26,15 +29,11 @@ exported uid_t callconv sm_getuid();
 #include <sys/types.h>
 
 
-#define sm_gettid gettid
-#define sm_getuid getuid
-
-
 #endif
 
 
 // Get 64-bit hash of user name.
-uint64_t sm_getunh();
+exported uint64_t callconv getunh();
 
 
 #endif // INCLUDE_GETUID_H

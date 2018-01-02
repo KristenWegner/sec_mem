@@ -13,11 +13,10 @@
 #include "mutex.h"
 #include "bits.h"
 #include "compatibility/gettimeofday.h"
-#include "compatibility/getuid.h"
 
 
 // XorShift1024* 64-bit seed, given state.
-inline static void sm_master_rand_seed(void *restrict s, uint64_t seed)
+inline static void sm_random_seed(void *restrict s, uint64_t seed)
 {
 	register uint32_t i, *p = s; *p = 0;
 	register uint64_t z, *t = (uint64_t*)&p[1];
@@ -45,31 +44,30 @@ inline static uint64_t sm_random_next(void *restrict s)
 
 // Initializes the random master. If RDRAND is available, simply sets a flag, otherwise uses a variety of
 // time, UID, PID, TID and other measures with bit twiddling to seed an XorShift1024* 64-bit state.
-static void sm_random_initialize(sm_context_t* context)
+inline static void sm_random_initialize(sm_context_t* context)
 {
-	if (context->rand_initialized) return;
+	if (!context || context->random.initialized) return;
 
 #ifdef _DEBUG
 	fprintf(stderr, "(sm_random: initialize: enter)\n");
 #endif
 
-	sm_mutex_create(&context->rand_mutex); // Init the mutex.
-	sm_mutex_lock(&context->rand_mutex); // Lock the master rand mutex.
+	sm_mutex_lock(&context->random.mutex); // Lock the master rand mutex.
 
-	if (context->rand_rdrand == 0xFF)
+	if (context->random.rdrand.available == 0xFF)
 	{
-		if (context->have_rdrand && context->next_rdrand)
-			context->rand_rdrand = (context->have_rdrand() != 0) ? 1 : 0; // Test for RDRAND.
-		else context->rand_rdrand = 0;
+		if (context->random.rdrand.exists && context->random.rdrand.next)
+			context->random.rdrand.available = (context->random.rdrand.exists() != 0) ? 1 : 0; // Test for RDRAND.
+		else context->random.rdrand.available = 0;
 #ifdef _DEBUG
-		fprintf(stderr, "(sm_random: have rdrand: %d)\n", context->rand_rdrand);
+		fprintf(stderr, "(sm_random: have rdrand: %d)\n", context->random.rdrand.available);
 #endif
 	}
 
-	if (context->rand_rdrand) // Have RDRAND so no further init is needed.
+	if (context->random.rdrand.available) // Have RDRAND so no further init is needed.
 	{
-		context->rand_initialized = 1; // Set init flag.
-		sm_mutex_unlock(&context->rand_mutex); // Unlock mutex.
+		context->random.initialized = 1; // Set init flag.
+		sm_mutex_unlock(&context->random.mutex); // Unlock mutex.
 
 #ifdef _DEBUG
 		fprintf(stderr, "(sm_random: initialize: leave)\n");
@@ -81,33 +79,33 @@ static void sm_random_initialize(sm_context_t* context)
 	// Do it the hard way.
 
 	uint64_t rs = UINT64_C(18446744073709551557); // Largest 64-bit prime number.
-	rs ^= sm_shuffle_64(time(NULL)); // XOR with unzipped time value.
+	rs ^= sm_shuffle_64(context->random.entropy.get_tim(NULL)); // XOR with unzipped time value.
 
 #if defined(SM_OS_WINDOWS)
-	rs ^= sm_yellow_64(GetTickCount64()); // XOR with yellow code of 64-bit tick count on Windows.
+	rs ^= sm_yellow_64(context->random.entropy.get_tik()); // XOR with yellow code of 64-bit tick count on Windows.
 #endif
 
 	struct timeval tv = { 0, 0 }; 
 
-	if (!gettimeofday(&tv, NULL)) // Get time of day.
+	if (!context->random.entropy.get_tod(&tv, NULL)) // Get time of day.
 		rs ^= sm_yellow_64(sm_shuffle_64(tv.tv_sec) ^ sm_shuffle_64(tv.tv_usec)); // XOR with yellow code of unzipped XOR of time of day parts.
 
-	rs ^= sm_unzip_64(sm_getpid()) ^ sm_shuffle_64(sm_gettid()) ^ sm_green_64(sm_getuid()) ^ sm_swap_64(sm_getunh()); // XOR with XOR of twiddled pid, tid, uid, and user name hash.
+	rs ^= sm_unzip_64(context->random.entropy.get_pid()) ^ sm_shuffle_64(context->random.entropy.get_tid()) ^ sm_green_64(context->random.entropy.get_uid()) ^ sm_swap_64(context->random.entropy.get_unh()); // XOR with XOR of twiddled pid, tid, uid, and user name hash.
 	rs = sm_yellow_64(rs); // Convert to yellow code.
 
 #ifdef _DEBUG
 	fprintf(stderr, "(sm_random: initialize: seed = 0x%" PRIX64 ")\n", rs);
 #endif
 
-	sm_master_rand_seed(context->rand_state, rs); // Actually seed the RNG.
+	sm_random_seed(context->random.state, rs); // Actually seed the RNG.
 
-	uint8_t ix, ns = 16 + ((rs ^ sm_random_next(context->rand_state) + 1) % 32); // Get a random count of times up to 16 + [0 .. 32].
+	uint8_t ix, ns = 16 + ((rs ^ sm_random_next(context->random.state) + 1) % 32); // Get a random count of times up to 16 + [0 .. 32].
 
 	for (ix = 0; ix < ns; ++ix) 
-		sm_random_next(context->rand_state); // Warm it up.
+		sm_random_next(context->random.state); // Warm it up.
 
-	context->rand_initialized = 1; // Set init flag.
-	sm_mutex_unlock(&context->rand_mutex); // Unlock random master mutex.
+	context->random.initialized = 1; // Set init flag.
+	sm_mutex_unlock(&context->random.mutex); // Unlock random master mutex.
 
 #ifdef _DEBUG
 	fprintf(stderr, "(sm_random: initialize: leave)\n");
@@ -120,7 +118,11 @@ exported uint64_t callconv sm_random(sm_t sm)
 {
 	static volatile uint8_t srand_called__ = 0;
 
-	if (!sm)
+	if (!sm) return 0;
+
+	sm_context_t* context = (sm_context_t*)sm;
+
+	if (!context->initialized)
 	{
 #ifdef _DEBUG
 		fprintf(stderr, "(sm_random: no context)\n");
@@ -128,39 +130,36 @@ exported uint64_t callconv sm_random(sm_t sm)
 		if (!srand_called__)
 		{
 			struct timeval tv = { 0, 0 };
-			uint32_t sr = (uint32_t)time(NULL);
-			if (!gettimeofday(&tv, NULL)) // Get time of day.
-				sr ^= (uint32_t)sm_yellow_64(sm_shuffle_64(tv.tv_sec) ^ sm_shuffle_64(tv.tv_usec)); // XOR with yellow code of unzipped XOR of time of day parts.
-			sr ^= (uint32_t)sm_unzip_64(sm_getpid()) ^ sm_shuffle_64(sm_gettid()) ^ sm_green_64(sm_getuid()) ^ sm_swap_64(sm_getunh()); // XOR with XOR of twiddled pid, tid, uid, and user name hash.
-			sr = (uint32_t)sm_yellow_64(sr); // Convert to yellow code.
+			uint32_t sr = (uint32_t)context->random.entropy.get_tim(NULL);
+			if (!context->random.entropy.get_tod(&tv, NULL)) // Get time of day.
+				sr ^= (uint32_t)sm_yellow_64(sm_shuffle_64(tv.tv_sec) ^ sm_shuffle_64(tv.tv_usec)); // XOR with yellow code of shuffled XOR of time of day parts.
 #ifdef _DEBUG
 			fprintf(stderr, "(sm_random: no context, seed = 0x%08X)\n", sr);
 #endif
-			srand(sr);
+			context->random.srand(sr);
 			srand_called__ = 1;
 		}
 
-		uint64_t rr = rand();
+		uint64_t rr = context->random.rand();
 		rr <<= 32;
-		return sm_yellow_64(sm_shuffle_64(rr | rand()));
+		return sm_yellow_64(sm_shuffle_64(rr | (uint64_t)context->random.rand()));
 	}
 
-	sm_context_t* context = (sm_context_t*)sm;
-	void* state = &context->rand_state[0];
+	void* state = &context->random.state[0];
 
-	sm_random_initialize(sm); // Initialize if needed.
+	sm_random_initialize(context); // Initialize if needed.
 
-	if (context->rand_rdrand == 1 && context->next_rdrand) // Have RDRAND, so just return the next value.
-		return context->next_rdrand();
+	if (context->random.rdrand.available == 1 && context->random.rdrand.next) // Have RDRAND, so just return the next value.
+		return context->random.rdrand.next();
 
 	// Do it the hard way.
 
-	sm_mutex_lock(&context->rand_mutex); // Lock the master rand mutex.
+	sm_mutex_lock(&context->random.mutex); // Lock the master rand mutex.
 
 	uint64_t rv = sm_random_next(state); // Get the next random value to return.
 
 	// Reseed indicator.
-	uint64_t rs = sm_yellow_64(sm_shuffle_64(time(NULL))) ^ sm_random_next(state); // The yellow of the shuffled time and XOR of another random value.
+	uint64_t rs = sm_yellow_64(sm_shuffle_64(context->random.entropy.get_tim(NULL))) ^ sm_random_next(state); // The yellow of the shuffled time and XOR of another random value.
 
 	if (!sm || !rs || (rs % 16) == 0) // Every zero or zero modulus 8 of rs, do a re-seed.
 	{
@@ -168,14 +167,14 @@ exported uint64_t callconv sm_random(sm_t sm)
 		fprintf(stderr, "(sm_random: re-seed: enter)\n");
 #endif
 
-		rv ^= sm_shuffle_64(clock()); // XOR with shuffled clock.
+		rv ^= sm_shuffle_64(context->random.entropy.get_clk()); // XOR with shuffled clock.
 
 #if defined(SM_OS_WINDOWS)
-		rs ^= sm_yellow_64(sm_shuffle_64(GetTickCount64())); // XOR with yellow shuffle of 64-bit tick count on Windows.
+		rs ^= sm_yellow_64(sm_shuffle_64(context->random.entropy.get_tik())); // XOR with yellow shuffle of 64-bit tick count on Windows.
 #else
 		struct timeval tv = { 0, 0 };
 
-		if (!gettimeofday(&tv, NULL)) // XOR with time of day.
+		if (!context->random.entropy.get_tod(&tv, NULL)) // XOR with time of day.
 		{
 			if ((rs ^ ~tv.tv_usec) & 1) // Mix it up a bit.
 				rv ^= sm_green_64(sm_green_64(tv.tv_sec) ^ sm_shuffle_64(tv.tv_usec));
@@ -195,7 +194,7 @@ exported uint64_t callconv sm_random(sm_t sm)
 		fprintf(stderr, "(sm_random: re-seed: seed = 0x%" PRIX64 ")\n", rs);
 #endif
 
-		sm_master_rand_seed(state, rs);
+		sm_random_seed(state, rs);
 
 		register uint8_t ix, ns = 16 + ((sm_random_next(state) + 1) % 16); // Get a count of re-warm-up steps.
 
@@ -209,7 +208,7 @@ exported uint64_t callconv sm_random(sm_t sm)
 #endif
 	}
 
-	sm_mutex_unlock(&context->rand_mutex); // Unlock random master mutex.
+	sm_mutex_unlock(&context->random.mutex); // Unlock random master mutex.
 
 	return rv;
 }
