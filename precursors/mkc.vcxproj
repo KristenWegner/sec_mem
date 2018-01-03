@@ -67,6 +67,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="crc-x86-x64-le.code" />
+    <None Include="ran-x86-x64-le.code" />
     <None Include="rdrand-x86-x64-le.code" />
     <CustomBuild Include="rdr.asm">
       <FileType>Document</FileType>

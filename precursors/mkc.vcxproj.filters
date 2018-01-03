@@ -61,5 +61,8 @@
     <None Include="rdrand-x86-x64-le.code">
       <Filter>Code Templates</Filter>
     </None>
+    <None Include="ran-x86-x64-le.code">
+      <Filter>Code Templates</Filter>
+    </None>
   </ItemGroup>
 </Project>

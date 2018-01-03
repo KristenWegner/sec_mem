@@ -8,47 +8,46 @@
 #include "../bits.h"
 
 
-#define sm_fishman_20_64_state sizeof(uint64_t)
+#define ran_a_state sizeof(uint64_t)
 
-
-// Fishman-20 64 generate next internal.
-inline static uint32_t sm_fishman_20_64_next(register void *restrict s)
+// Modified Fishman-20 64 generate next internal.
+inline static uint32_t ran_a_next(register void *restrict s)
 {
 	register uint64_t *v = s;
 	register const uint64_t x = *v;
 	register const int64_t h = x / INT64_C(0xADC8);
 	const int64_t t = INT64_C(0xBC8F) * (x - h * INT64_C(0xADC8)) - h * INT64_C(0x0D47);
-	if (t < INT64_C(0)) *v = t + INT64_C(0x7FFFFFFF);
-	else *v = t;
-	return (uint32_t)*v;
+	if (t < INT64_C(0)) *v = (uint64_t)(t + INT64_C(0x7FFFFFFF));
+	else *v = (uint64_t)t;
+	return ((uint32_t*)s)[0] ^ ((uint32_t*)s)[1];
 }
 
 
-// Fishman-20 64 generate. 
-exported uint64_t callconv sm_fishman_20_64_rand(void *restrict s)
+// Modified Fishman-20 64 generate. 
+exported uint64_t callconv ran_a_rand(void *restrict s)
 {
-	register uint64_t r;
-	register uint64_t m = sm_fishman_20_64_next(s) | UINT32_C(0x80000001);
-	r = sm_unzip_64(((uint64_t)sm_fishman_20_64_next(s)) ^ m);
-	r ^= (((uint64_t)sm_fishman_20_64_next(s)) ^ sm_shuffle_64(~m));
-	return sm_yellow_64(r);
+	register uint64_t m = ran_a_next(s) | UINT32_C(0x80000001);
+	register uint64_t r = sm_shuffle_64(((uint64_t)ran_a_next(s)) ^ m);
+	r ^= (((uint64_t)ran_a_next(s)) ^ sm_yellow_64(~m));
+	return sm_shuffle_64(r);
 }
 
 
-// Fishman-20 64 seed.
-exported void callconv sm_fishman_20_64_seed(void *restrict s, uint64_t seed)
+// Modified Fishman-20 64 seed.
+exported void callconv ran_a_seed(void *restrict s, uint64_t seed)
 {
 	uint64_t *v = s;
+	if (!seed) seed = UINT64_C(0x3FFFFFDD);
 	if ((seed % UINT64_C(0x7FFFFFFFFFFFFFFF)) == UINT64_C(0)) seed = UINT64_C(1);
 	*v = sm_yellow_64(seed & UINT64_C(0x7FFFFFFFFFFFFFFF));
 }
 
 
-#define sm_gfsr4_64_state (sizeof(int32_t) + (sizeof(uint32_t) * 0x4000))
+#define ran_b_state (sizeof(int32_t) + (sizeof(uint32_t) * 0x4000))
 
 
-// GFSR4 64 next  internal.
-inline static uint32_t sm_gfsr4_64_next(register void *restrict s)
+// Modified GFSR4 64 next internal.
+inline static uint32_t ran_b_next(register void *restrict s)
 {
 	register int32_t *n = s;
 	register uint32_t *a = (uint32_t*)&n[1];
@@ -65,19 +64,19 @@ inline static uint32_t sm_gfsr4_64_next(register void *restrict s)
 }
 
 
-// GFSR4 64 generate.
-exported uint64_t callconv sm_gfsr4_64_rand(register void *restrict s)
+// Modified GFSR4 64 generate.
+exported uint64_t callconv ran_b_rand(register void *restrict s)
 {
 	register union { uint32_t d[2]; uint64_t q; } r;
-	register uint32_t m = sm_gfsr4_64_next(s);
-	r.d[0] = sm_gfsr4_64_next(s) ^ m;
-	r.d[1] = sm_gfsr4_64_next(s) ^ (uint32_t)sm_shuffle_64(~m);
-	return sm_yellow_64(r.q);
+	register uint64_t m = ran_b_next(s);
+	r.d[0] = (uint32_t)(ran_b_next(s) ^ m);
+	r.d[1] = (uint32_t)(ran_b_next(s) ^ sm_yellow_64(~m));
+	return sm_shuffle_64(r.q);
 }
 
 
-// GFSR4 64 seed.
-exported void callconv sm_gfsr4_64_seed(register void *restrict s, uint64_t seed)
+// Modified GFSR4 64 seed.
+exported void callconv ran_b_seed(register void *restrict s, uint64_t seed)
 {
 	register int32_t i, j, k, *n = s;
 	register uint32_t t, b, m = UINT32_C(0x80000000), v = UINT32_C(0xFFFFFFFF);
@@ -114,11 +113,11 @@ exported void callconv sm_gfsr4_64_seed(register void *restrict s, uint64_t seed
 }
 
 
-#define sm_mersenne_64_state (sizeof(int32_t) + (sizeof(uint64_t) * 0x0138))
+#define ran_c_state (sizeof(int32_t) + (sizeof(uint64_t) * 0x0138))
 
 
 // Mersenne Twister 19937 64 seed.
-exported void callconv sm_mersenne_64_seed(register void *restrict s, uint64_t seed)
+exported void callconv ran_c_seed(register void *restrict s, uint64_t seed)
 {
 	register int32_t *i = s, j;
 	register uint64_t *m = (uint64_t*)&i[1];
@@ -133,7 +132,7 @@ exported void callconv sm_mersenne_64_seed(register void *restrict s, uint64_t s
 
 
 // Mersenne Twister 19937 64 generate.
-exported uint64_t callconv sm_mersenne_64_rand(register void *restrict s)
+exported uint64_t callconv ran_c_rand(register void *restrict s)
 {
 	const uint64_t mag[2] = { UINT64_C(0), UINT64_C(0xB5026F5AA96619E9) };
 	register int32_t *i = s, j;
@@ -142,7 +141,7 @@ exported uint64_t callconv sm_mersenne_64_rand(register void *restrict s)
 	if (*i >= INT32_C(0x0138)) 
 	{
 		if (*i == INT32_C(0x0139))
-			sm_mersenne_64_seed(s, UINT64_C(0x1571));
+			ran_c_seed(s, UINT64_C(0x1571));
 
 		for (j = 0; j < INT32_C(0x9C); ++j) 
 		{
@@ -171,25 +170,49 @@ exported uint64_t callconv sm_mersenne_64_rand(register void *restrict s)
 	x ^= (x << 37) & UINT64_C(0xFFF7EEE000000000);
 	x ^= (x >> 43);
 
-	*i = *i + INT32_C(1);
+	*i++;
 
 	return x;
 }
 
 
-#define sm_splitmix_64_state sizeof(uint64_t)
+#define ran_d_state sizeof(uint64_t)
 
 
-// Split Mix 64 seed.
-exported void callconv sm_splitmix_64_seed(void *restrict s, uint64_t seed)
+// Split Mix 64 extended seed.
+exported void callconv ran_d_seed(void *restrict s, uint64_t seed)
 {
-	uint64_t* v = (uint64_t*)s;
+	register uint16_t i, n;
+	register uint64_t z;
+	register uint64_t* v = (uint64_t*)s;
+
+	if (!seed) 
+		seed = UINT64_C(0x3FFFFFDD); // Prevent zero seed.
+
 	*v = seed;
+
+	// The following deviates from the usual Split Mix 64 seeding.
+
+	n = (uint16_t)sm_yellow_64(sm_rotl_64(sm_shuffle_64(~seed), (1 + seed) % 17));
+	if (n) n = n % 33;
+	n += 11;
+
+	for (i = 0; i < n; ++i)
+	{
+		*v += UINT64_C(0x9E3779B97F4A7C15);
+
+		z = *v;
+		z = (z ^ (z >> 30)) * UINT64_C(0xBF58476D1CE4E5B9);
+		z = (z ^ (z >> 27)) * UINT64_C(0x94D049BB133111EB);
+
+		if (i & 1 && z) *v ^= sm_rotr_64(z, 1 + (z % (i + 2)));
+		else *v ^= sm_rotl_64(z, i + 1);
+	}
 }
 
 
 // Split Mix 64 generate.
-exported uint64_t callconv sm_splitmix_64_rand(void *restrict s) 
+exported uint64_t callconv ran_d_rand(void *restrict s)
 {
 	uint64_t *v = (uint64_t*)s;
 	*v += UINT64_C(0x9E3779B97F4A7C15);
@@ -200,29 +223,26 @@ exported uint64_t callconv sm_splitmix_64_rand(void *restrict s)
 }
 
 
-#define sm_xoroshiro_128_64_state (sizeof(uint64_t) * 2)
-
-
 // Xoroshiro128+ 64 rotate left internal.
-inline static uint64_t sm_xoroshiro_128_64_rotl(register const uint64_t x, register int32_t k)
+inline static uint64_t ran_e_rotl(register const uint64_t x, register int32_t k)
 {
 	return (x << k) | (x >> ((64 - k) & 63));
 }
 
 
 // Xoroshiro128+ 64 step internal.
-inline static void sm_xoroshiro_128_64_step(uint64_t *restrict s)
+inline static void ran_e_step(uint64_t *restrict s)
 {
 	const uint64_t s0 = s[0];
 	uint64_t s1 = s[1];
 	s1 ^= s0;
-	s[0] = sm_xoroshiro_128_64_rotl(s0, INT32_C(0x37)) ^ s1 ^ (s1 << 14);
-	s[1] = sm_xoroshiro_128_64_rotl(s1, INT32_C(0x24));
+	s[0] = ran_e_rotl(s0, INT32_C(0x37)) ^ s1 ^ (s1 << 14);
+	s[1] = ran_e_rotl(s1, INT32_C(0x24));
 }
 
 
 // Xoroshiro128+ 64 jump internal.
-inline static void sm_xoroshiro_128_64_jump(register uint64_t *restrict s) 
+inline static void ran_e_jump(register uint64_t *restrict s)
 {
 	register uint64_t s0 = UINT64_C(0);
 	register uint64_t s1 = UINT64_C(0);
@@ -232,14 +252,14 @@ inline static void sm_xoroshiro_128_64_jump(register uint64_t *restrict s)
 	{
 		if (UINT64_C(0xBEAC0467EBA5FACB) & UINT64_C(1) << b) 
 			s0 ^= s[0], s1 ^= s[1];
-		sm_xoroshiro_128_64_step(s);
+		ran_e_step(s);
 	}
 
 	for (b = UINT8_C(0); b < UINT8_C(0x40); ++b)
 	{
 		if (UINT64_C(0xD86B048B86AA9922) & UINT64_C(1) << b) 
 			s0 ^= s[0], s1 ^= s[1];
-		sm_xoroshiro_128_64_step(s);
+		ran_e_step(s);
 	}
 
 	s[0] = s0;
@@ -247,23 +267,23 @@ inline static void sm_xoroshiro_128_64_jump(register uint64_t *restrict s)
 }
 
 
-#define sm_xoroshiro_128_64_state (sizeof(uint64_t) * 2)
+#define ran_e_state (sizeof(uint64_t) * 2)
 
 
 // Xoroshiro128+ 64 seed.
-exported void callconv sm_xoroshiro_128_64_seed(void *restrict s, uint64_t seed) 
+exported void callconv ran_e_seed(void *restrict s, uint64_t seed)
 {
 	register uint64_t *v = (uint64_t*)s;
 
 	v[0] = (seed ^ (seed >> 30)) * UINT64_C(0xBF58476D1CE4E5B9);
 	v[1] = (seed ^ (seed >> 27)) * UINT64_C(0x94D049BB133111EB);
 
-	sm_xoroshiro_128_64_jump(v);
+	ran_e_jump(v);
 }
 
 
 // Xoroshiro128+ 64 generate.
-exported uint64_t callconv sm_xoroshiro_128_64_rand(void *state) 
+exported uint64_t callconv ran_e_rand(void *state)
 {
 	register uint64_t *s = (uint64_t*)state;
 
@@ -273,18 +293,18 @@ exported uint64_t callconv sm_xoroshiro_128_64_rand(void *state)
 
 	s1 ^= s0;
 
-	s[0] = sm_xoroshiro_128_64_rotl(s0, INT32_C(0x37)) ^ s1 ^ (s1 << 14);
-	s[1] = sm_xoroshiro_128_64_rotl(s1, INT32_C(0x24));
+	s[0] = ran_e_rotl(s0, INT32_C(0x37)) ^ s1 ^ (s1 << 14);
+	s[1] = ran_e_rotl(s1, INT32_C(0x24));
 
 	return r;
 }
 
 
-#define sm_xorshift_1024_64_state (sizeof(int32_t) + (sizeof(uint64_t) * 16))
+#define ran_f_state (sizeof(int32_t) + (sizeof(uint64_t) * 16))
 
 
 // XorShift1024* 64 generate.
-exported uint64_t callconv sm_xorshift_1024_64_rand(void *restrict s) 
+exported uint64_t callconv ran_f_rand(void *restrict s)
 {
 	register int32_t *p = s;
 	register uint64_t *v = (uint64_t*)&p[1];
@@ -297,7 +317,7 @@ exported uint64_t callconv sm_xorshift_1024_64_rand(void *restrict s)
 
 
 // XorShift1024* 64 seed.
-exported void callconv sm_xorshift_1024_64_seed(void *restrict s, uint64_t seed)
+exported void callconv ran_f_seed(void *restrict s, uint64_t seed)
 {
 	register int32_t* p = s;
 	register uint64_t* v = (uint64_t*)&p[1];
@@ -316,11 +336,11 @@ exported void callconv sm_xorshift_1024_64_seed(void *restrict s, uint64_t seed)
 }
 
 
-#define sm_mpcg_64_state (sizeof(uint64) * 2)
+#define ran_g_state (sizeof(uint64_t) * 2)
 
 
 // Modified PCG 64 next.
-inline static uint64_t sm_mpcg_64_next(void *restrict s)
+inline static uint64_t ran_g_next(void *restrict s)
 {
 	uint64_t* rs = (uint64_t*)s;
 	uint64_t o = rs[0];
@@ -333,21 +353,21 @@ inline static uint64_t sm_mpcg_64_next(void *restrict s)
 
 
 // Modified PCG 64 seed.
-exported void callconv sm_mpcg_64_seed(void *restrict s, uint64_t seed)
+exported void callconv ran_g_seed(void *restrict s, uint64_t seed)
 {
 	uint64_t* rs = (uint64_t*)s;
 	rs[0] = sm_yellow_64(seed ^ UINT64_C(0x853C49E6748FEA9B));
 	rs[1] = sm_shuffle_64(~seed) << 1 | UINT64_C(1);
-	sm_mpcg_64_next(s);
+	ran_g_next(s);
 	rs[0] += seed;
-	sm_mpcg_64_next(s);
+	ran_g_next(s);
 }
 
 
 // Modified PCG 64 generate.
-exported uint64_t callconv sm_mpcg_64_rand(void *restrict s)
+exported uint64_t callconv ran_g_rand(void *restrict s)
 {
-	return (sm_mpcg_64_next(s) ^ sm_shuffle_64(sm_mpcg_64_next(s)));
+	return (ran_g_next(s) ^ sm_shuffle_64(ran_g_next(s)));
 }
 
 
