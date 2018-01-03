@@ -47,9 +47,6 @@
     <ClCompile Include="transcode.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="hash_table.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="sm.c">
       <Filter>Source Files</Filter>
     </ClCompile>

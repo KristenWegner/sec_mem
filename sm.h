@@ -8,6 +8,22 @@
 #define INCLUDE_SM_H 1
 
 
+// Types
+
+
+// Context type.
+typedef void* sm_t;
+
+// Error code type for sm_err_f.
+typedef uint16_t sm_error_t;
+
+// Opcode type for sm_op.
+typedef uint16_t sm_opcode_t;
+
+// Reference type. Returned by sm_get_entity.
+typedef uint64_t sm_ref_t;
+
+
 // Function Types
 
 
@@ -38,20 +54,11 @@ typedef uint64_t (*sm_hsh64_f)(const void*, size_t);
 // 32-bit hash bytes.
 typedef uint32_t (*sm_hsh32_f)(const void*, size_t);
 
-// Error code type for sm_err_f.
-typedef uint16_t sm_error_t;
-
 // Error callback function type. Receives an error code - see: SM_ERR_*.
-typedef void (*sm_err_f)(sm_error_t);
+typedef void (*sm_err_f)(sm_t sm, sm_error_t);
 
-// Opcode type for sm_op.
-typedef uint16_t sm_opcode_t; 
-
-// Reference type. Returned by sm_op.
-typedef uint64_t sm_ref_t;
-
-// Context type.
-typedef void* sm_t;
+// Mutex operational function.
+typedef uint8_t (*sm_mutex_f)(sm_mutex_t*);
 
 
 // Methods
@@ -107,9 +114,9 @@ extern sm_ref_t callconv sm_get_entity(sm_t* sm, uint16_t op);
 
 
 // Add additional opcodes declarations here.
-#include "precursors/rdrnd_op_decl.h"
-#include "precursors/crc_op_decl.h"
-
+#include "precursors/rdr_decl.h"
+#include "precursors/crc_decl.h"
+#include "precursors/ran_decl.h"
 
 #endif // INCLUDE_SM_H
 

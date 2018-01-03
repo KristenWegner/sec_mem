@@ -11,28 +11,27 @@
 #include <limits.h>
 
 #include "sm.h"
+#include "sm_internal.h"
 #include "hash_table.h"
-#include "mutex.h"
-#include "allocator.h"
-
-
-extern uint64_t callconv sm_random();
 
 
 // Methods
 
 
-sm_rc sec_hash_table_create(sm_allocator_internal_t allocator, sm_hash_table_t** object, size_t size, sec_hash_table_hasher hasher)
+exported sm_rc callconv sm_hash_table_create(sm_t sm, sm_hash_table_t** object, size_t size, sm_hash_table_hasher hasher)
 {
 	sm_rc rc;
 	sm_hash_table_t* temp;
 
-	if (object == NULL) return SM_RC_OBJECT_NULL;
-	if (hasher == NULL) return SM_RC_ARGUMENT_NULL;
+	if (!sm) return SM_RC_OBJECT_NULL;
+	if (!object) return SM_RC_OBJECT_NULL;
+	if (!hasher) return SM_RC_ARGUMENT_NULL;
 
 	*object = NULL;
 
-	temp = (sm_hash_table_t*)sm_space_allocate(allocator, sizeof(sm_hash_table_t));
+	sm_context_t* context = (sm_context_t*)sm;
+
+	temp = (sm_hash_table_t*)context->memory.allocate(context->memory.allocator, sizeof(sm_hash_table_t));
 
 	if (temp == NULL) return SM_RC_ALLOCATION_FAILED;
 
@@ -40,17 +39,20 @@ sm_rc sec_hash_table_create(sm_allocator_internal_t allocator, sm_hash_table_t**
 	register size_t n = sizeof(sm_hash_table_t);
 	while (n-- > 0U) *p++ = 0;
 
-	temp->allocator = allocator;
+	temp->size = sizeof(sm_hash_table_t);
+	temp->initialized = 1;
+	temp->crc = 0;
+	temp->context = context;
 	temp->hasher = hasher;
-	temp->size = size;
+	temp->key = size;
 
-	if (!sm_mutex_create(&temp->mutex))
+	if (!context->synchronization.create(&temp->mutex))
 	{
 		p = (uint8_t*)temp;
 		n = sizeof(sm_hash_table_t);
-		while (n-- > 0U) *p++ = (uint8_t)sm_random(NULL);
+		while (n-- > 0U) *p++ = (uint8_t)context->random.method(context);
 
-		sm_space_free(allocator, temp);
+		context->memory.release(context->memory.allocator, temp);
 
 		return SM_RC_ALLOCATION_FAILED;
 	}
@@ -61,7 +63,7 @@ sm_rc sec_hash_table_create(sm_allocator_internal_t allocator, sm_hash_table_t**
 }
 
 
-sm_rc sec_hash_table_destroy(sm_hash_table_t** object)
+exported sm_rc callconv sm_hash_table_destroy(sm_hash_table_t** object)
 {
 	sm_hash_table_t* temp;
 
@@ -69,45 +71,48 @@ sm_rc sec_hash_table_destroy(sm_hash_table_t** object)
 
 	temp = *object;
 
-	if (!sm_mutex_lock(&temp->mutex)) return SM_RC_OPERATION_BLOCKED;
+	sm_context_t* context = temp->context;
+
+	if (!context->synchronization.enter(&temp->mutex)) 
+		return SM_RC_OPERATION_BLOCKED;
 
 	*object = NULL;
 
-	sm_allocator_internal_t allocator = temp->allocator;
-
-	sm_space_free(allocator, temp->keys);
+	context->memory.release(context->memory.allocator, temp->keys);
 	temp->keys = NULL;
 
-	sm_space_free(allocator, temp->flags);
+	context->memory.release(context->memory.allocator, temp->flags);
 	temp->flags = NULL;
 
-	sm_space_free(allocator, temp->values);
+	context->memory.release(context->memory.allocator, temp->values);
 	temp->values = NULL;
 
-	sm_mutex_unlock(&temp->mutex);
-	sm_mutex_destroy(&temp->mutex);
+	context->synchronization.leave(&temp->mutex);
+	context->synchronization.destroy(&temp->mutex);
 
 	register uint8_t* p = (uint8_t*)temp;
 	register size_t n = sizeof(sm_hash_table_t);
-	while (n-- > 0U) *p++ = (uint8_t)sm_random(NULL);
+	while (n-- > 0U) *p++ = (uint8_t)context->random.method(context);
 
-	sm_space_free(allocator, temp);
+	context->memory.release(context->memory.allocator, temp);
 
 	return SM_RC_NO_ERROR;
 }
 
 
-sm_rc sec_hash_table_clear(sm_hash_table_t *restrict object)
+exported sm_rc callconv sm_hash_table_clear(sm_hash_table_t *restrict object)
 {
 	uint64_t buckets;
 
 	if (object == NULL) return SM_RC_OBJECT_NULL;
 
-	if (!sm_mutex_lock(&object->mutex)) return SM_RC_OPERATION_BLOCKED;
+	sm_context_t* context = object->context;
+
+	if (!context->synchronization.enter(&object->mutex)) return SM_RC_OPERATION_BLOCKED;
 
 	if (object->flags == NULL)
 	{
-		sm_mutex_unlock(&object->mutex);
+		context->synchronization.leave(&object->mutex);
 
 		return SM_RC_INTERNAL_REFERENCE_NULL;
 	}
@@ -120,13 +125,13 @@ sm_rc sec_hash_table_clear(sm_hash_table_t *restrict object)
 
 	object->count = object->occupied = 0;
 	
-	sm_mutex_unlock(&object->mutex);
+	context->synchronization.leave(&object->mutex);
 
 	return SM_RC_NO_ERROR;
 }
 
 
-sm_rc sec_hash_table_find(sm_hash_table_t *restrict object, void* key, sec_hash_table_iterator* result)
+inline static sm_rc sm_hash_table_find__(sm_hash_table_t *restrict object, void* key, sm_hash_table_iterator* result)
 {
 	uint64_t k, i, last, mask, step = 0;
 
@@ -135,13 +140,15 @@ sm_rc sec_hash_table_find(sm_hash_table_t *restrict object, void* key, sec_hash_
 
 	*result = 0;
 
-	if (!sm_mutex_lock(&object->mutex)) return SM_RC_OPERATION_BLOCKED;
+	sm_context_t* context = object->context;
+
+	if (!context->synchronization.enter(&object->mutex)) return SM_RC_OPERATION_BLOCKED;
 
 	if (object->buckets)
 	{
 		mask = object->buckets - 1;
 
-		k = object->hasher(key, object->size);
+		k = object->hasher(key, object->key);
 
 		i = k & mask;
 		last = i;
@@ -154,7 +161,7 @@ sm_rc sec_hash_table_find(sm_hash_table_t *restrict object, void* key, sec_hash_
 			{
 				*result = object->buckets;
 
-				sm_mutex_unlock(&object->mutex);
+				context->synchronization.leave(&object->mutex);
 
 				return SM_RC_NO_ERROR;
 			}
@@ -162,74 +169,164 @@ sm_rc sec_hash_table_find(sm_hash_table_t *restrict object, void* key, sec_hash_
 
 		*result = ((object->flags[i >> 4ULL] >> ((i & 15ULL) << 1ULL)) & 3ULL) ? object->buckets : i;
 
-		sm_mutex_unlock(&object->mutex);
+		context->synchronization.leave(&object->mutex);
 
 		return SM_RC_NO_ERROR;
 	}
-	
-	sm_mutex_unlock(&object->mutex);
+
+	context->synchronization.leave(&object->mutex);
 
 	return SM_RC_NOT_FOUND;
 }
 
 
-static bool sec_hash_table_resize__(sm_hash_table_t *restrict object, uint64_t buckets);
+exported sm_rc callconv sm_hash_table_find(sm_hash_table_t *restrict object, void* key, sm_hash_table_iterator* result)
+{
+	uint64_t k, i, last, mask, step = 0;
+
+	if (object == NULL) return SM_RC_OBJECT_NULL;
+	if (result == NULL) return SM_RC_ARGUMENT_NULL;
+
+	*result = 0;
+
+	sm_context_t* context = object->context;
+
+	if (!context->synchronization.enter(&object->mutex)) return SM_RC_OPERATION_BLOCKED;
+
+	if (object->buckets)
+	{
+		mask = object->buckets - 1;
+
+		k = object->hasher(key, object->key);
+
+		i = k & mask;
+		last = i;
+
+		while (!((object->flags[i >> 4ULL] >> ((i & 15ULL) << 1ULL)) & 2ULL) && (((object->flags[i >> 4ULL] >> ((i & 15ULL) << 1ULL)) & 1ULL) || (object->keys[i] != key)))
+		{
+			i = (i + (++step)) & mask;
+
+			if (i == last)
+			{
+				*result = object->buckets;
+
+				context->synchronization.leave(&object->mutex);
+
+				return SM_RC_NO_ERROR;
+			}
+		}
+
+		*result = ((object->flags[i >> 4ULL] >> ((i & 15ULL) << 1ULL)) & 3ULL) ? object->buckets : i;
+
+		context->synchronization.leave(&object->mutex);
+
+		return SM_RC_NO_ERROR;
+	}
+	
+	context->synchronization.leave(&object->mutex);
+
+	return SM_RC_NOT_FOUND;
+}
 
 
-sm_rc sec_hash_table_resize(sm_hash_table_t *restrict object, uint64_t buckets)
+inline static bool sm_hash_table_resize__(sm_hash_table_t *restrict object, uint64_t buckets);
+
+
+exported sm_rc callconv sm_hash_table_resize(sm_hash_table_t *restrict object, uint64_t buckets)
 {
 	if (object == NULL) return SM_RC_OBJECT_NULL;
 
-	if (!sm_mutex_lock(&object->mutex)) return SM_RC_OPERATION_BLOCKED;
+	sm_context_t* context = object->context;
 
-	if (!sec_hash_table_resize__(object, buckets))
+	if (!context->synchronization.enter(&object->mutex)) return SM_RC_OPERATION_BLOCKED;
+
+	if (!sm_hash_table_resize__(object, buckets))
 	{
-		sm_mutex_unlock(&object->mutex);
+		context->synchronization.leave(&object->mutex);
 
 		return SM_RC_ALLOCATION_FAILED;
 	}
 
-	sm_mutex_unlock(&object->mutex);
+	context->synchronization.leave(&object->mutex);
 
 	return SM_RC_NO_ERROR;
 }
 
 
-sm_rc sec_hash_table_contains(sm_hash_table_t *restrict object, void* key, bool* result)
+inline static sm_rc sm_hash_table_find__(sm_hash_table_t *restrict object, void* key, sm_hash_table_iterator* result);
+inline static sm_rc sm_hash_table_insert__(sm_hash_table_t *restrict object, void* key, void* value, sm_hash_table_iterator* result);
+inline static sm_rc sm_hash_table_get_value__(sm_hash_table_t *restrict object, sm_hash_table_iterator iterator, void** result);
+
+inline static sm_rc sm_hash_table_exists_at__(sm_hash_table_t *restrict object, sm_hash_table_iterator iterator, bool* result)
+{
+	if (object == NULL) return SM_RC_OBJECT_NULL;
+	if (result == NULL) return SM_RC_ARGUMENT_NULL;
+
+	*result = false;
+
+	sm_context_t* context = object->context;
+
+	if (!context->synchronization.enter(&object->mutex)) return SM_RC_OPERATION_BLOCKED;
+
+	*result = !((object->flags[iterator >> 4ULL] >> ((iterator & 0xFULL) << 1ULL)) & 3ULL);
+
+	context->synchronization.leave(&object->mutex);
+
+	return SM_RC_NO_ERROR;
+}
+
+exported sm_rc callconv sm_hash_table_contains(sm_hash_table_t *restrict object, void* key, bool* result)
 {
 	sm_rc rc;
-	sec_hash_table_iterator it = 0;
-	if ((rc = sec_hash_table_find(object, key, &it)) != SM_RC_NO_ERROR) return rc;
-	return sec_hash_table_exists_at(object, it, result);
+	sm_hash_table_iterator it = 0;
+	if ((rc = sm_hash_table_find__(object, key, &it)) != SM_RC_NO_ERROR) return rc;
+	return sm_hash_table_exists_at__(object, it, result);
 }
 
 
-sm_rc sec_hash_table_set(sm_hash_table_t *restrict object, void* key, void* value)
+exported sm_rc callconv sm_hash_table_set(sm_hash_table_t *restrict object, void* key, void* value)
 {
-	sec_hash_table_iterator it = 0;
-	return sec_hash_table_insert(object, key, value, &it);
+	sm_hash_table_iterator it = 0;
+	return sm_hash_table_insert__(object, key, value, &it);
 }
 
 
-sm_rc sec_hash_table_get(sm_hash_table_t *restrict object, void* key, void** result)
-{
-	sm_rc rc;
-	sec_hash_table_iterator it = 0;
-	if ((rc = sec_hash_table_find(object, key, &it)) != SM_RC_NO_ERROR) return rc;
-	return sec_hash_table_get_value(object, it, result);
-}
-
-
-sm_rc sec_hash_table_remove(sm_hash_table_t *restrict object, void* key)
+exported sm_rc callconv sm_hash_table_get(sm_hash_table_t *restrict object, void* key, void** result)
 {
 	sm_rc rc;
-	sec_hash_table_iterator it = 0;
-	if ((rc = sec_hash_table_find(object, key, &it)) != SM_RC_NO_ERROR) return rc;
-	return sec_hash_table_remove_at(object, it);
+	sm_hash_table_iterator it = 0;
+	if ((rc = sm_hash_table_find__(object, key, &it)) != SM_RC_NO_ERROR) return rc;
+	return sm_hash_table_get_value__(object, it, result);
 }
 
 
-sm_rc sec_hash_table_insert(sm_hash_table_t *restrict object, void* key, void* value, sec_hash_table_iterator* result)
+inline static sm_rc sm_hash_table_get_value__(sm_hash_table_t *restrict object, sm_hash_table_iterator iterator, void** result)
+{
+	if (object == NULL) return SM_RC_OBJECT_NULL;
+	if (result == NULL) return SM_RC_ARGUMENT_NULL;
+
+	*result = NULL;
+
+	sm_context_t* context = object->context;
+
+	if (!context->synchronization.enter(&object->mutex)) return SM_RC_OPERATION_BLOCKED;
+
+	if (object->keys == NULL || object->values == NULL)
+	{
+		context->synchronization.leave(&object->mutex);
+
+		return SM_RC_INTERNAL_REFERENCE_NULL;
+	}
+
+	*result = object->values[iterator];
+
+	context->synchronization.leave(&object->mutex);
+
+	return SM_RC_NO_ERROR;
+}
+
+
+inline static sm_rc sm_hash_table_insert__(sm_hash_table_t *restrict object, void* key, void* value, sm_hash_table_iterator* result)
 {
 	sm_rc rc;
 	uint64_t x, k, i, site, last, mask, step;
@@ -239,26 +336,28 @@ sm_rc sec_hash_table_insert(sm_hash_table_t *restrict object, void* key, void* v
 
 	*result = 0;
 
-	if (!sm_mutex_lock(&object->mutex)) return SM_RC_OPERATION_BLOCKED;
+	sm_context_t* context = object->context;
+
+	if (!context->synchronization.enter(&object->mutex)) return SM_RC_OPERATION_BLOCKED;
 
 	if (object->occupied >= object->upper)
 	{
 		if (object->buckets > (object->count << 1)) // Update.
 		{
-			if (!sec_hash_table_resize__(object, object->buckets - 1))
+			if (!sm_hash_table_resize__(object, object->buckets - 1))
 			{
 				*result = object->buckets;
 
-				sm_mutex_unlock(&object->mutex);
+				context->synchronization.leave(&object->mutex);
 
 				return SM_RC_ALLOCATION_FAILED;
 			}
 		}
-		else if (!sec_hash_table_resize__(object, object->buckets + 1)) // Expand.
+		else if (!sm_hash_table_resize__(object, object->buckets + 1)) // Expand.
 		{
 			*result = object->buckets;
 
-			sm_mutex_unlock(&object->mutex);
+			context->synchronization.leave(&object->mutex);
 
 			return SM_RC_ALLOCATION_FAILED;
 		}
@@ -267,7 +366,139 @@ sm_rc sec_hash_table_insert(sm_hash_table_t *restrict object, void* key, void* v
 	step = 0;
 	mask = object->buckets - 1;
 	x = site = object->buckets;
-	k = object->hasher(key, object->size);
+	k = object->hasher(key, object->key);
+	i = k & mask;
+
+	if (((object->flags[i >> 4ULL] >> ((i & 15ULL) << 1ULL)) & 2ULL))
+		x = i;
+	else
+	{
+		last = i;
+
+		while (!((object->flags[i >> 4ULL] >> ((i & 15ULL) << 1ULL)) & 2ULL) && (((object->flags[i >> 4ULL] >> ((i & 15ULL) << 1ULL)) & 1ULL) || (object->keys[i] != key)))
+		{
+			if (((object->flags[i >> 4ULL] >> ((i & 15ULL) << 1ULL)) & 1ULL))
+				site = i;
+
+			i = (i + (++step)) & mask;
+
+			if (i == last)
+			{
+				x = site;
+
+				break;
+			}
+		}
+		if (x == object->buckets)
+		{
+			if (((object->flags[i >> 4ULL] >> ((i & 15ULL) << 1ULL)) & 2ULL) && site != object->buckets)
+				x = site;
+			else x = i;
+		}
+	}
+
+	if (((object->flags[x >> 4ULL] >> ((x & 15ULL) << 1ULL)) & 2ULL)) // Not present.
+	{
+		object->keys[x] = key;
+		object->values[x] = value;
+		object->flags[x >> 4ULL] &= ~(3ULL << ((x & 15ULL) << 1ULL));
+		object->count++;
+		object->occupied++;
+
+		rc = SM_RC_NO_ERROR;
+	}
+	else if (((object->flags[x >> 4ULL] >> ((x & 15ULL) << 1ULL)) & 1ULL)) // Deleted.
+	{
+		object->keys[x] = key;
+		object->values[x] = value;
+		object->flags[x >> 4ULL] &= ~(3ULL << ((x & 15ULL) << 1ULL));
+		object->count++;
+
+		rc = SM_RC_NO_ERROR;
+	}
+	else rc = SM_RC_NO_ERROR;
+
+	*result = x;
+
+	context->synchronization.leave(&object->mutex);
+
+	return rc;
+}
+
+
+inline static sm_rc sm_hash_table_remove_at__(sm_hash_table_t *restrict object, sm_hash_table_iterator iterator);
+
+
+exported sm_rc callconv sm_hash_table_remove(sm_hash_table_t *restrict object, void* key)
+{
+	sm_rc rc;
+	sm_hash_table_iterator it = 0;
+	if ((rc = sm_hash_table_find__(object, key, &it)) != SM_RC_NO_ERROR) return rc;
+	return sm_hash_table_remove_at__(object, it);
+}
+
+
+inline static sm_rc sm_hash_table_remove_at__(sm_hash_table_t *restrict object, sm_hash_table_iterator iterator)
+{
+	if (object == NULL) return SM_RC_OBJECT_NULL;
+
+	sm_context_t* context = object->context;
+
+	if (!context->synchronization.enter(&object->mutex)) return SM_RC_OPERATION_BLOCKED;
+
+	if (iterator != object->buckets && !((object->flags[iterator >> 4ULL] >> ((iterator & 15ULL) << 1ULL)) & 3ULL))
+	{
+		object->flags[iterator >> 4ULL] |= 1ULL << ((iterator & 15ULL) << 1ULL);
+		object->count--;
+	}
+
+	context->synchronization.leave(&object->mutex);
+
+	return SM_RC_NO_ERROR;
+}
+
+
+exported sm_rc callconv sm_hash_table_insert(sm_hash_table_t *restrict object, void* key, void* value, sm_hash_table_iterator* result)
+{
+	sm_rc rc;
+	uint64_t x, k, i, site, last, mask, step;
+
+	if (object == NULL) return SM_RC_OBJECT_NULL;
+	if (key == NULL || result == NULL) return SM_RC_ARGUMENT_NULL;
+
+	*result = 0;
+
+	sm_context_t* context = object->context;
+
+	if (!context->synchronization.enter(&object->mutex)) return SM_RC_OPERATION_BLOCKED;
+
+	if (object->occupied >= object->upper)
+	{
+		if (object->buckets > (object->count << 1)) // Update.
+		{
+			if (!sm_hash_table_resize__(object, object->buckets - 1))
+			{
+				*result = object->buckets;
+
+				context->synchronization.leave(&object->mutex);
+
+				return SM_RC_ALLOCATION_FAILED;
+			}
+		}
+		else if (!sm_hash_table_resize__(object, object->buckets + 1)) // Expand.
+		{
+			*result = object->buckets;
+
+			context->synchronization.leave(&object->mutex);
+
+			return SM_RC_ALLOCATION_FAILED;
+		}
+	}
+
+	step = 0;
+	mask = object->buckets - 1;
+	x = site = object->buckets;
+	k = object->hasher(key, object->key);
 	i = k & mask;
 
 	if (((object->flags[i >> 4ULL] >> ((i & 15ULL) << 1ULL)) & 2ULL))
@@ -321,17 +552,19 @@ sm_rc sec_hash_table_insert(sm_hash_table_t *restrict object, void* key, void* v
 
 	*result = x;
 
-	sm_mutex_unlock(&object->mutex);
+	context->synchronization.leave(&object->mutex);
 
 	return rc;
 }
 
 
-sm_rc sec_hash_table_remove_at(sm_hash_table_t *restrict object, sec_hash_table_iterator iterator)
+exported sm_rc callconv sm_hash_table_remove_at(sm_hash_table_t *restrict object, sm_hash_table_iterator iterator)
 {
 	if (object == NULL) return SM_RC_OBJECT_NULL;
 
-	if (!sm_mutex_lock(&object->mutex)) return SM_RC_OPERATION_BLOCKED;
+	sm_context_t* context = object->context;
+
+	if (!context->synchronization.enter(&object->mutex)) return SM_RC_OPERATION_BLOCKED;
 
 	if (iterator != object->buckets && !((object->flags[iterator >> 4ULL] >> ((iterator & 15ULL) << 1ULL)) & 3ULL))
 	{
@@ -339,161 +572,178 @@ sm_rc sec_hash_table_remove_at(sm_hash_table_t *restrict object, sec_hash_table_
 		object->count--;
 	}
 
-	sm_mutex_unlock(&object->mutex);
+	context->synchronization.leave(&object->mutex);
 
 	return SM_RC_NO_ERROR;
 }
 
 
-sm_rc sec_hash_table_exists_at(sm_hash_table_t *restrict object, sec_hash_table_iterator iterator, bool* result)
+exported sm_rc callconv sm_hash_table_exists_at(sm_hash_table_t *restrict object, sm_hash_table_iterator iterator, bool* result)
 {
 	if (object == NULL) return SM_RC_OBJECT_NULL;
 	if (result == NULL) return SM_RC_ARGUMENT_NULL;
 
 	*result = false;
 
-	if (!sm_mutex_lock(&object->mutex)) return SM_RC_OPERATION_BLOCKED;
+	sm_context_t* context = object->context;
+
+	if (!context->synchronization.enter(&object->mutex)) return SM_RC_OPERATION_BLOCKED;
 
 	*result = !((object->flags[iterator >> 4ULL] >> ((iterator & 0xFULL) << 1ULL)) & 3ULL);
 
-	sm_mutex_unlock(&object->mutex);
+	context->synchronization.leave(&object->mutex);
 
 	return SM_RC_NO_ERROR;
 }
 
 
-sm_rc sec_hash_table_get_key(sm_hash_table_t *restrict object, sec_hash_table_iterator iterator, void** result)
+exported sm_rc callconv sm_hash_table_get_key(sm_hash_table_t *restrict object, sm_hash_table_iterator iterator, void** result)
 {
 	if (object == NULL) return SM_RC_OBJECT_NULL;
 	if (result == NULL) return SM_RC_ARGUMENT_NULL;
 
 	*result = NULL;
 
-	if (!sm_mutex_lock(&object->mutex)) return SM_RC_OPERATION_BLOCKED;
+	sm_context_t* context = object->context;
+
+	if (!context->synchronization.enter(&object->mutex)) return SM_RC_OPERATION_BLOCKED;
 
 	if (object->keys == NULL || object->values == NULL)
 	{
-		sm_mutex_unlock(&object->mutex);
+		context->synchronization.leave(&object->mutex);
 
 		return SM_RC_INTERNAL_REFERENCE_NULL;
 	}
 
 	*result = object->keys[iterator];
 
-	sm_mutex_unlock(&object->mutex);
+	context->synchronization.leave(&object->mutex);
 
 	return SM_RC_NO_ERROR;
 }
 
 
-sm_rc sec_hash_table_get_value(sm_hash_table_t *restrict object, sec_hash_table_iterator iterator, void** result)
+exported sm_rc callconv sm_hash_table_get_value(sm_hash_table_t *restrict object, sm_hash_table_iterator iterator, void** result)
 {
 	if (object == NULL) return SM_RC_OBJECT_NULL;
 	if (result == NULL) return SM_RC_ARGUMENT_NULL;
 
 	*result = NULL;
 
-	if (!sm_mutex_lock(&object->mutex)) return SM_RC_OPERATION_BLOCKED;
+	sm_context_t* context = object->context;
+
+	if (!context->synchronization.enter(&object->mutex)) return SM_RC_OPERATION_BLOCKED;
 
 	if (object->keys == NULL || object->values == NULL)
 	{
-		sm_mutex_unlock(&object->mutex);
+		context->synchronization.leave(&object->mutex);
 
 		return SM_RC_INTERNAL_REFERENCE_NULL;
 	}
 
 	*result = object->values[iterator];
 
-	sm_mutex_unlock(&object->mutex);
+	context->synchronization.leave(&object->mutex);
 
 	return SM_RC_NO_ERROR;
 }
 
-sm_rc sec_hash_table_iterate_begin(sm_hash_table_t *restrict object, sec_hash_table_iterator* result)
+
+exported sm_rc callconv sm_hash_table_iterate_begin(sm_hash_table_t *restrict object, sm_hash_table_iterator* result)
 {
 	if (object == NULL) return SM_RC_OBJECT_NULL;
 	if (result == NULL) return SM_RC_ARGUMENT_NULL;
 
 	*result = 0;
 
-	if (!sm_mutex_lock(&object->mutex)) return SM_RC_OPERATION_BLOCKED;
+	sm_context_t* context = object->context;
+
+	if (!context->synchronization.enter(&object->mutex)) return SM_RC_OPERATION_BLOCKED;
 
 	if (object->keys == NULL || object->values == NULL)
 	{
-		sm_mutex_unlock(&object->mutex);
+		context->synchronization.leave(&object->mutex);
 
 		return SM_RC_INTERNAL_REFERENCE_NULL;
 	}
 
-	sm_mutex_unlock(&object->mutex);
+	context->synchronization.leave(&object->mutex);
 
 	return SM_RC_NO_ERROR;
 }
 
 
-sm_rc sec_hash_table_iterate_end(sm_hash_table_t *restrict object, sec_hash_table_iterator* result)
+exported sm_rc callconv sm_hash_table_iterate_end(sm_hash_table_t *restrict object, sm_hash_table_iterator* result)
 {
 	if (object == NULL) return SM_RC_OBJECT_NULL;
 	if (result == NULL) return SM_RC_ARGUMENT_NULL;
 
 	*result = 0;
 
-	if (!sm_mutex_lock(&object->mutex)) return SM_RC_OPERATION_BLOCKED;
+	sm_context_t* context = object->context;
 
-	*result = (sec_hash_table_iterator)object->buckets;
+	if (!context->synchronization.enter(&object->mutex)) return SM_RC_OPERATION_BLOCKED;
 
-	sm_mutex_unlock(&object->mutex);
+	*result = (sm_hash_table_iterator)object->buckets;
+
+	context->synchronization.leave(&object->mutex);
 
 	return SM_RC_NO_ERROR;
 }
 
 
-sm_rc sec_hash_table_count(sm_hash_table_t *restrict object, uint64_t* result)
+exported sm_rc callconv sm_hash_table_count(sm_hash_table_t *restrict object, uint64_t* result)
 {
 	if (object == NULL) return SM_RC_OBJECT_NULL;
 	if (result == NULL) return SM_RC_ARGUMENT_NULL;
 
 	*result = 0;
 
-	if (!sm_mutex_lock(&object->mutex)) return SM_RC_OPERATION_BLOCKED;
+	sm_context_t* context = object->context;
+
+	if (!context->synchronization.enter(&object->mutex)) return SM_RC_OPERATION_BLOCKED;
 
 	*result = object->count;
 
-	sm_mutex_unlock(&object->mutex);
+	context->synchronization.leave(&object->mutex);
 
 	return SM_RC_NO_ERROR;
 }
 
 
-sm_rc sec_hash_table_buckets(sm_hash_table_t *restrict object, uint64_t* result)
+exported sm_rc callconv sm_hash_table_buckets(sm_hash_table_t *restrict object, uint64_t* result)
 {
 	if (object == NULL) return SM_RC_OBJECT_NULL;
 	if (result == NULL) return SM_RC_ARGUMENT_NULL;
 
 	*result = 0;
 
-	if (!sm_mutex_lock(&object->mutex)) return SM_RC_OPERATION_BLOCKED;
+	sm_context_t* context = object->context;
+
+	if (!context->synchronization.enter(&object->mutex)) return SM_RC_OPERATION_BLOCKED;
 
 	*result = object->buckets;
 
-	sm_mutex_unlock(&object->mutex);
+	context->synchronization.leave(&object->mutex);
 
 	return SM_RC_NO_ERROR;
 }
 
 
-sm_rc sec_hash_table_iterate(sm_hash_table_t *restrict object, sec_hash_table_visitor visitor, void* context)
+exported sm_rc callconv sm_hash_table_iterate(sm_hash_table_t *restrict object, sm_hash_table_visitor visitor, void* context)
 {
 	register uint64_t i, n;
 
 	if (object == NULL) return SM_RC_OBJECT_NULL;
 	if (visitor == NULL) return SM_RC_ARGUMENT_NULL;
 
-	if (!sm_mutex_lock(&object->mutex)) return SM_RC_OPERATION_BLOCKED;
+	sm_context_t* ctx = object->context;
+
+	if (!ctx->synchronization.enter(&object->mutex)) return SM_RC_OPERATION_BLOCKED;
 
 	if (object->flags == NULL || object->keys == NULL || object->values == NULL)
 	{
-		sm_mutex_unlock(&object->mutex);
+		ctx->synchronization.leave(&object->mutex);
 
 		return SM_RC_INTERNAL_REFERENCE_NULL;
 	}
@@ -505,17 +755,17 @@ sm_rc sec_hash_table_iterate(sm_hash_table_t *restrict object, sec_hash_table_vi
 		if ((object->flags[i >> 4ULL] >> ((i & 0xFULL) << 1ULL)) & 3ULL) 
 			continue;
 
-		if (!visitor((sec_hash_table_iterator)i, object->keys[i], object->size, &(object->values[i]), context))
+		if (!visitor((sm_hash_table_iterator)i, object->keys[i], object->key, &(object->values[i]), context))
 			break;
 	}
 
-	sm_mutex_unlock(&object->mutex);
+	ctx->synchronization.leave(&object->mutex);
 
 	return SM_RC_NO_ERROR;
 }
 
 
-uint64_t sec_hash_table_default_hasher(const void* data, size_t size)
+uint64_t sm_hash_table_default_hasher(const void* data, size_t size)
 {
 	register size_t i;
 	uint64_t h = 5381ULL;
@@ -533,7 +783,7 @@ uint64_t sec_hash_table_default_hasher(const void* data, size_t size)
 // Internals
 
 
-static bool sec_hash_table_resize__(sm_hash_table_t *restrict object, uint64_t buckets)
+inline static bool sm_hash_table_resize__(sm_hash_table_t *restrict object, uint64_t buckets)
 {
 	static const double upper = 0.77;
 
@@ -550,6 +800,8 @@ static bool sec_hash_table_resize__(sm_hash_table_t *restrict object, uint64_t b
 	buckets |= buckets >> 16ULL;
 	++buckets;
 
+	sm_context_t* context = object->context;
+
 	if (buckets < 4) buckets = 4;
 
 	if (object->count >= (uint64_t)(buckets * upper + 0.5))
@@ -558,7 +810,7 @@ static bool sec_hash_table_resize__(sm_hash_table_t *restrict object, uint64_t b
 	{
 		nnb = (buckets < 16 ? 1 : buckets >> 4ULL);
 
-		flags = (uint32_t*)sm_space_allocate(object->allocator, nnb * sizeof(uint32_t));
+		flags = (uint32_t*)context->memory.allocate(context->memory.allocator, nnb * sizeof(uint32_t));
 
 		if (flags == NULL) return false;
 
@@ -568,22 +820,22 @@ static bool sec_hash_table_resize__(sm_hash_table_t *restrict object, uint64_t b
 
 		if (object->buckets < buckets)
 		{
-			keys = (void**)sm_space_realloc(object->allocator, object->keys, buckets * sizeof(void*));
+			keys = (void**)context->memory.resize(context->memory.allocator, object->keys, buckets * sizeof(void*));
 
 			if (keys == NULL)
 			{
-				free(flags);
+				context->memory.release(context->memory.allocator, flags);
 
 				return false;
 			}
 
 			object->keys = keys;
 
-			vals = (void**)sm_space_realloc(object->allocator, object->values, buckets * sizeof(void*));
+			vals = (void**)context->memory.resize(context->memory.allocator, object->values, buckets * sizeof(void*));
 
 			if (vals == NULL)
 			{
-				sm_space_free(object->allocator, flags);
+				context->memory.release(context->memory.allocator, flags);
 
 				return false;
 			}
@@ -608,7 +860,7 @@ static bool sec_hash_table_resize__(sm_hash_table_t *restrict object, uint64_t b
 				{
 					step = 0;
 
-					k = object->hasher(key, object->size);
+					k = object->hasher(key, object->key);
 
 					i = k & mask;
 
@@ -642,20 +894,20 @@ static bool sec_hash_table_resize__(sm_hash_table_t *restrict object, uint64_t b
 
 		if (object->buckets > buckets) // Shrink.
 		{
-			ppt = (void**)sm_space_realloc(object->allocator, object->keys, buckets * sizeof(void*));
+			ppt = (void**)context->memory.resize(context->memory.allocator, object->keys, buckets * sizeof(void*));
 
 			if (ppt == NULL) return false;
 
 			object->keys = ppt;
 
-			ppt = (void**)sm_space_realloc(object->allocator, object->values, buckets * sizeof(void*));
+			ppt = (void**)context->memory.resize(context->memory.allocator, object->values, buckets * sizeof(void*));
 
 			if (ppt == NULL) return false;
 
 			object->values = ppt;
 		}
 
-		sm_space_free(object->allocator, object->flags);
+		context->memory.release(context->memory.allocator, object->flags);
 
 		object->flags = flags;
 		object->buckets = buckets;

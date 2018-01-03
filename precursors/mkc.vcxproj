@@ -21,7 +21,6 @@
   <ItemGroup>
     <ClCompile Include="..\compatibility\gettimeofday.c" />
     <ClCompile Include="..\compatibility\getuid.c" />
-    <ClCompile Include="..\master_rand.c" />
     <ClCompile Include="..\transcode.c" />
     <ClCompile Include="cmp.c">
       <InlineFunctionExpansion Condition="'$(Configuration)|$(Platform)'=='Release|x64'">AnySuitable</InlineFunctionExpansion>
@@ -63,6 +62,10 @@
       <BasicRuntimeChecks Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Default</BasicRuntimeChecks>
       <EnableEnhancedInstructionSet Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotSet</EnableEnhancedInstructionSet>
       <OmitDefaultLibName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</OmitDefaultLibName>
+    </ClCompile>
+    <ClCompile Include="tab.c">
+      <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Release|x64'">StdCall</CallingConvention>
+      <InlineFunctionExpansion Condition="'$(Configuration)|$(Platform)'=='Release|x64'">OnlyExplicitInline</InlineFunctionExpansion>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

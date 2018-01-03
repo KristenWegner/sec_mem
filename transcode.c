@@ -1,7 +1,6 @@
 // transcode.c
 
 #include "config.h"
-#include "compatibility/gettimeofday.h"
 #include "bits.h"
 
 
@@ -173,7 +172,7 @@ exported void* callconv sm_transcode(uint8_t encode, void *restrict data, regist
 		un.q = random(state); // Get the next random number. 
 
 		register uint8_t ix = (un.b[0] == 0) ? un.b[0] : un.b[0] % sizeof(uint64_t); // Compute index to byte to use for XOR.
-		uint8_t sb = (uint8_t)sm_unzip_64(un.q) % (sizeof(uint64_t) * CHAR_BIT); // Get an index between 0 and 63.
+		uint8_t sb = (uint8_t)sm_shuffle_64(un.q) % (sizeof(uint64_t) * CHAR_BIT); // Get an index between 0 and 63.
 		uint8_t ro = (un.b[sizeof(uint64_t) / 2] % 8); // How many bits to rotate by.
 		uint64_t rm = sm_yellow_64(un.q); // Get a mask for determining the directionality of the bit rotation. 
 		register uint8_t bb = *pd; // Get the current byte.
@@ -206,7 +205,7 @@ exported void* callconv sm_transcode(uint8_t encode, void *restrict data, regist
 		*pd++ = bb; // Set the byte and increment.
 	}
 
-	key ^= sm_yellow_64(~key) ^ sm_unzip_64(sm_qrand(&key)); // Scramble the key.
+	key ^= sm_yellow_64(~key) ^ sm_shuffle_64(sm_qrand(&key)); // Scramble the key.
 
 	sp = (uint8_t*)state;
 	sn = size;

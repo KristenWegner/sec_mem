@@ -32,7 +32,7 @@
 
 
 // Function to hash an array of up to 8 bytes to an uint64_t value. Based on CityHash, by Geoff Pike and Jyrki Alakuijala of Google.
-exported uint64_t callconv sm_city_64_hash(const void *restrict p, size_t n)
+exported uint64_t callconv city_hash(const void *restrict p, size_t n)
 {
 	register const uint8_t* s = (const uint8_t*)&p;
 	register uint64_t t;
@@ -68,7 +68,7 @@ exported uint64_t callconv sm_city_64_hash(const void *restrict p, size_t n)
 
 
 // 64-bit Murmur 3 hash function, by Austin Appleby.
-exported uint64_t callconv sm_murmur_3_64_hash(const void *restrict p, size_t n)
+exported uint64_t callconv murmur_3_hash(const void *restrict p, size_t n)
 {
 	const uint8_t* s = (const uint8_t*)p;
 	const uint64_t e = (n / UINT64_C(16));
@@ -106,30 +106,32 @@ exported uint64_t callconv sm_murmur_3_64_hash(const void *restrict p, size_t n)
 
 	uint8_t y = (uint8_t)(n & 15);
 
-	if (y == 15) { kb ^= ((uint64_t)l[14]) << 48; --y; }
-	if (y == 14) { kb ^= ((uint64_t)l[13]) << 40; --y; }
-	if (y == 13) { kb ^= ((uint64_t)l[12]) << 32; --y; }
-	if (y == 12) { kb ^= ((uint64_t)l[11]) << 24; --y; }
-	if (y == 11) { kb ^= ((uint64_t)l[10]) << 16; --y; }
-	if (y == 10) { kb ^= ((uint64_t)l[9]) << 8; --y; }
+	if (y == 15) { LOC_15: kb ^= ((uint64_t)l[14]) << 48; goto LOC_14; }
+	if (y == 14) { LOC_14: kb ^= ((uint64_t)l[13]) << 40; goto LOC_13; }
+	if (y == 13) { LOC_13: kb ^= ((uint64_t)l[12]) << 32; goto LOC_12; }
+	if (y == 12) { LOC_12: kb ^= ((uint64_t)l[11]) << 24; goto LOC_11; }
+	if (y == 11) { LOC_11: kb ^= ((uint64_t)l[10]) << 16; goto LOC_10; }
+	if (y == 10) { LOC_10: kb ^= ((uint64_t)l[ 9]) <<  8; goto LOC_09; }
 	if (y == 9)
 	{
+	LOC_09:
 		kb ^= ((uint64_t)l[8]) << 0;
 		kb *= UINT64_C(0x4CF5AD432745937F);
 		kb = rol64(kb, 33);
 		kb *= UINT64_C(0x87C37B91114253D5);
 		hb ^= kb;
-		--y;
+		goto LOC_08;
 	}
-	if (y == 8) { ka ^= ((uint64_t)l[7]) << 56; --y; }
-	if (y == 7) { ka ^= ((uint64_t)l[6]) << 48; --y; }
-	if (y == 6) { ka ^= ((uint64_t)l[5]) << 40; --y; }
-	if (y == 5) { ka ^= ((uint64_t)l[4]) << 32; --y; }
-	if (y == 4) { ka ^= ((uint64_t)l[3]) << 24; --y; }
-	if (y == 3) { ka ^= ((uint64_t)l[2]) << 16; --y; }
-	if (y == 2) { ka ^= ((uint64_t)l[1]) << 8; --y; }
+	if (y == 8) { LOC_08: ka ^= ((uint64_t)l[7]) << 56; goto LOC_07; }
+	if (y == 7) { LOC_07: ka ^= ((uint64_t)l[6]) << 48; goto LOC_06; }
+	if (y == 6) { LOC_06: ka ^= ((uint64_t)l[5]) << 40; goto LOC_05; }
+	if (y == 5) { LOC_05: ka ^= ((uint64_t)l[4]) << 32; goto LOC_04; }
+	if (y == 4) { LOC_04: ka ^= ((uint64_t)l[3]) << 24; goto LOC_03; }
+	if (y == 3) { LOC_03: ka ^= ((uint64_t)l[2]) << 16; goto LOC_02; }
+	if (y == 2) { LOC_02: ka ^= ((uint64_t)l[1]) <<  8; goto LOC_01; }
 	if (y == 1)
 	{
+	LOC_01:
 		ka ^= ((uint64_t)l[0]) << 0;
 		ka *= UINT64_C(0x87C37B91114253D5);
 		ka = rol64(ka, 31);
@@ -180,7 +182,7 @@ exported uint64_t callconv sm_murmur_3_64_hash(const void *restrict p, size_t n)
 
 
 // 32-bit Murmur 3 hash function, by Austin Appleby.
-exported uint32_t callconv sm_murmur_3_32_hash(const void *restrict p, register size_t n)
+exported uint32_t callconv murmur_3_32_hash(const void *restrict p, register size_t n)
 {
 	const int32_t b = (int32_t)(n / 4);
 	register uint32_t i;
@@ -221,7 +223,7 @@ exported uint32_t callconv sm_murmur_3_32_hash(const void *restrict p, register 
 
 
 // Fowler/Noll/Vo-0 FNV-1A 64 hash function.
-exported uint64_t callconv sm_fnv1a_64_hash(const void *restrict p, size_t n)
+exported uint64_t callconv fnv1a_hash(const void *restrict p, size_t n)
 {
 	register uint64_t h = UINT64_C(0xCBF29CE484222325);
 	register uint8_t *s = (uint8_t*)p;
@@ -241,12 +243,10 @@ exported uint64_t callconv sm_fnv1a_64_hash(const void *restrict p, size_t n)
 ////////////////////////////////////////////////////////////////////////
 
 
-#define sm_sha_3_state ((sizeof(uint64_t) * 4) + ((sizeof(uint64_t) * 25)))
-
-#define sm_sha_3_rotl(X, Y) (((X) << (Y)) | ((X) >> ((sizeof(uint64_t) * 8) - (Y))))
+#define sha_3_rotl(X, Y) (((X) << (Y)) | ((X) >> ((sizeof(uint64_t) * 8) - (Y))))
 
 
-inline static void sm_sha_3_kk(uint64_t *restrict s)
+inline static void sha_3_kk(uint64_t *restrict s)
 {
 	uint64_t rn[24] =
 	{
@@ -267,7 +267,7 @@ inline static void sm_sha_3_kk(uint64_t *restrict s)
 
 		for (i = 0; i < 5; ++i)
 		{
-			t = b[(i + 4) % 5] ^ sm_sha_3_rotl(b[(i + 1) % 5], 1);
+			t = b[(i + 4) % 5] ^ sha_3_rotl(b[(i + 1) % 5], 1);
 
 			for (j = 0; j < 25; j += 5)
 				s[j + i] ^= t;
@@ -279,7 +279,7 @@ inline static void sm_sha_3_kk(uint64_t *restrict s)
 		{
 			j = pn[i];
 			b[0] = s[j];
-			s[j] = sm_sha_3_rotl(t, rc[i]);
+			s[j] = sha_3_rotl(t, rc[i]);
 			t = b[0];
 		}
 
@@ -297,16 +297,19 @@ inline static void sm_sha_3_kk(uint64_t *restrict s)
 }
 
 
-inline static void sm_sha_3_init(void *restrict s)
+#define sha_3_state ((sizeof(uint64_t) * 4) + ((sizeof(uint64_t) * 25)))
+
+
+inline static void sha_3_init(void *restrict s)
 {
 	register uint8_t* p = (uint8_t*)s;
-	register size_t n = sm_sha_3_state;
+	register size_t n = sha_3_state;
 	while (n-- > UINT64_C(0)) *p++ = UINT8_C(0);
 	((uint64_t*)s)[3] = (UINT64_C(1024) / (UINT64_C(8) * sizeof(uint64_t)));
 }
 
 
-inline static void sm_sha_3_update(void *restrict s, const uint8_t* b, size_t n)
+inline static void sha_3_update(void *restrict s, const uint8_t* b, size_t n)
 {
 	uint64_t* k = (uint64_t*)s;
 	uint64_t t, o = (UINT64_C(8) - k[1]) & UINT64_C(7);
@@ -329,7 +332,7 @@ inline static void sm_sha_3_update(void *restrict s, const uint8_t* b, size_t n)
 
 		if (++k[2] == (((sizeof(uint64_t) * UINT64_C(25))) - k[3]))
 		{
-			sm_sha_3_kk(&k[4]);
+			sha_3_kk(&k[4]);
 			k[2] = UINT64_C(0);
 		}
 	}
@@ -345,7 +348,7 @@ inline static void sm_sha_3_update(void *restrict s, const uint8_t* b, size_t n)
 
 		if (++k[2] == (((sizeof(uint64_t) * UINT64_C(25))) - k[3]))
 		{
-			sm_sha_3_kk(&k[4]);
+			sha_3_kk(&k[4]);
 			k[2] = UINT64_C(0);
 		}
 	}
@@ -355,7 +358,7 @@ inline static void sm_sha_3_update(void *restrict s, const uint8_t* b, size_t n)
 }
 
 
-inline static uint8_t* sm_sha_3_finalize(void *restrict s)
+inline static uint8_t* sha_3_finalize(void *restrict s)
 {
 	uint64_t i, *k = (uint64_t*)s;
 	uint8_t* b = (uint8_t*)&k[4];
@@ -363,7 +366,7 @@ inline static uint8_t* sm_sha_3_finalize(void *restrict s)
 	(&k[4])[k[2]] ^= (k[0] ^ ((uint64_t)((uint64_t)(UINT64_C(0x02) | (UINT64_C(1) << 2)) << ((k[1]) * UINT64_C(8)))));
 	(&k[4])[((sizeof(uint64_t) * UINT64_C(25))) - k[4] - UINT64_C(1)] ^= UINT64_C(0x8000000000000000);
 
-	sm_sha_3_kk((&k[4]));
+	sha_3_kk((&k[4]));
 
 	for (i = 0; i < ((sizeof(uint64_t) * UINT64_C(25))); ++i)
 	{
@@ -384,10 +387,14 @@ inline static uint8_t* sm_sha_3_finalize(void *restrict s)
 }
 
 
-exported uint8_t* callconv sm_sha_3_hash(void *restrict s, uint8_t* v, size_t n)
+#define sha_3_state ((sizeof(uint64_t) * 4) + ((sizeof(uint64_t) * 25)))
+
+
+exported uint8_t* callconv sha_3_hash(void *restrict s, uint8_t* v, size_t n)
 {
-	sm_sha_3_init(s);
-	sm_sha_3_update(s, v, n);
-	return sm_sha_3_finalize(s);
+	sha_3_init(s);
+	sha_3_update(s, v, n);
+	return sha_3_finalize(s);
 }
+
 

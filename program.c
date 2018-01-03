@@ -38,7 +38,7 @@ int main(int argc, char* argv[])
 {
 	void* tmp[8096] = { 0 };
 
-	sm_allocator_internal_t ctx = sm_create(8096, 1);
+	sm_allocator_internal_t ctx = sm_create(8096);
 
 	char buf[128];
 

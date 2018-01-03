@@ -1,6 +1,8 @@
 // sm_internal.h
 
 
+#include <time.h>
+
 #include "config.h"
 #include "sm.h"
 #include "allocator.h"
@@ -33,8 +35,17 @@ typedef struct sm_context_s
 
 	uint8_t __padding_a[4];
 
-	sm_mutex_t mutex; // Context/initialization mutex.
-	
+	// Mutex support.
+	struct
+	{
+		sm_mutex_t lock; // Context/initialization mutex.
+		sm_mutex_f create; // Create mutex.
+		sm_mutex_f destroy; // Destroy mutex.
+		sm_mutex_f enter; // Enter mutex.
+		sm_mutex_f leave; // Leave mutex.
+	}
+	synchronization;
+
 	uint8_t __padding_b[8];
 
 	sm_err_f error; // Error handler.
@@ -52,7 +63,7 @@ typedef struct sm_context_s
 	// Random support.
 	struct
 	{
-		sm_mutex_t mutex; // Mutex for the random master.
+		sm_mutex_t lock; // Mutex for the random master.
 		uint8_t initialized; // Initialization flag.
 
 		uint8_t __padding_e[64];
@@ -85,21 +96,20 @@ typedef struct sm_context_s
 		// Functions used for seeding entropy, if needed.
 		struct
 		{
-			time_t (*get_tim)(void*);
-			int (*get_tod)(void*, void*);
-			clock_t (*get_clk)();
-			pid_t (*get_pid)();
-			pid_t (*get_tid)();
-			uid_t (*get_uid)();
-			uint64_t (*get_unh)();
+			time_t (*get_time)(void*);
+			int (*get_time_of_day)(void*, void*);
+			clock_t (*get_clock)();
+			pid_t (*get_process_id)();
+			pid_t (*get_thread_id)();
+			uid_t (*get_user_id)();
+			uint64_t (*get_user_name_hash)();
 #if defined(SM_OS_WINDOWS)
-			uint64_t (*get_tik)();
+			uint64_t (*get_ticks)();
 #endif
 		}
 		entropy;
 
-		void (*srand)(unsigned int);
-		int (*rand)();
+		uint64_t (*method)(sm_t); // The RNG method.
 
 		uint8_t padding_i[4];
 	}
@@ -127,13 +137,24 @@ typedef struct sm_context_s
 
 		uint8_t __padding_l[32];
 
+		void* (*allocate)(void*, size_t);
+		void (*release)(void*, void*);
+		void* (*resize)(void*, void*, size_t);
+		void* (*resize_fixed)(void*, void*, size_t);
+		void* (*align)(void*, size_t, size_t);
+		size_t(*usable)(const void*);
+		uint8_t (*trim)(void*, size_t);
+		size_t (*footprint)(void*);
+
+		uint8_t __padding_m[64];
+
 		sm_hash_table_t* keys; // Key store.
 		sm_hash_table_t* data; // Data store.
 		sm_hash_table_t* meta; // Meta store.
 	}
 	memory;
 
-	uint8_t __padding_m[64];
+	uint8_t __padding_n[32];
 }
 sm_context_t;
 

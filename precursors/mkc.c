@@ -42,7 +42,7 @@ static uint8_t sm_have_rdrand[] = { 0x53, 0xB8, 0x01, 0x00, 0x00, 0x00, 0x0F, 0x
 static uint8_t sm_rdrand[] = { 0x48, 0x0F, 0xC7, 0xF0, 0x73, 0xFA, 0xC3 };
 
 
-#include "crctab.h"
+#include "crc.h"
 ;
 
 extern void callconv ran_f_seed(void *restrict s, uint64_t seed);
@@ -224,13 +224,13 @@ int main(int argc, char* argv[])
 
 	if (argc == 2 && strcmp(argv[1], "crc") == 0)
 	{
-		uint64_t ent_code_len = sizeof(sm_crc_64_tab);
-		uint8_t* ent_bytes = (void*)sm_crc_64_tab;
+		uint64_t ent_code_len = sizeof(crc_64_tab);
+		uint8_t* ent_bytes = (void*)crc_64_tab;
 
 		uint64_t j;
 
 		fprintf(stdout, "# CRC 64-Bit LUT.\n");
-		fprintf(stdout, "DA: sm_crc_64_tab = ");
+		fprintf(stdout, "DA: crc_64_tab = ");
 
 		for (j = 0; j < ent_code_len; ++j)
 		{
@@ -240,11 +240,11 @@ int main(int argc, char* argv[])
 
 		fprintf(stdout, ";\n\n");
 
-		ent_code_len = sizeof(sm_crc_32_tab);
-		ent_bytes = (void*)sm_crc_32_tab;
+		ent_code_len = sizeof(crc_32_tab);
+		ent_bytes = (void*)crc_32_tab;
 
 		fprintf(stdout, "# CRC 32-Bit LUT.\n");
-		fprintf(stdout, "DA: sm_crc_32_tab = ");
+		fprintf(stdout, "DA: crc_32_tab = ");
 
 		for (j = 0; j < ent_code_len; ++j)
 		{
@@ -268,9 +268,9 @@ int main(int argc, char* argv[])
 	char target_op_decl_name[512], target_op_data_name[512], target_op_impl_name[512];
 	FILE *target_op_decl_file, *target_op_data_file, *target_op_impl_file, *input;
 
-	sprintf(target_op_decl_name, "%s_op_decl.h", target_stem);
-	sprintf(target_op_data_name, "%s_op_data.h", target_stem);
-	sprintf(target_op_impl_name, "%s_op_impl.h", target_stem);
+	sprintf(target_op_decl_name, "%s_decl.h", target_stem);
+	sprintf(target_op_data_name, "%s_data.h", target_stem);
+	sprintf(target_op_impl_name, "%s_impl.h", target_stem);
 
 	target_op_decl_file = open_file(target_op_decl_name);
 	target_op_data_file = open_file(target_op_data_name);
@@ -287,9 +287,12 @@ int main(int argc, char* argv[])
 	strcpy(now, asctime(ctm));
 	now[strlen(now) - 1] = '\0';
 
+	replace(now, "  ", " ");
+	replace(now, "  ", " ");
+
 	fprintf(target_op_decl_file, "// %s - Auto-Generated (%s): Declarations for the '%s' module. Include in your module header file.\n\n", target_op_decl_name, now, target_stem);
 	fprintf(target_op_data_file, "// %s - Auto-Generated (%s): Data for the '%s' module. Include in your module source file.\n\n", target_op_data_name, now, target_stem);
-	fprintf(target_op_impl_file, "// %s - Auto-Generated (%s): Switch entries for the '%s' module. Include in the sm_op() function switch statement, in your module source file.\n\n", target_op_impl_name, now, target_stem);
+	fprintf(target_op_impl_file, "// %s - Auto-Generated (%s): Switch entries for the '%s' module. Include in the sm_get_entity() function switch statement, in your module source file.\n\n", target_op_impl_name, now, target_stem);
 
 	uint64_t entity_xor_key = 0, entity_alias_id = 0;
 	uint16_t entity_op_code = 0xFFFF;
@@ -490,7 +493,7 @@ int main(int argc, char* argv[])
 	fflush(target_op_impl_file);
 	fclose(target_op_impl_file);
 
-	printf("mkc: Generated: %s_op_decl.h, %s_op_data.h, and %s_op_impl.h.\n", target_stem, target_stem, target_stem);
+	printf("mkc: Generated: %s_decl.h, %s_data.h, and %s_impl.h.\n", target_stem, target_stem, target_stem);
 	printf("mkc: Done.\n");
 
 	return 0;
