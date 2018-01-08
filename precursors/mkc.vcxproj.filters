@@ -70,5 +70,14 @@
     <None Include="rdr-x86-x64-le.code">
       <Filter>Code Templates</Filter>
     </None>
+    <None Include="tab-x86-x64-le.code">
+      <Filter>Code Templates</Filter>
+    </None>
+    <None Include="build.cmd">
+      <Filter>Code Templates</Filter>
+    </None>
+    <None Include="hsh-x86-x64-le.code">
+      <Filter>Code Templates</Filter>
+    </None>
   </ItemGroup>
 </Project>

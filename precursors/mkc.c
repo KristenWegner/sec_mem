@@ -220,7 +220,7 @@ uint64_t callconv foo(uint64_t value);
 int main(int argc, char* argv[])
 {
 	printf("MKC Code Generator for Secure Memory Library\n");
-	printf("Copyright (C) 2017 by the Secure Memory Project, All rights Reserved\n");
+	printf("Copyright (C) 2017-2018 by the Secure Memory Project, All rights Reserved\n");
 
 	srand(((uint32_t)time(NULL)) ^ ((uint32_t)getpid()));
 
@@ -228,13 +228,13 @@ int main(int argc, char* argv[])
 	//uint64_t v1 = foo(v0);
 	//printf("%016" PRIX64 " -> %016" PRIX64 "\n", v0, v1);
 
-	if (argc == 2 && strcmp(argv[1], "crc") == 0)
+	if (argc == 2 && strlen(argv[1]) > 3 && strncmp(argv[1], "-crc", 4) == 0)
 	{
 		output_crc_tabs();
 		return 0;
 	}
 
-	if (argc == 3 && strcmp(argv[1], "mut") == 0)
+	if (argc == 3 && strlen(argv[1]) > 3 && strncmp(argv[1], "-mut", 4) == 0)
 	{
 		generate_mutator_function(argv[2]);
 		return 0;
@@ -388,11 +388,10 @@ int main(int argc, char* argv[])
 				strcpy(entity_name_upper, entity_name);
 				strupr(entity_name_upper);
 
-
-				printf("mkc: Generating %d code bytes for \"%s\" (%s type)...\n", entity_code_len, entity_name, get_descriptor(kind));
-
 				if (kind < KIND_SIZE)
 				{
+					printf("mkc: Generating %d code bytes for \"%s\" (%s type)...\n", entity_code_len, entity_name, get_descriptor(kind));
+
 					uint64_t entity_crc_64 = crc_64(entity_xor_key, entity_bytes, entity_code_len, (void*)crc_64_tab);
 
 					//if (kind == KIND_INTEGRAL) 
@@ -430,28 +429,28 @@ int main(int argc, char* argv[])
 						sprintf(entity_size, "0x%" PRIX64 "U", entity_size_value);
 					else
 					{
-						printf("Error: %s: Failed to evaluate size expression \"%s\" (condensed).\n", entity_name, entity_size);
+						printf("Error: %s: Failed to evaluate flag or size expression \"%s\" (condensed).\n", entity_name, entity_size);
 						return -1;
 					}
 
 					if (entity_size_value == 0)
-						printf("Warning: %s: Entity size \"%s\" (condensed) evaluates to zero.\n", entity_name, entity_size);
+						printf("Warning: %s: Entity flag or size expression \"%s\" (condensed) evaluates to zero.\n", entity_name, entity_size);
 				}
 
 				if (strlen(comment))
-					fprintf(target_op_decl_file, "#define %s (0x%04XU) // %s: %s\n", entity_name_upper, entity_op_code, get_descriptor(kind), comment);
-				else fprintf(target_op_decl_file, "#define %s (0x%04XU) // %s.\n", entity_name_upper, entity_op_code, get_descriptor(kind));
+					fprintf(target_op_decl_file, "#define SM_GET_%s (0x%04XU) // %s: %s\n", entity_name_upper, entity_op_code, get_descriptor(kind), comment);
+				else fprintf(target_op_decl_file, "#define SM_GET_%s (0x%04XU) // %s.\n", entity_name_upper, entity_op_code, get_descriptor(kind));
 
 				if (kind < KIND_SIZE)
-					fprintf(target_op_impl_file, "case %s: return (uint64_t)sm_load_entity(context, %d, %s_data, %s_size, &%s_key, &%s_crc);\n", entity_name_upper, 
+					fprintf(target_op_impl_file, "case SM_GET_%s: return (uint64_t)sm_load_entity(context, %d, %s_data, %s_size, &%s_key, &%s_crc);\n", entity_name_upper, 
 						(kind == KIND_FUNCTION || kind == KIND_INTEGRAL) ? 1 : 0, entity_name, entity_name, entity_name, entity_name);
 				else 
 				{
 					if (strlen(comment))
-						fprintf(target_op_data_file, "#define %s %s // %s: %s\n\n", entity_name, entity_size, get_descriptor(kind), comment);
-					else fprintf(target_op_data_file, "#define %s %s // %s.\n\n", entity_name, entity_size, get_descriptor(kind));
+						fprintf(target_op_data_file, "#define SM_GET_%s %s // %s: %s\n\n", entity_name, entity_size, get_descriptor(kind), comment);
+					else fprintf(target_op_data_file, "#define SM_GET_%s %s // %s.\n\n", entity_name, entity_size, get_descriptor(kind));
 
-					fprintf(target_op_impl_file, "case %s: return %s;\n", entity_name_upper, entity_name);
+					fprintf(target_op_impl_file, "case SM_GET_%s: return %s;\n", entity_name_upper, entity_name);
 				}
 
 				comment[0] = '\0';

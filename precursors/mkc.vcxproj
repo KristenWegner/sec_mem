@@ -71,7 +71,9 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <None Include="build.cmd" />
     <None Include="crc-x86-x64-le.code" />
+    <None Include="hsh-x86-x64-le.code" />
     <None Include="ran-x86-x64-le.code" />
     <CustomBuild Include="rdr.asm">
       <FileType>Document</FileType>
@@ -83,6 +85,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
     </CustomBuild>
     <None Include="rdr-x86-x64-le.code" />
+    <None Include="tab-x86-x64-le.code" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
