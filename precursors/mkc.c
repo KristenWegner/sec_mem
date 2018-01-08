@@ -29,7 +29,6 @@
 #include <windows.h>
 #define getpid _getpid
 #define time _time64
-#define gettid GetCurrentThreadId
 #elif defined(SM_OS_LINUX)
 #include <time.h>
 #include <sys/time.h>
@@ -48,9 +47,9 @@ static uint8_t sm_rdrand[] = { 0x48, 0x0F, 0xC7, 0xF0, 0x73, 0xFA, 0xC3 };
 extern void callconv ran_f_seed(void *restrict s, uint64_t seed);
 extern uint64_t callconv ran_f_rand(void *restrict s);
 
-extern void* callconv sm_transcode(uint8_t encode, void *restrict data, register size_t bytes, uint64_t key, void* state, size_t size, void(*seed)(void*, uint64_t), uint64_t(*random)(void*));
+//extern void* callconv sm_transcode(uint8_t encode, void *restrict data, register size_t bytes, uint64_t key, void* state, size_t size, void(*seed)(void*, uint64_t), uint64_t(*random)(void*));
 extern void* callconv sm_xor_pass(void *restrict data, register size_t bytes, uint64_t key);
-extern uint64_t callconv sm_crc_64(uint64_t c, register const uint8_t *restrict p, uint64_t n, void* t);
+extern uint64_t callconv crc_64(uint64_t c, register const uint8_t *restrict p, uint64_t n, void* t);
 
 
 uint64_t next_rand()
@@ -154,9 +153,6 @@ S: NAME = EXPR;\n
 */
 
 
-static uint8_t random_state[(sizeof(int32_t) + (sizeof(uint64_t) * 16))];
-
-
 // Makes an 8-character hex alias name, where the initial char is an hex letter digit.
 char* make_alias(char* buffer)
 {
@@ -215,45 +211,32 @@ const char* get_entity_tag(int kind)
 }
 
 
+void output_crc_tabs();
+void generate_mutator_function(const char* name);
+
+uint64_t callconv foo(uint64_t value);
+
+
 int main(int argc, char* argv[])
 {
 	printf("MKC Code Generator for Secure Memory Library\n");
 	printf("Copyright (C) 2017 by the Secure Memory Project, All rights Reserved\n");
 
-	srand((unsigned)time(NULL));
+	srand(((uint32_t)time(NULL)) ^ ((uint32_t)getpid()));
+
+	uint64_t v0 = next_rand();
+	//uint64_t v1 = foo(v0);
+	//printf("%016" PRIX64 " -> %016" PRIX64 "\n", v0, v1);
 
 	if (argc == 2 && strcmp(argv[1], "crc") == 0)
 	{
-		uint64_t ent_code_len = sizeof(crc_64_tab);
-		uint8_t* ent_bytes = (void*)crc_64_tab;
+		output_crc_tabs();
+		return 0;
+	}
 
-		uint64_t j;
-
-		fprintf(stdout, "# CRC 64-Bit LUT.\n");
-		fprintf(stdout, "DA: crc_64_tab = ");
-
-		for (j = 0; j < ent_code_len; ++j)
-		{
-			fprintf(stdout, "%02X", ent_bytes[j]);
-			if (j < (ent_code_len - 1)) fprintf(stdout, " ");
-		}
-
-		fprintf(stdout, ";\n\n");
-
-		ent_code_len = sizeof(crc_32_tab);
-		ent_bytes = (void*)crc_32_tab;
-
-		fprintf(stdout, "# CRC 32-Bit LUT.\n");
-		fprintf(stdout, "DA: crc_32_tab = ");
-
-		for (j = 0; j < ent_code_len; ++j)
-		{
-			fprintf(stdout, "%02X", ent_bytes[j]);
-			if (j < (ent_code_len - 1)) fprintf(stdout, " ");
-		}
-
-		fprintf(stdout, ";\n\n");
-
+	if (argc == 3 && strcmp(argv[1], "mut") == 0)
+	{
+		generate_mutator_function(argv[2]);
 		return 0;
 	}
 
@@ -283,12 +266,13 @@ int main(int argc, char* argv[])
 	time_t clk;
 	time(&clk);
 	struct tm* ctm = localtime(&clk);
+
 	char now[512];
 	strcpy(now, asctime(ctm));
 	now[strlen(now) - 1] = '\0';
 
-	replace(now, "  ", " ");
-	replace(now, "  ", " ");
+	if (replace(now, "  ", " ") > 0)
+		replace(now, "  ", " ");
 
 	fprintf(target_op_decl_file, "// %s - Auto-Generated (%s): Declarations for the '%s' module. Include in your module header file.\n\n", target_op_decl_name, now, target_stem);
 	fprintf(target_op_data_file, "// %s - Auto-Generated (%s): Data for the '%s' module. Include in your module source file.\n\n", target_op_data_name, now, target_stem);
@@ -409,10 +393,11 @@ int main(int argc, char* argv[])
 
 				if (kind < KIND_SIZE)
 				{
-					uint64_t entity_crc_64 = sm_crc_64(entity_xor_key, entity_bytes, entity_code_len, (void*)sm_crc_64_tab);
+					uint64_t entity_crc_64 = crc_64(entity_xor_key, entity_bytes, entity_code_len, (void*)crc_64_tab);
 
-					if (kind == KIND_INTEGRAL) sm_xor_pass(entity_bytes, (size_t)entity_code_len, entity_xor_key);
-					else sm_transcode(1, entity_bytes, (size_t)entity_code_len, entity_xor_key, random_state, sizeof(random_state), ran_f_seed, ran_f_rand);
+					//if (kind == KIND_INTEGRAL) 
+						sm_xor_pass(entity_bytes, (size_t)entity_code_len, entity_xor_key);
+					//else sm_transcode(1, entity_bytes, (size_t)entity_code_len, entity_xor_key, random_state, sizeof(random_state), ran_f_seed, ran_f_rand);
 
 					if (strlen(comment))
 						fprintf(target_op_data_file, "// %s (%s - opcode 0x%04X): %s\n", get_descriptor(kind), entity_name_upper, entity_op_code, comment);
@@ -426,7 +411,7 @@ int main(int argc, char* argv[])
 					fprintf(target_op_data_file, "static uint64_t %s_key = UINT64_C(0x%" PRIX64 ");\n", entity_name, entity_xor_key);
 					fprintf(target_op_data_file, "static uint64_t %s_size = UINT64_C(0x%" PRIX64 ");\n", entity_name, ((uint64_t)entity_code_len) * sizeof(uint8_t));
 					fprintf(target_op_data_file, "static uint64_t %s_crc = UINT64_C(0x%" PRIX64 ");\n", entity_name, entity_crc_64);
-					fprintf(target_op_data_file, "static uint8_t %s_data[] = { \n\t", entity_name);
+					fprintf(target_op_data_file, "static uint8_t %s_data[] = {\n\t", entity_name);
 
 					for (j = 0; j < entity_code_len; ++j)
 					{
@@ -497,6 +482,40 @@ int main(int argc, char* argv[])
 	printf("mkc: Done.\n");
 
 	return 0;
+}
+
+
+void output_crc_tabs()
+{
+	uint64_t ent_code_len = sizeof(crc_64_tab);
+	uint8_t* ent_bytes = (void*)crc_64_tab;
+
+	uint64_t j;
+
+	fprintf(stdout, "# CRC 64-Bit LUT.\n");
+	fprintf(stdout, "DA: crc_64_tab = ");
+
+	for (j = 0; j < ent_code_len; ++j)
+	{
+		fprintf(stdout, "%02X", ent_bytes[j]);
+		if (j < (ent_code_len - 1)) fprintf(stdout, " ");
+	}
+
+	fprintf(stdout, ";\n\n");
+
+	ent_code_len = sizeof(crc_32_tab);
+	ent_bytes = (void*)crc_32_tab;
+
+	fprintf(stdout, "# CRC 32-Bit LUT.\n");
+	fprintf(stdout, "DA: crc_32_tab = ");
+
+	for (j = 0; j < ent_code_len; ++j)
+	{
+		fprintf(stdout, "%02X", ent_bytes[j]);
+		if (j < (ent_code_len - 1)) fprintf(stdout, " ");
+	}
+
+	fprintf(stdout, ";\n\n");
 }
 
 

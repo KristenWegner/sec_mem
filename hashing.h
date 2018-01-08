@@ -29,7 +29,7 @@
 	(((uint64_t)(x) & UINT64_C(0xFF00000000000000)) >> 56)))
 
 
-#ifdef SEC_WORDS_BIG_ENDIAN
+#ifdef SM_WORDS_BIG_ENDIAN
 #define sec_hashing_swap_order_64(x) (sec_hashing_swap_64(x))
 #else
 #define sec_hashing_swap_order_64(x) (x)

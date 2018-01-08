@@ -35,8 +35,7 @@ inline static uint8_t sm_make_executable(sm_context_t* context, void* p, size_t 
 // Makes the specified page executable, Windows version.
 inline static uint8_t sm_make_executable(sm_context_t* context, void* p, size_t n)
 {
-	DWORD d;
-	return (context->protect(p, n, PAGE_EXECUTE_READWRITE, &d) != 0) ? 1U : 0U;
+	DWORD d; return (context->protect(p, n, PAGE_EXECUTE_READWRITE, &d) != 0) ? 1U : 0U;
 }
 
 #else
@@ -50,9 +49,11 @@ inline static uint8_t sm_make_executable(sm_context_t* context, void* p, size_t 
 // Embedded Entity Entries
 
 
+#if !defined(DEBUG) && !defined(_DEBUG)
 #include "precursors/rdr_data.h"
 #include "precursors/crc_data.h"
 #include "precursors/ran_data.h"
+#endif
 
 
 extern void* sm_xor_pass(void *restrict data, register size_t bytes, uint64_t key);
@@ -297,6 +298,7 @@ exported sm_t callconv sm_create(uint64_t bytes)
 
 	context->memory.allocator = allocator;
 
+#if !defined(DEBUG) && !defined(_DEBUG)
 	context->checking.tab_64 = sm_load_entity(context, 0, crc_64_tab_data, crc_64_tab_size, &crc_64_tab_key, &crc_64_tab_crc);
 	context->checking.crc_64 = sm_load_entity(context, 1, crc_64_data, crc_64_size, &crc_64_key, &crc_64_crc);
 
@@ -305,6 +307,7 @@ exported sm_t callconv sm_create(uint64_t bytes)
 
 	context->random.rdrand.exists = sm_load_entity(context, 1, have_rdrand_data, have_rdrand_size, &have_rdrand_key, &have_rdrand_crc);
 	context->random.rdrand.next = sm_load_entity(context, 1, next_rdrand_data, next_rdrand_size, &next_rdrand_key, &next_rdrand_crc);
+#endif
 
 	context->random.initialized = 0;
 
@@ -365,12 +368,14 @@ exported void callconv sm_destroy(sm_t sm)
 
 	sm_free_integral_rands(context);
 
+#if !defined(DEBUG) && !defined(_DEBUG)
 	sm_free_entity(context, (void**)&context->checking.tab_32, crc_32_tab_size);
 	sm_free_entity(context, (void**)&context->checking.crc_32, crc_32_size);
 	sm_free_entity(context, (void**)&context->checking.tab_64, crc_64_tab_size);
 	sm_free_entity(context, (void**)&context->checking.crc_64, crc_64_size);
 	sm_free_entity(context, (void**)&context->random.rdrand.exists, have_rdrand_size);
 	sm_free_entity(context, (void**)&context->random.rdrand.next, next_rdrand_size);
+#endif
 
 	sm_allocator_internal_t allocator = context->memory.allocator;
 
@@ -409,9 +414,11 @@ exported sm_ref_t callconv sm_get_entity(sm_t* sm, uint16_t id)
 	switch (id)
 	{
 	// Add additional opcode implementations here.
+#if !defined(DEBUG) && !defined(_DEBUG)
 #include "precursors/rdr_impl.h"
 #include "precursors/crc_impl.h"
 #include "precursors/ran_impl.h"
+#endif
 
 	// Failure
 

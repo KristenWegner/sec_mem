@@ -15,7 +15,7 @@
 
 
 // Random number generator entry.
-typedef struct sm_rng_entry_s
+typedef halign(1) struct sm_rng_entry_s
 {
 	uint64_t state_size; // State vector size in bytes.
 	sm_srs64_f seed_function; // Seed function pointer.
@@ -23,17 +23,16 @@ typedef struct sm_rng_entry_s
 	sm_ran64_f next_function; // Generate next function pointer.
 	uint64_t next_size; // Next function bytes.
 }
+talign(1)
 sm_rng_entry_t;
 
 
 // The global context structure.
-typedef struct sm_context_s
+typedef halign(1) struct sm_context_s
 {
 	size_t size; // Size of this.
 	uint8_t initialized; // Initialized flag.
 	uint64_t crc; // 64-bit CRC of this.
-
-	uint8_t __padding_a[4];
 
 	// Mutex support.
 	struct
@@ -46,11 +45,7 @@ typedef struct sm_context_s
 	}
 	synchronization;
 
-	uint8_t __padding_b[8];
-
 	sm_err_f error; // Error handler.
-
-	uint8_t __padding_c[16];
 
 #if defined(SM_OS_WINDOWS)
 	BOOL (__stdcall *protect)(LPVOID, SIZE_T, DWORD, PDWORD); // Used to make pages executable.
@@ -58,19 +53,12 @@ typedef struct sm_context_s
 	int (*protect)(void*, size_t, int); // Used to make pages executable.
 #endif
 
-	uint8_t __padding_d[32];
-
 	// Random support.
 	struct
 	{
 		sm_mutex_t lock; // Mutex for the random master.
 		uint8_t initialized; // Initialization flag.
-
-		uint8_t __padding_e[64];
-
 		uint8_t state[(sizeof(uint32_t) + (sizeof(uint64_t) * 16))]; // The  XorShift1024* state, if needed.
-
-		uint8_t __padding_f[32];
 
 		// RDRAND support.
 		struct
@@ -81,8 +69,6 @@ typedef struct sm_context_s
 		}
 		rdrand;
 
-		uint8_t __padding_g[16];
-
 		// Integral RNGs.
 		struct
 		{
@@ -90,8 +76,6 @@ typedef struct sm_context_s
 			sm_rng_entry_t table[0xFF]; // Registered RNG entries.
 		}
 		integral;
-
-		uint8_t __padding_h[8];
 
 		// Functions used for seeding entropy, if needed.
 		struct
@@ -110,12 +94,8 @@ typedef struct sm_context_s
 		entropy;
 
 		uint64_t (*method)(sm_t); // The RNG method.
-
-		uint8_t padding_i[4];
 	}
 	random;
-
-	uint8_t __padding_j[8];
 
 	// CRC support.
 	struct
@@ -128,14 +108,10 @@ typedef struct sm_context_s
 	}
 	checking;
 
-	uint8_t __padding_k[16];
-
 	// Memory management.
 	struct
 	{
 		sm_allocator_internal_t allocator; // Global allocator.
-
-		uint8_t __padding_l[32];
 
 		void* (*allocate)(void*, size_t);
 		void (*release)(void*, void*);
@@ -146,60 +122,50 @@ typedef struct sm_context_s
 		uint8_t (*trim)(void*, size_t);
 		size_t (*footprint)(void*);
 
-		uint8_t __padding_m[64];
-
 		sm_hash_table_t* keys; // Key store.
 		sm_hash_table_t* data; // Data store.
 		sm_hash_table_t* meta; // Meta store.
 	}
 	memory;
-
-	uint8_t __padding_n[32];
 }
+talign(1)
 sm_context_t;
 
 
-typedef struct sm_key_entry_s
+typedef halign(1) struct sm_key_entry_s
 {
 	size_t size; // Size of this.
 	uint8_t initialized; // Initialized flag.
 	uint64_t crc; // 64-bit CRC of this.
-	uint8_t __padding_a[4];
 	uint64_t key; // Key.
-	uint8_t __padding_b[8];
 	uint32_t check; // 32-bit CRC of key.
-	uint8_t __padding_c[4];
 }
+talign(1)
 sm_key_entry_t;
 
 
-typedef struct sm_data_entry_s
+typedef halign(1) struct sm_data_entry_s
 {
 	size_t size; // Size of this.
 	uint8_t initialized; // Initialized flag.
 	uint64_t crc; // 64-bit CRC of this.
-	uint8_t __padding_a[4];
 	void* data;
-	uint8_t __padding_b[8];
 	uint32_t check; // 32-bit CRC of data ptr.
-	uint8_t __padding_c[4];
 }
+talign(1)
 sm_data_entry_t;
 
 
-typedef struct sm_meta_entry_s
+typedef halign(1) struct sm_meta_entry_s
 {
 	size_t size; // Size of this.
 	uint8_t initialized; // Initialized flag.
 	uint64_t crc; // 64-bit CRC of this.
-	uint8_t __padding_a[4];
 	size_t bytes;
-	uint8_t __padding_b[8];
 	size_t element;
-	uint8_t __padding_c[16];
 	size_t count;
-	uint8_t __padding_d[8];
 }
+talign(1)
 sm_meta_entry_t;
 
 

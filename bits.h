@@ -213,7 +213,41 @@ inline static uint64_t sm_swap_64(register uint64_t v)
 }
 
 
+inline static uint64_t sm_next_even_64(register uint64_t v) { return (v | UINT64_C(1)) + UINT64_C(1); }
+inline static uint64_t sm_prev_even_64(register uint64_t v) { return (v - UINT64_C(1)) & ~UINT64_C(1); }
+inline static uint64_t sm_next_odd_64(register uint64_t v) { return (v + UINT64_C(1)) | UINT64_C(1); }
+inline static uint64_t sm_prev_odd_64(register uint64_t v) { return (v & ~UINT64_C(1)) - UINT64_C(1); }
+
+
+// Gets the count of set bits.
+inline static uint64_t sm_bit_count_64(register uint64_t v)
+{
+	v -= (v >> 1) & UINT64_C(0x5555555555555555);
+	v = ((v >> 2) & UINT64_C(0x3333333333333333)) + (v & UINT64_C(0x3333333333333333));
+	v = ((v >> 4) + v) & UINT64_C(0x0F0F0F0F0F0F0F0F);
+	v *= UINT64_C(0x0101010101010101);
+	return v >> 56;
+}
+
+
+// Gets the count of bit blocks.
+inline static uint64_t sm_bit_blocks_64(register uint64_t v)
+{
+	register uint64_t u = v ^ (v >> 1);
+	u -= (u >> 1) & UINT64_C(0x5555555555555555);
+	u = ((u >> 2) & UINT64_C(0x3333333333333333)) + (u & UINT64_C(0x3333333333333333));
+	u = ((u >> 4) + u) & UINT64_C(0x0F0F0F0F0F0F0F0F);
+	u *= UINT64_C(0x0101010101010101);
+	return (v & UINT64_C(1)) + (u >> 56) / UINT64_C(2);
+}
+
+
+// Returns floor(x + y / 2) even if x + y won't fit into a uint64_t.
+inline static uint64_t sm_average_64(register uint64_t x, register uint64_t y)
+{
+	return  (x & y) + ((x ^ y) >> 1);
+}
+
+
 #endif // INCLUDE_BITS_H
-
-
 

@@ -48,6 +48,12 @@
     <ClCompile Include="tab.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="fun.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="foo.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="rdr.asm">
@@ -58,10 +64,10 @@
     <None Include="crc-x86-x64-le.code">
       <Filter>Code Templates</Filter>
     </None>
-    <None Include="rdrand-x86-x64-le.code">
+    <None Include="ran-x86-x64-le.code">
       <Filter>Code Templates</Filter>
     </None>
-    <None Include="ran-x86-x64-le.code">
+    <None Include="rdr-x86-x64-le.code">
       <Filter>Code Templates</Filter>
     </None>
   </ItemGroup>

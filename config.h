@@ -45,8 +45,10 @@
 #if (__STDC_VERSION__ >= 199901L)
 #define inline inline
 #define restrict restrict
-#else
+#endif
+
 #if defined(SM_OS_WINDOWS)
+
 #pragma warning(disable:4005)
 #ifndef _WINSOCKAPI_
 #define _WINSOCKAPI_ 1
@@ -65,7 +67,9 @@ extern uint64_t getunh();
 #define restrict __restrict
 #define halign(b) __declspec(align(b))
 #define talign(b)
+
 #elif defined(SM_OS_LINUX)
+
 #define inline __inline__
 #define restrict __restrict
 #define halign(b)
@@ -73,60 +77,63 @@ extern uint64_t getunh();
 #include <unistd.h>
 #include <pthread.h>
 typedef pthread_mutex_t sm_mutex_t;
+
 #else
+
 #define inline
 #define restrict
-#endif
+
 #endif
 
 
-#undef SEC_IS_64_BIT
+
+#undef SM_IS_64_BIT
 #if defined(_WIN64) || defined(__x86_64__) || defined(_M_AMD64) || defined(__amd64__) || defined(__aarch64__)
-#define SEC_IS_64_BIT 1
+#define SM_IS_64_BIT 1
 #endif
-#ifndef SEC_IS_64_BIT
+#ifndef SM_IS_64_BIT
 #error Only 64-bit architectures are currently supported.
 #endif
 
 
 // Detect CPU type.
-#undef SEC_CPU_AMD
-#undef SEC_CPU_ARM
-#undef SEC_CPU_INTEL
-#undef SEC_CPU_POWER_PC
+#undef SM_CPU_AMD
+#undef SM_CPU_ARM
+#undef SM_CPU_INTEL
+#undef SM_CPU_POWER_PC
 #if defined(_M_I86) || defined(__X86__) || defined(__INTEL__) || defined(_M_IA64) || defined(__IA64__)
-#undef SEC_CPU_AMD
-#undef SEC_CPU_ARM
-#define SEC_CPU_INTEL 1
-#undef SEC_CPU_POWER_PC
+#undef SM_CPU_AMD
+#undef SM_CPU_ARM
+#define SM_CPU_INTEL 1
+#undef SM_CPU_POWER_PC
 #elif defined(__amd64__) || defined(__amd64) || defined(_M_AMD64)
-#define SEC_CPU_AMD 1
-#undef SEC_CPU_ARM
-#undef SEC_CPU_INTEL
-#undef SEC_CPU_POWER_PC
+#define SM_CPU_AMD 1
+#undef SM_CPU_ARM
+#undef SM_CPU_INTEL
+#undef SM_CPU_POWER_PC
 #elif defined(_ARCH_PPC64) || defined(_M_PPC) || defined(__powerpc64__)
-#undef SEC_CPU_AMD
-#undef SEC_CPU_ARM
-#undef SEC_CPU_INTEL
-#define SEC_CPU_POWER_PC 1
+#undef SM_CPU_AMD
+#undef SM_CPU_ARM
+#undef SM_CPU_INTEL
+#define SM_CPU_POWER_PC 1
 #elif defined(__aarch64__) || defined(_M_ARM) || defined(__arm__)
-#undef SEC_CPU_AMD
-#define SEC_CPU_ARM 1
-#undef SEC_CPU_INTEL
-#undef SEC_CPU_POWER_PC
+#undef SM_CPU_AMD
+#define SM_CPU_ARM 1
+#undef SM_CPU_INTEL
+#undef SM_CPU_POWER_PC
 #endif
 
 
 // Define to 1 if big endian.
-#undef SEC_WORDS_BIG_ENDIAN 
+#undef SM_WORDS_BIG_ENDIAN 
 
 
-#ifndef sec_min
-#define sec_min(x, y) ((x < y) ? x : y)
+#ifndef sm_min
+#define sm_min(X, Y) (((X) < (Y)) ? (X) : (Y))
 #endif
 
-#ifndef sec_max
-#define sec_max(x, y) ((x > y) ? x : y)
+#ifndef sm_max
+#define sm_max(X, Y) (((X) > (Y)) ? (X) : (Y))
 #endif
 
 
@@ -134,7 +141,7 @@ typedef pthread_mutex_t sm_mutex_t;
 
 
 #if defined(SM_OS_WINDOWS)
-#define callconv __stdcall // Do not emit extra prologue instructions.
+#define callconv __stdcall // Do not emit prologue.
 #elif defined(SM_OS_LINUX)
 #define callconv __attribute__((stdcall))
 #else

@@ -32,6 +32,8 @@
       <StringPooling Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</StringPooling>
       <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Release|x64'">StdCall</CallingConvention>
     </ClCompile>
+    <ClCompile Include="foo.c" />
+    <ClCompile Include="fun.c" />
     <ClCompile Include="hsh.c">
       <InlineFunctionExpansion Condition="'$(Configuration)|$(Platform)'=='Release|x64'">AnySuitable</InlineFunctionExpansion>
       <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Release|x64'">StdCall</CallingConvention>
@@ -71,7 +73,6 @@
   <ItemGroup>
     <None Include="crc-x86-x64-le.code" />
     <None Include="ran-x86-x64-le.code" />
-    <None Include="rdrand-x86-x64-le.code" />
     <CustomBuild Include="rdr.asm">
       <FileType>Document</FileType>
       <PackAlignmentBoundary Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">1</PackAlignmentBoundary>
@@ -81,6 +82,7 @@
       <PreserveIdentifierCase Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">1</PreserveIdentifierCase>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
     </CustomBuild>
+    <None Include="rdr-x86-x64-le.code" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>

@@ -72,7 +72,7 @@ inline static uint64_t hash64(const uint8_t* p, size_t n)
 #include <sddl.h>
 
 
-inline static PSID sm_get_user_sid(HANDLE token)
+inline static PSID get_sid(HANDLE token)
 {
 	if (token == NULL || token == INVALID_HANDLE_VALUE) return NULL;
 	DWORD tkl = 0;
@@ -91,10 +91,10 @@ inline static PSID sm_get_user_sid(HANDLE token)
 }
 
 
-inline static uid_t sm_get_token_uid(HANDLE token, uint64_t* hash)
+inline static uid_t get_uid(HANDLE token, uint64_t* hash)
 {
 	uid_t u = -1;
-	PSID sid = sm_get_user_sid(token);
+	PSID sid = get_sid(token);
 	if (!sid) return u;
 	LPSTR ssid = NULL;
 	if (!ConvertSidToStringSidA(sid, &ssid)) { HeapFree(GetProcessHeap(), 0, sid); return u; }
@@ -121,7 +121,7 @@ exported uid_t callconv getuid()
 	HANDLE token = NULL;
 	HANDLE process = GetCurrentProcess();
 	if (!OpenProcessToken(process, TOKEN_READ | TOKEN_QUERY_SOURCE, &token)) { CloseHandle(process); return u; }
-	u = sm_get_token_uid(token, NULL);
+	u = get_uid(token, NULL);
 	CloseHandle(token);
 	CloseHandle(process);
 	return u;
@@ -136,10 +136,10 @@ exported uint64_t callconv getunh()
 	HANDLE token = NULL;
 	HANDLE process = GetCurrentProcess();
 	if (!OpenProcessToken(process, TOKEN_READ | TOKEN_QUERY_SOURCE, &token)) { CloseHandle(process); return u; }
-	u = sm_get_token_uid(token, &sh);
+	u = get_uid(token, &sh);
 	CloseHandle(token);
 	CloseHandle(process);
-	return sh ^ (((uint64_t)u) << 21);
+	return sh;
 }
 
 #else

@@ -13,7 +13,7 @@
 #include <sys/timeb.h>
 
 
-int gettimeofday(struct timeval* tv, void* tz)
+exported int callconv gettimeofday(struct timeval* tv, void* tz)
 {
 	struct _timeb tb;
 

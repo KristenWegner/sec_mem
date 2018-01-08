@@ -114,9 +114,11 @@ extern sm_ref_t callconv sm_get_entity(sm_t* sm, uint16_t op);
 
 
 // Add additional opcodes declarations here.
+#if !defined(DEBUG) && !defined(_DEBUG)
 #include "precursors/rdr_decl.h"
 #include "precursors/crc_decl.h"
 #include "precursors/ran_decl.h"
+#endif
 
 #endif // INCLUDE_SM_H
 

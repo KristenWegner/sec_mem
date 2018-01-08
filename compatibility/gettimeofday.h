@@ -15,7 +15,7 @@
 #include <winsock2.h>
 
 
-int gettimeofday(struct timeval* tv, void* tz);
+exported int callconv gettimeofday(struct timeval* tv, void* tz);
 
 
 #else

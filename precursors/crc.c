@@ -4,7 +4,7 @@
 #include "../config.h"
 
 
-exported uint32_t callconv sm_crc_32(uint32_t c, register const uint8_t *restrict p, uint64_t n, void* t)
+exported uint32_t callconv crc_32(uint32_t c, register const uint8_t *restrict p, uint64_t n, void* t)
 {
 	register const uint32_t* tab = t;
 	c = c ^ ~UINT32_C(0);
@@ -14,7 +14,7 @@ exported uint32_t callconv sm_crc_32(uint32_t c, register const uint8_t *restric
 }
 
 
-exported uint64_t callconv sm_crc_64(uint64_t c, register const uint8_t *restrict p, uint64_t n, void* t)
+exported uint64_t callconv crc_64(uint64_t c, register const uint8_t *restrict p, uint64_t n, void* t)
 {
 	register const uint64_t* tab = t;
 	while (n--)
