@@ -1,8 +1,7 @@
-# RDRAND support.
+# RDRAND support. 
+ 
+# Tests for RDRAND support (sm_get64_f function type). 
+IF: rdr_have = 53, B8, 01, 00, 00, 00, 0F, A2, 0F, BA, E1, 1E, 73, 09, 48, C7, C0, 01, 00, 00, 00, 5B, C3, 48, 2B, C0, EB, F2; 
 
-# Tests for RDRAND support (sm_get64_f function type).
-IF: have_rdrand = 53, B8, 01, 00, 00, 00, 0F, A2, 0F, BA, E1, 1E, 73, 09, 48, C7, C0, 01, 00, 00, 00, 5B, C3, 48, 2B, C0, EB, F2;
-
-# Read rand via RDRAND (sm_get64_f function type).
-IF: next_rdrand = 48, 0F, C7, F0, 73, FA, C3;
-
+# Read rand via RDRAND (sm_get64_f function type). 
+IF: rdr_next = 48, 0F, C7, F0, 73, FA, C3;
