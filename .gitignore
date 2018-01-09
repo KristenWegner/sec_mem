@@ -34,6 +34,7 @@
 .vs/
 *.mod*
 *.cod
+*.dumpbin
 *.lastbuildstate
 .tmp_versions/
 modules.order
@@ -41,11 +42,7 @@ Module.symvers
 Mkfile.old
 dkms.conf
 x64/
-
 precursors/mkmcode/
-
 precursors/dmp/obj/Debug/
-
 precursors/dmp/obj/Release/
-
 precursors/dmp/obj/

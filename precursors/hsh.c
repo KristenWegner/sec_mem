@@ -10,11 +10,13 @@
 	(((uint64_t)(x) & UINT64_C(0x000000FF00000000)) >>  8) | (((uint64_t)(x) & UINT64_C(0x0000FF0000000000)) >> 24) | \
 	(((uint64_t)(x) & UINT64_C(0x00FF000000000000)) >> 40) | (((uint64_t)(x) & UINT64_C(0xFF00000000000000)) >> 56)))
 
+
 #ifdef SM_WORDS_BIG_ENDIAN
 #define swo64(x) (swp64(x))
 #else
 #define swo64(x) (x)
 #endif
+
 
 #define lod64(x, d) ((d) = *((uint64_t*)((void*)(x)))), (d)
 #define get64(x, d) (swo64(lod64(x, d)))
@@ -241,6 +243,7 @@ exported uint64_t callconv fnv1a_hash(const void *restrict p, size_t n)
 
 typedef uint64_t lane_t;
 
+
 #define kk_rotl(A, O) ((((uint64_t)A) << (O)) ^ (((uint64_t)A) >> (UINT64_C(64) - (O))))
 #define kk_index(X, Y) ((X) + 5 * (Y))
 #define kk_readl(X, Y) (((lane_t*)state)[kk_index((X), (Y))])
@@ -281,7 +284,7 @@ inline static int32_t kk_lfsr(uint8_t* v)
 }
 
 
-void kk_permute(void* state)
+inline static void kk_permute(void* state)
 {
 	uint32_t rnd, x, y, j, t;
 	uint8_t lfsr = UINT8_C(1);
@@ -463,6 +466,7 @@ exported void* callconv sip_hash(void *restrict s, const void *restrict p, size_
 	uint64_t t = UINT64_C(0);
 	uint8_t *pt = (uint8_t*)&t, *m = (uint8_t*)in;
 
+	/*
 	switch (n) 
 	{
 	case UINT64_C(7): pt[6] = m[6];
@@ -475,6 +479,17 @@ exported void* callconv sip_hash(void *restrict s, const void *restrict p, size_
 	case UINT64_C(2): pt[1] = m[1];
 	case UINT64_C(1): pt[0] = m[0];
 	}
+	*/
+
+	if (n == 7) { pt[6] = m[6]; goto LOC_6; }
+	else if (n == 6) { LOC_6: pt[5] = m[5]; goto LOC_5; }
+	else if (n == 5) { LOC_5: pt[4] = m[4]; goto LOC_4; }
+	else if (n == 4) { LOC_4: *((uint32_t*)&pt[0]) = *((uint32_t*)&m[0]); goto LOC_NEXT; }
+	else if (n == 3) { pt[2] = m[2]; goto LOC_2; }
+	else if (n == 2) { LOC_2: pt[1] = m[1]; goto LOC_1; }
+	else if (n == 1) { LOC_1: pt[0] = m[0]; }
+
+LOC_NEXT:
 
 	b |= t;
 
@@ -622,7 +637,7 @@ inline static void hh_permute(const uint64_t v[4], uint64_t* permuted)
 }
 
 
-inline void hh_permute_upd(hh_s_t* state) 
+inline static void hh_permute_upd(hh_s_t* state) 
 {
 	uint64_t permuted[4];
 	hh_permute(state->v0, permuted);

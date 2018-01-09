@@ -54,6 +54,9 @@ typedef uint64_t (*sm_hsh64_f)(const void*, size_t);
 // 32-bit hash bytes.
 typedef uint32_t (*sm_hsh32_f)(const void*, size_t);
 
+// N-bit cryptographic hash.
+typedef void* (*sm_chsh_f)(void*, const void*, size_t);
+
 // Error callback function type. Receives an error code - see: SM_ERR_*.
 typedef void (*sm_err_f)(sm_t sm, sm_error_t);
 
@@ -118,7 +121,10 @@ extern sm_ref_t callconv sm_get_entity(sm_t* sm, uint16_t op);
 #include "precursors/rdr_decl.h"
 #include "precursors/crc_decl.h"
 #include "precursors/ran_decl.h"
+#include "precursors/tab_decl.h"
+#include "precursors/hsh_decl.h"
 #endif
+
 
 #endif // INCLUDE_SM_H
 

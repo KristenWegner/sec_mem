@@ -53,6 +53,8 @@ inline static uint8_t sm_make_executable(sm_context_t* context, void* p, size_t 
 #include "precursors/rdr_data.h"
 #include "precursors/crc_data.h"
 #include "precursors/ran_data.h"
+#include "precursors/tab_data.h"
+#include "precursors/hsh_data.h"
 #endif
 
 
@@ -418,6 +420,8 @@ exported sm_ref_t callconv sm_get_entity(sm_t* sm, uint16_t id)
 #include "precursors/rdr_impl.h"
 #include "precursors/crc_impl.h"
 #include "precursors/ran_impl.h"
+#include "precursors/tab_impl.h"
+#include "precursors/hsh_impl.h"
 #endif
 
 	// Failure
