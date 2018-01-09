@@ -686,3 +686,506 @@ exported void* callconv highway_hash(void *restrict s, const void *restrict p, s
 	return r;
 }
 
+
+#if defined(__i386__) || defined(__x86_64__) || defined(SM_CPU_INTEL) || defined(SM_CPU_AMD)
+#define SPH_ALLOW_UNALIGNED_READS 1
+#else
+#define SPH_ALLOW_UNALIGNED_READS 0
+#endif
+
+
+#define SPH_NUM_VARS	12
+#define SPH_BLOCK_SIZE	(8 * SPH_NUM_VARS)
+#define SPH_BUF_SIZE	(2 * SPH_BLOCK_SIZE)
+
+
+struct sph_state_s
+{
+	uint64_t data[2 * SPH_NUM_VARS];
+	uint64_t state[SPH_NUM_VARS];
+	size_t length;
+	uint8_t remainder;
+};
+
+
+inline static uint64_t sph_rot_64(uint64_t x, int k)
+{
+	return (x << k) | (x >> (64 - k));
+}
+
+
+inline static void sph_mix(const uint64_t* data, uint64_t* s0, uint64_t* s1, uint64_t* s2, uint64_t* s3,
+	uint64_t* s4, uint64_t* s5, uint64_t* s6, uint64_t* s7, uint64_t* s8, uint64_t* s9, uint64_t* s10, uint64_t* s11)
+{
+	*s0 += data[0]; *s2 ^= *s10; *s11 ^= *s0; *s0 = sph_rot_64(*s0, 11); *s11 += *s1;
+	*s1 += data[1]; *s3 ^= *s11; *s0 ^= *s1; *s1 = sph_rot_64(*s1, 32); *s0 += *s2;
+	*s2 += data[2]; *s4 ^= *s0; *s1 ^= *s2; *s2 = sph_rot_64(*s2, 43); *s1 += *s3;
+	*s3 += data[3]; *s5 ^= *s1; *s2 ^= *s3; *s3 = sph_rot_64(*s3, 31); *s2 += *s4;
+	*s4 += data[4]; *s6 ^= *s2; *s3 ^= *s4; *s4 = sph_rot_64(*s4, 17); *s3 += *s5;
+	*s5 += data[5]; *s7 ^= *s3; *s4 ^= *s5; *s5 = sph_rot_64(*s5, 28); *s4 += *s6;
+	*s6 += data[6]; *s8 ^= *s4; *s5 ^= *s6; *s6 = sph_rot_64(*s6, 39); *s5 += *s7;
+	*s7 += data[7]; *s9 ^= *s5; *s6 ^= *s7; *s7 = sph_rot_64(*s7, 57); *s6 += *s8;
+	*s8 += data[8]; *s10 ^= *s6; *s7 ^= *s8; *s8 = sph_rot_64(*s8, 55); *s7 += *s9;
+	*s9 += data[9]; *s11 ^= *s7; *s8 ^= *s9; *s9 = sph_rot_64(*s9, 54); *s8 += *s10;
+	*s10 += data[10]; *s0 ^= *s8; *s9 ^= *s10; *s10 = sph_rot_64(*s10, 22); *s9 += *s11;
+	*s11 += data[11]; *s1 ^= *s9; *s10 ^= *s11; *s11 = sph_rot_64(*s11, 46); *s10 += *s0;
+}
+
+
+inline static void sph_end_partial(uint64_t* h0, uint64_t* h1, uint64_t* h2, uint64_t* h3, uint64_t* h4, uint64_t* h5, uint64_t* h6,
+	uint64_t* h7, uint64_t* h8, uint64_t* h9, uint64_t* h10, uint64_t* h11)
+{
+	*h11 += *h1; *h2 ^= *h11; *h1 = sph_rot_64(*h1, 44);
+	*h0 += *h2; *h3 ^= *h0; *h2 = sph_rot_64(*h2, 15);
+	*h1 += *h3; *h4 ^= *h1; *h3 = sph_rot_64(*h3, 34);
+	*h2 += *h4; *h5 ^= *h2; *h4 = sph_rot_64(*h4, 21);
+	*h3 += *h5; *h6 ^= *h3; *h5 = sph_rot_64(*h5, 38);
+	*h4 += *h6; *h7 ^= *h4; *h6 = sph_rot_64(*h6, 33);
+	*h5 += *h7; *h8 ^= *h5; *h7 = sph_rot_64(*h7, 10);
+	*h6 += *h8; *h9 ^= *h6; *h8 = sph_rot_64(*h8, 13);
+	*h7 += *h9; *h10 ^= *h7; *h9 = sph_rot_64(*h9, 38);
+	*h8 += *h10; *h11 ^= *h8; *h10 = sph_rot_64(*h10, 53);
+	*h9 += *h11; *h0 ^= *h9; *h11 = sph_rot_64(*h11, 42);
+	*h10 += *h0; *h1 ^= *h10; *h0 = sph_rot_64(*h0, 54);
+}
+
+
+inline static void sph_end(uint64_t* h0, uint64_t* h1, uint64_t* h2, uint64_t* h3, uint64_t* h4, uint64_t* h5, uint64_t* h6, uint64_t* h7,
+	uint64_t* h8, uint64_t* h9, uint64_t* h10, uint64_t* h11)
+{
+	sph_end_partial(h0, h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11);
+	sph_end_partial(h0, h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11);
+	sph_end_partial(h0, h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11);
+}
+
+
+inline static void sph_short_mix(uint64_t* h0, uint64_t* h1, uint64_t* h2, uint64_t* h3)
+{
+	*h2 = sph_rot_64(*h2, 50); *h2 += *h3; *h0 ^= *h2;
+	*h3 = sph_rot_64(*h3, 52); *h3 += *h0; *h1 ^= *h3;
+	*h0 = sph_rot_64(*h0, 30); *h0 += *h1; *h2 ^= *h0;
+	*h1 = sph_rot_64(*h1, 41); *h1 += *h2; *h3 ^= *h1;
+	*h2 = sph_rot_64(*h2, 54); *h2 += *h3; *h0 ^= *h2;
+	*h3 = sph_rot_64(*h3, 48); *h3 += *h0; *h1 ^= *h3;
+	*h0 = sph_rot_64(*h0, 38); *h0 += *h1; *h2 ^= *h0;
+	*h1 = sph_rot_64(*h1, 37); *h1 += *h2; *h3 ^= *h1;
+	*h2 = sph_rot_64(*h2, 62); *h2 += *h3; *h0 ^= *h2;
+	*h3 = sph_rot_64(*h3, 34); *h3 += *h0; *h1 ^= *h3;
+	*h0 = sph_rot_64(*h0, 5); *h0 += *h1; *h2 ^= *h0;
+	*h1 = sph_rot_64(*h1, 36); *h1 += *h2; *h3 ^= *h1;
+}
+
+
+inline static void sph_short_end(uint64_t* h0, uint64_t* h1, uint64_t* h2, uint64_t* h3)
+{
+	*h3 ^= *h2; *h2 = sph_rot_64(*h2, 15); *h3 += *h2;
+	*h0 ^= *h3; *h3 = sph_rot_64(*h3, 52); *h0 += *h3;
+	*h1 ^= *h0; *h0 = sph_rot_64(*h0, 26); *h1 += *h0;
+	*h2 ^= *h1; *h1 = sph_rot_64(*h1, 51); *h2 += *h1;
+	*h3 ^= *h2; *h2 = sph_rot_64(*h2, 28); *h3 += *h2;
+	*h0 ^= *h3; *h3 = sph_rot_64(*h3, 9); *h0 += *h3;
+	*h1 ^= *h0; *h0 = sph_rot_64(*h0, 47); *h1 += *h0;
+	*h2 ^= *h1; *h1 = sph_rot_64(*h1, 54); *h2 += *h1;
+	*h3 ^= *h2; *h2 = sph_rot_64(*h2, 32); *h3 += *h2;
+	*h0 ^= *h3; *h3 = sph_rot_64(*h3, 25); *h0 += *h3;
+	*h1 ^= *h0; *h0 = sph_rot_64(*h0, 63); *h1 += *h0;
+}
+
+
+inline static void* sph_memcpy(void *restrict p, const void *restrict q, size_t n)
+{
+	register const uint8_t* s;
+	register uint8_t* d;
+
+	if (p < q)
+	{
+		s = (const uint8_t*)q;
+		d = (uint8_t*)p;
+		while (n--) *d++ = *s++;
+	}
+	else
+	{
+		s = (const uint8_t*)q + (n - 1);
+		d = (uint8_t*)p + (n - 1);
+		while (n--) *d-- = *s--;
+	}
+
+	return p;
+}
+
+
+inline static void* sph_memset(void *restrict p, register uint8_t v, register size_t n)
+{
+	register uint8_t* d = (uint8_t*)p;
+	while (n-- > UINT64_C(0)) *d++ = v;
+	return p;
+}
+
+
+inline static void sph_short_hash(const void* data, size_t length, uint64_t* hash1, uint64_t* hash2)
+{
+	uint64_t buf[2 * SPH_NUM_VARS];
+
+	union
+	{
+		const uint8_t* p8;
+		uint32_t* p32;
+		uint64_t* p64;
+		size_t i;
+	}
+	u;
+
+	size_t remainder;
+	uint64_t a, b, c, d;
+	u.p8 = (const uint8_t*)data;
+
+	if (!SPH_ALLOW_UNALIGNED_READS && (u.i & 0x7))
+	{
+		sph_memcpy(buf, data, length);
+
+		u.p64 = buf;
+	}
+
+	remainder = length % 32;
+	a = *hash1;
+	b = *hash2;
+	c = UINT64_C(0xDEADBEEFDEADBEEF);
+	d = UINT64_C(0xDEADBEEFDEADBEEF);
+
+	if (length > 15)
+	{
+		const uint64_t* endp = u.p64 + (length / 32) * 4;
+
+		for (; u.p64 < endp; u.p64 += 4)
+		{
+			c += u.p64[0];
+			d += u.p64[1];
+			sph_short_mix(&a, &b, &c, &d);
+			a += u.p64[2];
+			b += u.p64[3];
+		}
+
+		if (remainder >= 16)
+		{
+			c += u.p64[0];
+			d += u.p64[1];
+			sph_short_mix(&a, &b, &c, &d);
+			u.p64 += 2;
+			remainder -= 16;
+		}
+	}
+
+	d += ((uint64_t)length) << 56;
+
+	/*
+	switch (remainder)
+	{
+	case 15: d += ((uint64_t)u.p8[14]) << 48;
+	case 14: d += ((uint64_t)u.p8[13]) << 40;
+	case 13: d += ((uint64_t)u.p8[12]) << 32;
+	case 12: d += u.p32[2]; c += u.p64[0]; break;
+	case 11: d += ((uint64_t)u.p8[10]) << 16;
+	case 10: d += ((uint64_t)u.p8[9]) << 8;
+	case 9: d += (uint64_t)u.p8[8];
+	case 8: c += u.p64[0]; break;
+	case 7: c += ((uint64_t)u.p8[6]) << 48;
+	case 6: c += ((uint64_t)u.p8[5]) << 40;
+	case 5: c += ((uint64_t)u.p8[4]) << 32;
+	case 4: c += u.p32[0]; break;
+	case 3: c += ((uint64_t)u.p8[2]) << 16;
+	case 2: c += ((uint64_t)u.p8[1]) << 8;
+	case 1: c += (uint64_t)u.p8[0]; break;
+	case 0: c += UINT64_C(0xDEADBEEFDEADBEEF); d += UINT64_C(0xDEADBEEFDEADBEEF);
+	}
+	*/
+
+	if (remainder == 15) { d += ((uint64_t)u.p8[14]) << 48; goto LOC_14; }
+	else if (remainder == 14) { LOC_14: d += ((uint64_t)u.p8[13]) << 40; goto LOC_13; }
+	else if (remainder == 13) { LOC_13: d += ((uint64_t)u.p8[12]) << 32; goto LOC_12; }
+	else if (remainder == 12) { LOC_12: d += u.p32[2]; c += u.p64[0]; } // break.
+	else if (remainder == 11) { d += ((uint64_t)u.p8[10]) << 16; goto LOC_10; }
+	else if (remainder == 10) { LOC_10: d += ((uint64_t)u.p8[9]) << 8; goto LOC_9; }
+	else if (remainder == 9) { LOC_9: d += (uint64_t)u.p8[8]; goto LOC_8; }
+	else if (remainder == 8) { LOC_8: c += u.p64[0]; } // break.
+	else if (remainder == 7) { c += ((uint64_t)u.p8[6]) << 48; goto LOC_6; }
+	else if (remainder == 6) { LOC_6: c += ((uint64_t)u.p8[5]) << 40; goto LOC_5; }
+	else if (remainder == 5) { LOC_5: c += ((uint64_t)u.p8[4]) << 32; goto LOC_4; }
+	else if (remainder == 4) { LOC_4: c += u.p32[0]; } // break.
+	else if (remainder == 3) { c += ((uint64_t)u.p8[2]) << 16; goto LOC_2; }
+	else if (remainder == 2) { LOC_2: c += ((uint64_t)u.p8[1]) << 8; goto LOC_1; }
+	else if (remainder == 1) { LOC_1: c += (uint64_t)u.p8[0]; } // break.
+	else if (remainder == 0) { c += UINT64_C(0xDEADBEEFDEADBEEF); d += UINT64_C(0xDEADBEEFDEADBEEF); }
+
+	sph_short_end(&a, &b, &c, &d);
+
+	*hash1 = a;
+	*hash2 = b;
+}
+
+
+inline static void sph_init(struct sph_state_s* state, uint64_t seed1, uint64_t seed2)
+{
+	state->length = 0;
+	state->remainder = 0;
+	state->state[0] = seed1;
+	state->state[1] = seed2;
+}
+
+
+inline static void sph_update(struct sph_state_s* state, const void* input, size_t length)
+{
+	uint64_t h0, h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11;
+	size_t nlen = length + state->remainder;
+	uint8_t remainder;
+
+	union
+	{
+		const uint8_t* p8;
+		uint64_t* p64;
+		size_t i;
+	}
+	u;
+
+	const uint64_t* endp;
+
+	if (nlen < SPH_BUF_SIZE)
+	{
+		sph_memcpy(&((uint8_t*)state->data)[state->remainder], input, length);
+
+		state->length = length + state->length;
+		state->remainder = (uint8_t)nlen;
+
+		return;
+	}
+
+	if (state->length < SPH_BUF_SIZE)
+	{
+		h0 = h3 = h6 = h9 = state->state[0];
+		h1 = h4 = h7 = h10 = state->state[1];
+		h2 = h5 = h8 = h11 = UINT64_C(0xDEADBEEFDEADBEEF);
+	}
+	else
+	{
+		h0 = state->state[0];
+		h1 = state->state[1];
+		h2 = state->state[2];
+		h3 = state->state[3];
+		h4 = state->state[4];
+		h5 = state->state[5];
+		h6 = state->state[6];
+		h7 = state->state[7];
+		h8 = state->state[8];
+		h9 = state->state[9];
+		h10 = state->state[10];
+		h11 = state->state[11];
+	}
+
+	state->length = length + state->length;
+
+	if (state->remainder)
+	{
+		uint8_t prefix = SPH_BUF_SIZE - state->remainder;
+
+		sph_memcpy(&(((uint8_t*)state->data)[state->remainder]), input, prefix);
+
+		u.p64 = state->data;
+		sph_mix(u.p64, &h0, &h1, &h2, &h3, &h4, &h5, &h6, &h7, &h8, &h9, &h10, &h11);
+		sph_mix(&u.p64[SPH_NUM_VARS], &h0, &h1, &h2, &h3, &h4, &h5, &h6, &h7, &h8, &h9, &h10, &h11);
+		u.p8 = ((const uint8_t*)input) + prefix;
+		length -= prefix;
+	}
+	else u.p8 = (const uint8_t*)input;
+
+	endp = u.p64 + (length / SPH_BLOCK_SIZE) * SPH_NUM_VARS;
+	remainder = (uint8_t)(length - ((const uint8_t*)endp - u.p8));
+
+	if (SPH_ALLOW_UNALIGNED_READS || (u.i & 0x7) == 0)
+	{
+		while (u.p64 < endp)
+		{
+			sph_mix(u.p64, &h0, &h1, &h2, &h3, &h4, &h5, &h6, &h7, &h8, &h9, &h10, &h11);
+			u.p64 += SPH_NUM_VARS;
+		}
+	}
+	else
+	{
+		while (u.p64 < endp)
+		{
+			sph_memcpy(state->data, u.p8, SPH_BLOCK_SIZE);
+			sph_mix(state->data, &h0, &h1, &h2, &h3, &h4, &h5, &h6, &h7, &h8, &h9, &h10, &h11);
+			u.p64 += SPH_NUM_VARS;
+		}
+	}
+
+	state->remainder = remainder;
+
+	sph_memcpy(state->data, endp, remainder);
+
+	state->state[0] = h0;
+	state->state[1] = h1;
+	state->state[2] = h2;
+	state->state[3] = h3;
+	state->state[4] = h4;
+	state->state[5] = h5;
+	state->state[6] = h6;
+	state->state[7] = h7;
+	state->state[8] = h8;
+	state->state[9] = h9;
+	state->state[10] = h10;
+	state->state[11] = h11;
+}
+
+
+inline static void sph_final(struct sph_state_s* state, uint64_t* hash1, uint64_t* hash2)
+{
+	uint64_t h0, h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11;
+	const uint64_t* data = (const uint64_t*)state->data;
+	uint8_t remainder = state->remainder;
+
+	if (state->length < SPH_BUF_SIZE)
+	{
+		sph_short_hash(state->data, state->length, hash1, hash2);
+		return;
+	}
+
+	h0 = state->state[0];
+	h1 = state->state[1];
+	h2 = state->state[2];
+	h3 = state->state[3];
+	h4 = state->state[4];
+	h5 = state->state[5];
+	h6 = state->state[6];
+	h7 = state->state[7];
+	h8 = state->state[8];
+	h9 = state->state[9];
+	h10 = state->state[10];
+	h11 = state->state[11];
+
+	if (remainder >= SPH_BLOCK_SIZE)
+	{
+		sph_mix(data, &h0, &h1, &h2, &h3, &h4, &h5, &h6, &h7, &h8, &h9, &h10, &h11);
+		data += SPH_NUM_VARS;
+		remainder -= SPH_BLOCK_SIZE;
+	}
+
+	sph_memset(&((uint8_t*)data)[remainder], 0, (SPH_BLOCK_SIZE - remainder));
+
+	((uint8_t*)data)[SPH_BLOCK_SIZE - 1] = remainder;
+	sph_mix(data, &h0, &h1, &h2, &h3, &h4, &h5, &h6, &h7, &h8, &h9, &h10, &h11);
+	sph_end(&h0, &h1, &h2, &h3, &h4, &h5, &h6, &h7, &h8, &h9, &h10, &h11);
+
+	*hash1 = h0;
+	*hash2 = h1;
+}
+
+
+inline static void sph_hash_128(const void* data, size_t length, uint64_t* hash1, uint64_t* hash2)
+{
+	uint64_t h0, h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11;
+	uint64_t buf[SPH_NUM_VARS];
+	uint64_t *endp;
+
+	union
+	{
+		const uint8_t* p8;
+		uint64_t* p64;
+		uintptr_t i;
+	}
+	u;
+
+	size_t remainder;
+
+	if (length < SPH_BUF_SIZE)
+	{
+		sph_short_hash(data, length, hash1, hash2);
+		return;
+	}
+
+	h0 = h3 = h6 = h9 = *hash1;
+	h1 = h4 = h7 = h10 = *hash2;
+	h2 = h5 = h8 = h11 = UINT64_C(0xDEADBEEFDEADBEEF);
+
+	u.p8 = (const uint8_t*)data;
+	endp = u.p64 + (length / SPH_BLOCK_SIZE) * SPH_NUM_VARS;
+
+	if (SPH_ALLOW_UNALIGNED_READS || (u.i & 0x7) == 0)
+	{
+		while (u.p64 < endp)
+		{
+			sph_mix(u.p64, &h0, &h1, &h2, &h3, &h4, &h5, &h6, &h7, &h8, &h9, &h10, &h11);
+			u.p64 += SPH_NUM_VARS;
+		}
+	}
+	else
+	{
+		while (u.p64 < endp)
+		{
+			sph_memcpy(buf, u.p64, SPH_BLOCK_SIZE);
+
+			sph_mix(buf, &h0, &h1, &h2, &h3, &h4, &h5, &h6, &h7, &h8, &h9, &h10, &h11);
+			u.p64 += SPH_NUM_VARS;
+		}
+	}
+
+	remainder = (length - ((const uint8_t*)endp - (const uint8_t*)data));
+
+	sph_memcpy(buf, endp, remainder);
+	sph_memset(((uint8_t*)buf) + remainder, 0, SPH_BLOCK_SIZE - remainder);
+
+	((uint8_t*)buf)[SPH_BLOCK_SIZE - 1] = remainder;
+
+	sph_end(&h0, &h1, &h2, &h3, &h4, &h5, &h6, &h7, &h8, &h9, &h10, &h11);
+
+	*hash1 = h0;
+	*hash2 = h1;
+}
+
+
+#define spooky_128_state (sizeof(uint64_t) * 2)
+#define spooky_128_result (sizeof(uint64_t) * 2)
+#define spooky_128_keyed 1
+
+
+// Spooky Hash 128-bit keyed non-cryptographic hash function by Bob Jenkins. 
+exported void* callconv spooky_128_hash(void* s, const void *restrict p, size_t n)
+{
+	uint64_t* sptr = (uint64_t*)s;
+	uint64_t hash0 = sptr[0], hash1 = sptr[1];
+	sph_hash_128(p, n, &hash0, &hash1);
+	sptr[0] = hash0;
+	sptr[1] = hash1;
+	return s;
+}
+
+
+#define spooky_64_state sizeof(uint64_t)
+#define spooky_64_result sizeof(uint64_t)
+#define spooky_64_keyed 1
+
+
+// Spooky Hash 64-bit keyed non-cryptographic hash function by Bob Jenkins.
+exported void* callconv spooky_64_hash(void* s, const void *restrict p, size_t n)
+{
+	uint64_t* sptr = (uint64_t*)s;
+	uint64_t hash0 = *sptr, hash1 = (*sptr ^ n);
+	sph_hash_128(p, n, &hash0, &hash1);
+	*sptr = hash0;
+	return s;
+}
+
+
+#define spooky_32_state sizeof(uint32_t)
+#define spooky_32_result sizeof(uint32_t)
+#define spooky_32_keyed 1
+
+
+// Spooky Hash 32-bit keyed non-cryptographic hash function by Bob Jenkins.
+exported void* callconv spooky_32_hash(void* s, const void *restrict p, size_t n)
+{
+	uint32_t* sptr = (uint32_t*)s;
+	uint64_t hash0 = ((uint64_t)*sptr) ^ n, hash1 = n ^ (((uint64_t)*sptr) << 32);
+	sph_hash_128(p, n, &hash0, &hash1);
+	*sptr = (uint32_t)hash0;
+	return s;
+}
+

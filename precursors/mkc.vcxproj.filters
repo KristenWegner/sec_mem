@@ -61,22 +61,22 @@
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
-    <None Include="crc-x86-x64-le.code">
+    <None Include="code\build.cmd">
       <Filter>Code Templates</Filter>
     </None>
-    <None Include="ran-x86-x64-le.code">
+    <None Include="code\crc-x86-x64-le.code">
       <Filter>Code Templates</Filter>
     </None>
-    <None Include="rdr-x86-x64-le.code">
+    <None Include="code\hsh-x86-x64-le.code">
       <Filter>Code Templates</Filter>
     </None>
-    <None Include="tab-x86-x64-le.code">
+    <None Include="code\ran-x86-x64-le.code">
       <Filter>Code Templates</Filter>
     </None>
-    <None Include="build.cmd">
+    <None Include="code\rdr-x86-x64-le.code">
       <Filter>Code Templates</Filter>
     </None>
-    <None Include="hsh-x86-x64-le.code">
+    <None Include="code\tab-x86-x64-le.code">
       <Filter>Code Templates</Filter>
     </None>
   </ItemGroup>
