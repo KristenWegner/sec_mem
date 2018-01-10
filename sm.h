@@ -88,6 +88,7 @@ extern sm_ref_t callconv sm_get_entity(sm_t* sm, uint16_t op);
 // Error Codes
 
 
+#define SM_ERR_NO_ERROR				(0)
 #define SM_ERR_NOT_INITIALIZED		(1 << 1) // System not initialized.
 #define SM_ERR_NO_SUCH_COMMAND		(1 << 2) // No such command.
 #define SM_ERR_INVALID_ARGUMENT		(1 << 3) // Invalid argument(s).
@@ -95,6 +96,7 @@ extern sm_ref_t callconv sm_get_entity(sm_t* sm, uint16_t op);
 #define SM_ERR_INVALID_CRC			(1 << 5) // Invalid CRC encountered.
 #define SM_ERR_OUT_OF_MEMORY		(1 << 6) // Out of memory or allocation failed.
 #define SM_ERR_CANNOT_MAKE_EXEC		(1 << 7) // Failed to make memory page executable.
+#define SM_ERR_DATA_CORRUPT			(1 << 8) // Data is corrupt.
 
 
 // Built-In Opcodes
