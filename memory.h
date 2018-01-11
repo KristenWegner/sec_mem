@@ -184,5 +184,20 @@ inline static bool sec_memcon(register const void *restrict s, register const vo
 }
 
 
+void* sec_memmove(void *restrict dest, void const *restrict src, register size_t n)
+{
+	register uint8_t* d = (uint8_t*)dest;
+	register uint8_t const* s = (uint8_t const*)src;
+
+	if (d < s) while (n-- > UINT64_C(0)) *d++ = *s++;
+	else
+	{
+		d += n, s += n;
+		while (n-- > UINT64_C(0)) *--d = *--s;
+	}
+
+	return dest;
+}
+
 #endif // INCLUDE_MEMORY_H
 
