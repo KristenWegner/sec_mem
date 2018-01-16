@@ -55,6 +55,7 @@
       <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Release|x64'">StdCall</CallingConvention>
     </ClCompile>
     <ClCompile Include="mkc.c" />
+    <ClCompile Include="ppm.c" />
     <ClCompile Include="ran.c">
       <InlineFunctionExpansion Condition="'$(Configuration)|$(Platform)'=='Release|x64'">AnySuitable</InlineFunctionExpansion>
       <StringPooling Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</StringPooling>
