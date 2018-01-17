@@ -1166,6 +1166,8 @@ exported uint8_t* callconv ppm_encode(uint8_t* input, size_t input_size, uint8_t
 
 	ppm_encoder_state_t* state = (ppm_encoder_state_t*)malloc(sizeof(ppm_encoder_state_t));
 
+	if (!state) return NULL;
+
 	ppm_memset(state, 0, sizeof(ppm_encoder_state_t));
 
 	state->input = input;
@@ -1257,6 +1259,10 @@ exported uint8_t* callconv ppm_encode(uint8_t* input, size_t input_size, uint8_t
 		ppm_model_encode(&state->model, &state->encoder, (state->input_index < state->input_size) ? 1 : 2);
         ppm_encoder_flush(&state->encoder);
     }
+
+	free(state);
+
+	return output;
 }
 
 
