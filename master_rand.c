@@ -158,7 +158,7 @@ exported uint64_t callconv sm_random(sm_t sm)
 
 		if (rv & 1) // Cyclic shift a variable amount [1 .. 63] bits left or right.
 			rs = sm_rotl_64(rs, 1 + ((1 + rv) % 62));
-		else rs = sm_rotl_64(rs, 1 + ((1 + rv) % 62));
+		else rs = sm_rotr_64(rs, 1 + ((1 + rv) % 62));
 
 		// Now re-seed.
 		sm_random_seed(context->random.state, rs);

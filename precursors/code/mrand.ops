@@ -1,0 +1,105 @@
+# Master random settings.
+
+mrng xorshift_1024_star;
+
+# Master random seed procedure.
+proc SEED:
+	decl ui64 s 0x23AD3C18F;
+	decl ui64 t 0;
+	time t null;
+	shff t t;
+	xora s t;
+	wtic t;
+	yelo t t;
+	xora s t;
+	decl timv tv;
+	tmod addr tv;
+	decl ui64 a 0;
+	decl ui64 b 0;
+	shff a tv.secs;
+	shff b tv.usec;
+	xora a b;
+	yelo a a;
+	xora s a;
+	mtn3 a gpid gtid guid;
+	assn b gunh;
+	swap b b;
+	gren b b;
+	xora a b;
+	xora s a;
+	yelo a s;
+	xora s a;
+	decl ui32 n 16;
+	seed s;
+	next a;
+	xora a s;
+	incr a;
+	moda a 32;
+	addv n a;
+	decl ui32 i 0;
+	forr i n:
+		next;
+	ends;
+ends;
+
+
+# Master random get next value procedure.
+proc NEXT:
+	decl ui64 r 0;
+	next r;
+	# Test for re-seeding.
+	decl ui64 s r;
+	ifeq s 0:
+		incr s;
+	ends;
+	# Every 16th, do a re-seed.
+	moda s 16;
+	# No need, just return the value.
+	ifne s 0:
+		retn r;
+	ends;
+	cloc s;
+	shff s s;
+	xora r s;
+	wtic s;
+	xora r s;
+	next s;
+	decl ui64 t 0;
+	next t;
+	nega r r;
+	xora t r;
+	yelo s t;
+	assn t r;
+	anda t 1;
+	decl ui64 a 1;
+	adda a r;
+	ifeq a 0:
+		incr a;
+	ends;
+	moda a 62;
+	# Shift right or left.
+	ifnz t:
+		rotl s s a;
+	else:
+		rotr s s a;
+	ends;
+	# Do the re-seed.
+	seed s;
+	# Warm it up.
+	next a;
+	xora a s;
+	ifeq a 0:
+		incr a;
+	ends;
+	moda a 16;
+	decl ui32 n 1;
+	addv n a;
+	decl ui32 i 0;
+	forr i n:
+		next;
+	ends;
+	next r;
+	retn r;
+ends;
+
+

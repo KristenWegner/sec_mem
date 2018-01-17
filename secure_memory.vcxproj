@@ -232,7 +232,6 @@
     <ClInclude Include="mutex.h" />
     <ClInclude Include="random.h" />
     <ClInclude Include="memory.h" />
-    <ClInclude Include="random\ldexp.h" />
     <ClInclude Include="secure_memory.h" />
     <ClInclude Include="sm.h" />
     <ClInclude Include="sm_internal.h" />

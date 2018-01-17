@@ -53,10 +53,10 @@ inline static void ppm_encoder_encode(register ppm_encoder_t *restrict state, ui
 
 inline static ppm_encoder_flush(register ppm_encoder_t *restrict state)
 {
-	state->buffer[state->index] = (uint8_t)(state->low >> 24), state->index++, state->low <<= 8;
-	state->buffer[state->index] = (uint8_t)(state->low >> 24), state->index++, state->low <<= 8;
-	state->buffer[state->index] = (uint8_t)(state->low >> 24), state->index++, state->low <<= 8;
-	state->buffer[state->index] = (uint8_t)(state->low >> 24), state->index++, state->low <<= 8;
+	state->buffer[state->index] = (uint8_t)(state->low >> 24); state->index++; state->low <<= 8;
+	state->buffer[state->index] = (uint8_t)(state->low >> 24); state->index++; state->low <<= 8;
+	state->buffer[state->index] = (uint8_t)(state->low >> 24); state->index++; state->low <<= 8;
+	state->buffer[state->index] = (uint8_t)(state->low >> 24); state->index++; state->low <<= 8;
 }
 
 
@@ -81,10 +81,10 @@ inline static void ppm_decoder_create(register ppm_decoder_t *restrict state, ui
 	state->index = UINT32_C(0);
 	state->buffer = buffer;
 
-	state->code = state->code << 8 | state->buffer[state->index], state->index++;
-	state->code = state->code << 8 | state->buffer[state->index], state->index++;
-	state->code = state->code << 8 | state->buffer[state->index], state->index++;
-	state->code = state->code << 8 | state->buffer[state->index], state->index++;
+	state->code = state->code << 8 | state->buffer[state->index]; state->index++;
+	state->code = state->code << 8 | state->buffer[state->index]; state->index++;
+	state->code = state->code << 8 | state->buffer[state->index]; state->index++;
+	state->code = state->code << 8 | state->buffer[state->index]; state->index++;
 }
 
 
@@ -146,7 +146,7 @@ inline static void ppm_bit_model_create(register ppm_bit_model_t *restrict state
 
 inline static uint8_t ppm_bit_model_encode(register ppm_bit_model_t *restrict state, register ppm_encoder_t *restrict coder, uint8_t b)
 {
-	if (b == UINT8_C(0)) 
+	if (b == UINT8_C(0))
 		ppm_encoder_encode(coder, 0, state->c[0], state->c[0] + state->c[1]);
 	else ppm_encoder_encode(coder, state->c[0], state->c[1], state->c[0] + state->c[1]);
 
@@ -206,9 +206,30 @@ typedef uint8_t ppm_bitset_t[256];
 inline static uint8_t ppm_bitset_any(register ppm_bitset_t v)
 {
 	register uint16_t i = UINT16_C(0);
+
 	for (; i < UINT16_C(256); ++i)
 		if (v[i]) return UINT8_C(1);
+
 	return UINT8_C(0);
+}
+
+
+inline static uint8_t ppm_bitset_count(register ppm_bitset_t v)
+{
+	register uint8_t count = UINT8_C(0);
+	register uint16_t i = UINT16_C(0);
+
+	for (; i < UINT16_C(256); ++i)
+		if (v[i]) ++count;
+
+	return count;
+}
+
+
+inline static uint8_t ppm_bitset_clear(register ppm_bitset_t v)
+{
+	register uint16_t i = UINT16_C(0);
+	for (; i < UINT16_C(256); ++i) v[i] = UINT8_C(0);
 }
 
 
@@ -289,6 +310,7 @@ inline static uint8_t ppm_dense_model_encode(register ppm_dense_model_t *restric
 		state->symbols[0].symbol = b;
 		
 		state->count++;
+
 		cumulate = sum - escape;
 		frequency = escape;
 	}
@@ -299,7 +321,7 @@ inline static uint8_t ppm_dense_model_encode(register ppm_dense_model_t *restric
 }
 
 
-inline static uint16_t ppm_dense_model_decode(register ppm_dense_model_t *restrict state, ppm_decoder_t *restrict coder, ppm_bitset_t exclude)
+inline static int16_t ppm_dense_model_decode(register ppm_dense_model_t *restrict state, ppm_decoder_t *restrict coder, ppm_bitset_t exclude)
 {
 	register uint32_t i, n;
 	uint16_t cumulate = UINT16_C(0), frequency = UINT16_C(0), sum = UINT16_C(0), escape = UINT16_C(0);
@@ -725,22 +747,21 @@ inline static ppm_bit_model_t* ppm_model_current_see(register ppm_model_t *restr
 	ppm_dense_model_t* o2 = ppm_model_current_o2(state);
 	uint16_t sum = o2->sum;
 	uint8_t low = o2->count;
-	uint64_t context = 0 | ((state->context >> 6) & 3) << 0 | ((state->context >> 14) & 3) << 2 | ((state->context >> 22) & 3) << 4 | 
-		state->see_last_esc << 6;
+	uint64_t context = UINT64_C(0) | ((state->context >> 6) & UINT64_C(3)) << 0 | ((state->context >> 14) & UINT64_C(3)) << 2 | 
+		((state->context >> 22) & UINT64_C(3)) << 4 | state->see_last_esc << 6;
 
-	if (current == 1) 
+	if (current == UINT8_C(1)) 
 	{
-		context |= 0
-			| (o4->symbols[0].symbol >> 5) << 7
-			| (sum >= 5) << 10
-			| ppm_min(ppm_log_2(current / 2), 3) << 11
-			| ppm_min(ppm_log_2(o4->sum / 3), 7) << 13
-			| 1 << 16;
+		context |= UINT64_C(0) | (uint64_t)(o4->symbols[0].symbol >> 5) << 7 | (uint64_t)(sum >= UINT16_C(5)) << 10 | 
+			(uint64_t)ppm_min(ppm_log_2((uint32_t)current / UINT32_C(2)), UINT32_C(3)) << 11 | 
+			(uint64_t)ppm_min(ppm_log_2(o4->sum / UINT32_C(3)), UINT32_C(7)) << 13 | UINT64_C(1) << 16;
+
 		return &state->see[context];
 	}
 
-	context |= 0 | ppm_min(ppm_log_2(ppm_max(low - current, 0) / 2), 3) << 7 | (sum >= 5) << 10 | 
-		ppm_min(ppm_log_2(current / 2), 3) << 11 | ppm_min(ppm_log_2(o4->sum / 8), 7) << 13 | 0 << 16;
+	context |= UINT64_C(0) | (uint64_t)ppm_min(ppm_log_2(ppm_max(low - current, 0) / UINT64_C(2)), UINT64_C(3)) << 7 | 
+		(uint64_t)(sum >= UINT16_C(5)) << 10 | (uint64_t)ppm_min(ppm_log_2((uint32_t)(current / UINT32_C(2))), UINT64_C(3)) << 11 |
+		(uint64_t)ppm_min(ppm_log_2((uint32_t)o4->sum / UINT32_C(8)), UINT64_C(7)) << 13 | UINT64_C(0) << 16;
 
 	return &state->see[context];
 }
@@ -773,14 +794,14 @@ ppm_sparse_model_t* ppm_model_current_o4(register ppm_model_t *restrict state)
 		}
 	}
 
-	uint64_t compacted_context = 0 | (state->context & 0xc0ffffffffff);
-	auto& bucket = state->o4_buckets[((compacted_context >> 16) * 13131 + compacted_context) % UINT32_C(262144)];
-	auto it0 = bucket;
-	auto it1 = bucket;
+	uint64_t compacted_context = UINT64_C(0) | (state->context & UINT64_C(0xC0FFFFFFFFFF));
+	ppm_sparse_model_t* bucket = state->o4_buckets[((compacted_context >> 16) * UINT64_C(13131) + compacted_context) % UINT64_C(262144)];
+	ppm_sparse_model_t* it0 = bucket;
+	ppm_sparse_model_t* it1 = bucket;
 
 	while (it1 != NULL) 
 	{
-		if (it1->m_context == compacted_context)
+		if (it1->context == compacted_context)
 		{
 			if (it1 != bucket)
 			{
@@ -789,7 +810,7 @@ ppm_sparse_model_t* ppm_model_current_o4(register ppm_model_t *restrict state)
 				bucket = it1;
 			}
 
-			it1->visited += (it1->visited < 255);
+			it1->visited += (it1->visited < UINT8_C(255));
 
 			return it1;
 		}
@@ -798,107 +819,109 @@ ppm_sparse_model_t* ppm_model_current_o4(register ppm_model_t *restrict state)
 		it1 = it1->next;
 	}
 
-	auto new_node = new sparse_model_t();
+	ppm_sparse_model_t* node = (ppm_sparse_model_t*)malloc(sizeof(ppm_sparse_model_t));
 
-	new_node->context = compacted_context;
-	new_node->visited = 1;
-	new_node->next = bucket;
-	bucket = new_node;
+	node->context = compacted_context;
+	node->visited = 1;
+	node->next = bucket;
+
+	bucket = node;
 
 	state->o4_count++;
 
-	return new_node;
+	return node;
 }
 
 
-inline static void ppm_model_encode(register ppm_model_t *restrict state, ppm_encoder_t *restrict coder, int c)
+inline static void ppm_model_encode(register ppm_model_t *restrict state, ppm_encoder_t *restrict coder, uint8_t b)
+{
+	register uint32_t i, n;
+
+	ppm_sparse_model_t* o4 = ppm_model_current_o4(state);
+	ppm_dense_model_t* o2 = ppm_model_current_o2(state);
+	ppm_dense_model_t* o1 = ppm_model_current_o1(state);
+	ppm_dense_model_t* o0 = ppm_model_current_o0(state);
+
+	uint8_t order = 0;
+	ppm_bitset_t exclude;
+
+	ppm_bitset_clear(exclude);
+
+	while (-1)
+	{
+		order = 4; if (ppm_sparse_model_encode(o4, ppm_model_current_see(state, o4), coder, b, exclude)) break;
+		order = 2; if (ppm_dense_model_encode(o2, coder, exclude, b)) break;
+		order = 1; if (ppm_dense_model_encode(o1, coder, exclude, b)) break;
+		order = 0; if (ppm_dense_model_encode(o0, coder, exclude, b)) break;
+
+		uint16_t cumulate = UINT16_C(0);
+
+		for (i = UINT32_C(0); i < (uint32_t)b; ++i)
+			cumulate += !exclude[i];
+		
+		ppm_encoder_encode(coder, cumulate, UINT16_C(1), UINT16_C(256) - ppm_bitset_count(exclude));
+
+		break;
+	}
+
+	if (order == 0) { ppm_dense_model_update(o0, b); goto LOC_1; }
+	else if (order == 1) { LOC_1: ppm_dense_model_update(o1, b); goto LOC_2; }
+	else if (order == 2) { LOC_2: ppm_dense_model_update(o2, b); goto LOC_4; }
+	else if (order == 4) { LOC_4: ppm_sparse_model_update(o4, o2, b); }
+
+	state->see_last_esc = (order == 4);
+}
+
+
+inline static int ppm_model_decode(register ppm_model_t *restrict state, ppm_decoder_t *restrict coder)
 {
 	ppm_sparse_model_t* o4 = ppm_model_current_o4(state);
 	ppm_dense_model_t* o2 = ppm_model_current_o2(state);
 	ppm_dense_model_t* o1 = ppm_model_current_o1(state);
 	ppm_dense_model_t* o0 = ppm_model_current_o0(state);
 
-	auto order = 0;
+	uint8_t order = UINT8_C(0);
+	int16_t c = UINT16_C(0);
+
 	ppm_bitset_t exclude;
+	ppm_bitset_clear(exclude);
 
 	while (-1)
 	{
-		order = 4; if (ppm_sparse_model_encode(o4, ppm_model_current_see(state, o4), coder, c, exclude)) break;
-		order = 2; if (ppm_dense_model_encode(o2, coder, exclude, c)) break;
-		order = 1; if (ppm_dense_model_encode(o1, coder, exclude, c)) break;
-		order = 0; if (ppm_dense_model_encode(o0, coder, exclude, c)) break;
+		order = UINT8_C(4); if ((c = ppm_sparse_model_decode(o4, ppm_model_current_see(state, o4), coder, exclude)) != INT16_C(-1)) break;
+		order = UINT8_C(2); if ((c = ppm_dense_model_decode(o2, coder, exclude)) != -1) break;
+		order = UINT8_C(1); if ((c = ppm_dense_model_decode(o1, coder, exclude)) != -1) break;
+		order = UINT8_C(0); if ((c = ppm_dense_model_decode(o0, coder, exclude)) != -1) break;
 
-		auto cumulate = 0;
+		uint16_t decode = ppm_decoder_decode_cumulate(coder, UINT16_C(256) - ppm_bitset_count(exclude));
+		uint16_t cumulate = UINT16_C(0);
 
-		for (auto i = 0; i < c; i++)
-			cumulate += !exclude[i];
+		for (c = INT16_C(0); cumulate + !exclude[c] <= decode; ++c)
+			cumulate += !exclude[c];
 		
-		ppm_encoder_encode(coder, cumulate, 1, 256 - exclude.count());
+		ppm_decoder_decode(coder, cumulate, UINT16_C(1));
 
 		break;
 	}
 
-	switch (order)
-	{
-	case 0: o0->update(c);
-	case 1: o1->update(c);
-	case 2: o2->update(c);
-	case 4: o4->update(o2, c);
-	}
+	if (order == 0) { ppm_dense_model_update(o0, (uint8_t)c); goto LOC_1; }
+	else if (order == 1) { LOC_1: ppm_dense_model_update(o1, (uint8_t)c); goto LOC_2; }
+	else if (order == 2) { LOC_2: ppm_dense_model_update(o2, (uint8_t)c); goto LOC_4; }
+	else if (order == 4) { LOC_4: ppm_sparse_model_update(o4, o2, (uint8_t)c); }
 
-	m_see_last_esc = (order == 4);
+	state->see_last_esc = (order == UINT8_C(4));
+
+	return c;
+}
+
+
+inline static void ppm_model_update_context(register ppm_model_t *restrict state, int c)
+{
+	state->context = state->context << 8 | c;
 }
 
 
 
-struct ppm_model_t
-{
-
-    
-
-    // main ppm-decode method
-    int decode(rc_decoder_t* coder) {
-        auto o4 = current_o4();
-        auto o2 = current_o2();
-        auto o1 = current_o1();
-        auto o0 = current_o0();
-        auto order = 0;
-        auto c = 0;
-        auto exclude = std::bitset<256>();
-
-        while (-1) {
-            order = 4; if ((c = o4->decode(current_see(o4), coder, exclude)) != -1) break;
-            order = 2; if ((c = o2->decode(coder, exclude)) != -1) break;
-            order = 1; if ((c = o1->decode(coder, exclude)) != -1) break;
-            order = 0; if ((c = o0->decode(coder, exclude)) != -1) break;
-
-            // decode with o(-1)
-            auto decode_cum = coder->decode_cum(256 - exclude.count());
-            auto cumulate = 0;
-            for (c = 0; cumulate + !exclude[c] <= decode_cum; c++) {
-                cumulate += !exclude[c];
-            }
-            coder->decode(cumulate, 1);
-            break;
-        }
-        switch (order) {  // fall-through switch
-            case 0: o0->update(c);
-            case 1: o1->update(c);
-            case 2: o2->update(c);
-            case 4: o4->update(o2, c);
-        }
-        m_see_last_esc = (order == 4);
-        return c;
-    }
-
-    void update_context(int c) {
-        m_context = m_context << 8 | c;
-    }
-};
-
-/*******************************************************************************
- * Matcher
- ******************************************************************************/
 struct matcher_t {
     static const auto match_min = 12;
     static const auto match_max = 255;
@@ -971,9 +994,8 @@ struct matcher_t {
     }
 };
 
-/*******************************************************************************
- * Codec
- ******************************************************************************/
+
+
 static const auto BLOCK_SIZE = 16777216;
 static const auto MATCH_LENS_SIZE = 64000;
 
@@ -1062,6 +1084,7 @@ void zmolly_encode(std::istream& orig, std::ostream& comp) {
     }
 }
 
+
 void zmolly_decode(std::istream& comp, std::ostream& orig) {
     auto ppm = std::make_unique<ppm_model_t>();
     auto end_of_input = false;
@@ -1116,9 +1139,10 @@ void zmolly_decode(std::istream& comp, std::ostream& orig) {
     }
 }
 
-/*******************************************************************************
- * Main
- ******************************************************************************/
+
+
+
+
 int main(int argc, char** argv) {
     fprintf(stderr,
             "zmolly:\n"

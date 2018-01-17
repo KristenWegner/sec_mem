@@ -79,9 +79,6 @@
     <ClInclude Include="secure_memory.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="random\ldexp.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="embedded.h">
       <Filter>Header Files</Filter>
     </ClInclude>

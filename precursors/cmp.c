@@ -3,273 +3,10 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <assert.h>
 
 #include "../config.h"
 #include "../sm.h"
-
-
-inline static sm_error_t lzo_size(const void* src, uint64_t slen, uint64_t* dlen)
-{
-	uint8_t const *ip = (const uint8_t*)src;
-	uint8_t const *const ie = ip + slen;
-	uint64_t tl = 0;
-
-	while (ip < ie)
-	{
-		uint64_t ct = *ip++;
-
-		if (ct < (UINT64_C(1) << 5))
-		{
-			ct++;
-
-			if (ip + ct > ie)
-				return SM_ERR_DATA_CORRUPT;
-
-			tl += ct;
-			ip += ct;
-		}
-		else
-		{
-			uint64_t ln = (ct >> 5);
-
-			if (ln == 7)
-				ln += *ip++;
-
-			ln += 2;
-
-			if (ip >= ie)
-				return SM_ERR_DATA_CORRUPT;
-
-			ip++;
-
-			tl += ln;
-		}
-	}
-
-	*dlen = tl;
-
-	return SM_ERR_NO_ERROR;
-}
-
-
-exported sm_error_t callconv lzo_compress(const void *const src, const uint64_t slen, void *dst, uint64_t *const dlen, void* htab)
-{
-	const uint8_t** hs;
-	uint64_t hv;
-	const uint8_t *rf;
-	const uint8_t *ip = (const uint8_t*)src;
-	const uint8_t *const ie = ip + slen;
-	uint8_t *op = (uint8_t*)dst;
-	const uint8_t *const oe = (dlen == NULL) ? NULL : op + *dlen;
-	int64_t lt;
-	uint64_t of;
-	uint8_t** ht = htab;
-
-	if (!dlen || !ht) return SM_ERR_INVALID_ARGUMENT;
-
-	if (!src)
-	{
-		if (slen != 0) return SM_ERR_INVALID_ARGUMENT;
-		*dlen = UINT64_C(0);
-		return SM_ERR_NO_ERROR;
-	}
-
-	if (dst == NULL)
-	{
-		if (dlen != 0) return SM_ERR_INVALID_ARGUMENT;
-		return lzo_size(src, slen, dlen);
-	}
-
-	register uint8_t* p = (uint8_t*)ht; // Zero the htab.
-	register size_t n = sizeof(uint8_t*) * UINT64_C(0x10000);
-	while (n-- > UINT64_C(0)) *p++ = 0;
-
-	lt = 0;
-	op++;
-
-	hv = ((ip[0] << 8) | ip[1]);
-
-	while (ip + 2 < ie)
-	{
-		hv = ((hv << 8) | ip[2]);
-		hs = ht + (((hv >> (3 * 8 - 0x10)) - hv) & UINT64_C(0xFFFF));
-		rf = *hs;
-		*hs = ip;
-
-		if (rf < ip && (of = ip - rf - 1) < 0x2000 && ip + 4 < ie &&  rf > (uint8_t*)src &&  rf[0] == ip[0] &&
-			rf[1] == ip[1] && rf[2] == ip[2])
-		{
-			uint64_t ln = UINT64_C(3);
-			const uint64_t xl = ie - ip - 2 > 0x108 ? UINT64_C(0x108) : ie - ip - 2;
-
-			if (op - !lt + 3 + 1 >= oe)
-				return SM_ERR_OUT_OF_MEMORY;
-
-			op[-lt - INT64_C(1)] = (uint8_t)(lt - 1);
-			op -= !lt;
-
-			while (ln < xl && rf[ln] == ip[ln])
-				ln++;
-
-			ln -= UINT64_C(2);
-
-			if (ln < 7)
-			{
-				*op++ = (uint8_t)((of >> 8) + (ln << 5));
-				*op++ = (uint8_t)of;
-			}
-			else
-			{
-				*op++ = (uint8_t)((of >> 8) + UINT64_C(0xE0));
-				*op++ = (uint8_t)(ln - UINT64_C(7));
-				*op++ = (uint8_t)of;
-			}
-
-			lt = INT64_C(0), op++;
-
-			ip += ln + UINT64_C(1);
-
-			if (ip + 3 >= ie)
-			{
-				ip++;
-				break;
-			}
-
-			hv = (uint64_t)((ip[0] << 8) | ip[1]);
-			hv = ((hv << 8) | (uint64_t)ip[2]);
-			ht[(((hv >> (3 * 8 - 0x10)) - hv) & UINT64_C(0xFFFF))] = ip;
-			ip++;
-		}
-		else
-		{
-			if (op >= oe)
-				return SM_ERR_OUT_OF_MEMORY;
-
-			lt++;
-			*op++ = *ip++;
-
-			if (lt == INT64_C(0x20))
-			{
-				op[-lt - INT64_C(1)] = (uint8_t)(lt - INT64_C(1));
-				lt = INT64_C(0), op++;
-			}
-		}
-	}
-
-	if (op + 3 > oe) return SM_ERR_OUT_OF_MEMORY;
-
-	while (ip < ie)
-	{
-		lt++;
-		*op++ = *ip++;
-
-		if (lt == INT64_C(0x20))
-		{
-			op[-lt - 1] = (uint8_t)(lt - INT64_C(1));
-			lt = INT64_C(0), op++;
-		}
-	}
-
-	op[-lt - INT64_C(1)] = (uint8_t)(lt - INT64_C(1));
-	op -= !lt;
-
-	*dlen = op - (uint8_t*)dst;
-
-	return SM_ERR_NO_ERROR;
-}
-
-
-exported sm_error_t callconv lzo_decompress(const void* src, uint64_t slen, void* dst, uint64_t* dlen)
-{
-	uint8_t const *ip = (const uint8_t*)src;
-	uint8_t const *const ie = ip + slen;
-	uint8_t *op = (uint8_t*)dst;
-	uint8_t const *const oe = (dlen == UINT64_C(0)) ? 0 : op + *dlen;
-	uint64_t rl = UINT64_C(0);
-	sm_error_t rc = SM_ERR_NO_ERROR;
-
-	if (!dlen)
-		return SM_ERR_INVALID_ARGUMENT;
-
-	if (!src)
-	{
-		if (slen != UINT64_C(0))
-			return SM_ERR_INVALID_ARGUMENT;
-
-		*dlen = UINT64_C(0);
-
-		return SM_ERR_NO_ERROR;
-	}
-
-	if (dst == NULL)
-	{
-		if (dlen != NULL)
-			return SM_ERR_INVALID_ARGUMENT;
-
-		return lzo_size(src, slen, dlen);
-	}
-
-	do
-	{
-		uint64_t ct = *ip++;
-
-		if (ct < UINT64_C(0x20))
-		{
-			ct++;
-
-			if (op + ct > oe)
-			{
-				--ip;
-				goto LOC_GUESS;
-			}
-
-			if (ip + ct > ie)
-				return SM_ERR_DATA_CORRUPT;
-
-			do *op++ = *ip++;
-			while (--ct);
-		}
-		else
-		{
-			uint64_t ln = (ct >> 5);
-			uint8_t *rf = op - ((ct & UINT64_C(0x1F)) << 8) - 1;
-
-			if (ln == UINT64_C(7)) ln += *ip++;
-
-			ln += 2;
-
-			if (op + ln > oe)
-			{
-				ip -= (ln >= UINT64_C(9)) ? 2 : 1;
-				goto LOC_GUESS;
-			}
-
-			if (ip >= ie)
-				return SM_ERR_DATA_CORRUPT;
-
-			rf -= *ip++;
-
-			if (rf < (uint8_t*)dst)
-				return SM_ERR_DATA_CORRUPT;
-
-			do *op++ = *rf++;
-			while (--ln);
-		}
-	} while (ip < ie);
-
-	*dlen = op - (uint8_t*)dst;
-
-	return SM_ERR_NO_ERROR;
-
-LOC_GUESS:
-
-	rc = lzo_size(ip, slen - (ip - (uint8_t*)src), &rl);
-
-	if (rc >= 0)
-		*dlen = rl + (op - (uint8_t*)dst);
-
-	return rc;
-}
 
 
 // LZSS embedded compressor, based on code by Scott Vokes.
@@ -313,12 +50,12 @@ typedef int8_t lzss_encoder_result_t; // Encoder result type.
 
 // Encoder result codes.
 
-#define LZSS_ENCODER_OK          INT8_C( 0) // Data sunk into input buffer.
-#define LZSS_ENCODER_EMPTY       INT8_C( 1) // Input exhausted.
-#define LZSS_ENCODER_MORE        INT8_C( 2) // Poll again for more output.
-#define LZSS_ENCODER_DONE        INT8_C( 3) // Encoding is complete.
-#define LZSS_ENCODER_ERROR_NULL  INT8_C(-1) // Null argument.
-#define LZSS_ENCODER_ERROR_STATE INT8_C(-2) // API misuse.
+#define LZSS_ENCODER_RESULT_OK    INT8_C( 0) // Data sunk into input buffer.
+#define LZSS_ENCODER_RESULT_EMPTY INT8_C( 1) // Input exhausted.
+#define LZSS_ENCODER_RESULT_MORE  INT8_C( 2) // Poll again for more output.
+#define LZSS_ENCODER_RESULT_DONE  INT8_C( 3) // Encoding is complete.
+#define LZSS_ENCODER_RESULT_NULL  INT8_C(-1) // Null argument.
+#define LZSS_ENCODER_RESULT_STATE INT8_C(-2) // Internal state error.
 
 
 #if LZSS_DYNAMIC
@@ -495,13 +232,13 @@ inline static void lzss_encoder_reset(lzss_encoder_t *restrict lzss);
 
 // Sink up to size bytes from input into the encoder. Param input_size is set to the number of bytes actually sunk 
 // (in case a buffer was filled).
-inline static lzss_encoder_result_t lzss_encoder_sink(lzss_encoder_t *restrict lzss, uint8_t *restrict input, size_t size, size_t *restrict input_size);
+inline static lzss_encoder_result_t lzss_encoder_sink(lzss_encoder_t *restrict lzss, const uint8_t *restrict input, size_t size, size_t *restrict input_size);
 
 // Poll for output from the encoder, copying at most out_size bytes into output (setting *result_size to the 
 // actual amount copied).
 inline static lzss_encoder_result_t lzss_encoder_poll(lzss_encoder_t *restrict lzss, uint8_t *restrict output, size_t out_size, size_t *restrict result_size);
 
-// Notify the encoder that the input stream is finished. If the return value is LZSS_ENCODER_MORE, there is still 
+// Notify the encoder that the input stream is finished. If the return value is LZSS_ENCODER_RESULT_MORE, there is still 
 // more output, so call lzss_encoder_poll and repeat.
 inline static lzss_encoder_result_t lzss_encoder_finish(lzss_encoder_t *restrict lzss);
 
@@ -520,7 +257,7 @@ inline static void lzss_decoder_reset(lzss_decoder_t *restrict lzss);
 
 // Sink at most size bytes from input into the decoder. Param *input_size is set to indicate how many 
 // bytes were actually sunk (in case a buffer was filled).
-inline static lzss_decoder_result_t lzss_decoder_sink(lzss_decoder_t *restrict lzss, uint8_t *restrict input, size_t size, size_t *restrict input_size);
+inline static lzss_decoder_result_t lzss_decoder_sink(lzss_decoder_t *restrict lzss, const uint8_t *restrict input, size_t size, size_t *restrict input_size);
 
 // Poll for output from the decoder, copying at most out_size bytes into output (setting *result_size 
 // to the actual amount copied).
@@ -640,13 +377,13 @@ inline static void* lzss_memcpy(void *restrict p, const void *restrict q, size_t
 }
 
 
-inline static lzss_encoder_result_t lzss_encoder_sink(lzss_encoder_t *restrict lzss, uint8_t *restrict input, size_t size, size_t *restrict input_size)
+inline static lzss_encoder_result_t lzss_encoder_sink(lzss_encoder_t *restrict lzss, const uint8_t *restrict input, size_t size, size_t *restrict input_size)
 {
 	if ((lzss == NULL) || (input == NULL) || (input_size == NULL))
-		return LZSS_ENCODER_ERROR_NULL;
+		return LZSS_ENCODER_RESULT_NULL;
 
-	if (lzss_is_finishing(lzss)) return LZSS_ENCODER_ERROR_STATE;
-	if (lzss->state != LZSS_ENCODER_STATE_NOT_FULL) return LZSS_ENCODER_ERROR_STATE;
+	if (lzss_is_finishing(lzss)) return LZSS_ENCODER_RESULT_STATE;
+	if (lzss->state != LZSS_ENCODER_STATE_NOT_FULL) return LZSS_ENCODER_RESULT_STATE;
 
 	uint16_t write_offset = lzss_get_input_offset(lzss) + lzss->input_size;
 	uint16_t ibs = lzss_get_input_buffer_size(lzss);
@@ -660,7 +397,7 @@ inline static lzss_encoder_result_t lzss_encoder_sink(lzss_encoder_t *restrict l
 
 	if (cp_sz == rem) lzss->state = LZSS_ENCODER_STATE_FILLED;
 
-	return LZSS_ENCODER_OK;
+	return LZSS_ENCODER_RESULT_OK;
 }
 
 
@@ -678,10 +415,10 @@ inline static lzss_encoder_state_t lzss_st_flush_bit_buffer(lzss_encoder_t *rest
 inline static lzss_encoder_result_t lzss_encoder_poll(lzss_encoder_t *restrict lzss, uint8_t *restrict output, size_t out_size, size_t *restrict result_size)
 {
 	if ((lzss == NULL) || (output == NULL) || (result_size == NULL))
-		return LZSS_ENCODER_ERROR_NULL;
+		return LZSS_ENCODER_RESULT_NULL;
 	
 	if (out_size == UINT64_C(0))
-		return LZSS_ENCODER_ERROR_STATE;
+		return LZSS_ENCODER_RESULT_STATE;
 	
 	*result_size = UINT64_C(0);
 
@@ -693,7 +430,7 @@ inline static lzss_encoder_result_t lzss_encoder_poll(lzss_encoder_t *restrict l
 
 		
 		if (s == LZSS_ENCODER_STATE_NOT_FULL)
-			return LZSS_ENCODER_EMPTY;
+			return LZSS_ENCODER_RESULT_EMPTY;
 		else if (s == LZSS_ENCODER_STATE_FILLED) { lzss_do_indexing(lzss); lzss->state = LZSS_ENCODER_STATE_SEARCH; }
 		else if (s == LZSS_ENCODER_STATE_SEARCH) lzss->state = lzss_st_step_search(lzss);
 		else if (s == LZSS_ENCODER_STATE_YIELD_TAG_BIT) lzss->state = lzss_st_yield_tag_bit(lzss, &oi);
@@ -702,26 +439,26 @@ inline static lzss_encoder_result_t lzss_encoder_poll(lzss_encoder_t *restrict l
 		else if (s == LZSS_ENCODER_STATE_YIELD_BR_LENGTH) lzss->state = lzss_st_yield_br_length(lzss, &oi);
 		else if (s == LZSS_ENCODER_STATE_SAVE_BACKLOG) lzss->state = lzss_st_save_backlog(lzss);
 		else if (s == LZSS_ENCODER_STATE_FLUSH_BITS) { lzss->state = lzss_st_flush_bit_buffer(lzss, &oi); goto LOC_DONE; }
-		else if (s == LZSS_ENCODER_STATE_DONE) { LOC_DONE: return LZSS_ENCODER_EMPTY; }
-		else return LZSS_ENCODER_ERROR_STATE;
+		else if (s == LZSS_ENCODER_STATE_DONE) { LOC_DONE: return LZSS_ENCODER_RESULT_EMPTY; }
+		else return LZSS_ENCODER_RESULT_STATE;
 
 		if (lzss->state == s)
 			if (*result_size == out_size) 
-				return LZSS_ENCODER_MORE;
+				return LZSS_ENCODER_RESULT_MORE;
 	}
 }
 
 
 inline static lzss_encoder_result_t lzss_encoder_finish(lzss_encoder_t *restrict lzss)
 {
-	if (!lzss) return LZSS_ENCODER_ERROR_NULL;
+	if (!lzss) return LZSS_ENCODER_RESULT_NULL;
 
 	lzss->flags |= LZSS_ENC_IS_FINISHING_FLAG;
 
 	if (lzss->state == LZSS_ENCODER_STATE_NOT_FULL) 
 		lzss->state = LZSS_ENCODER_STATE_FILLED;
 
-	return lzss->state == LZSS_ENCODER_STATE_DONE ? LZSS_ENCODER_DONE : LZSS_ENCODER_MORE;
+	return lzss->state == LZSS_ENCODER_STATE_DONE ? LZSS_ENCODER_RESULT_DONE : LZSS_ENCODER_RESULT_MORE;
 }
 
 
@@ -1145,7 +882,7 @@ void lzss_decoder_reset(lzss_decoder_t *restrict lzss)
 }
 
 
-lzss_decoder_result_t lzss_decoder_sink(lzss_decoder_t *restrict lzss, uint8_t *restrict input, size_t size, size_t *restrict input_size)
+lzss_decoder_result_t lzss_decoder_sink(lzss_decoder_t *restrict lzss, const uint8_t *restrict input, size_t size, size_t *restrict input_size)
 {
 	if (!lzss || !input || !input_size)
 		return LZSS_DECODER_RESULT_NULL;
@@ -1426,7 +1163,7 @@ inline static void lzss_push_byte(lzss_decoder_t *restrict lzss, lzss_output_inf
 }
 
 
-exported sm_error_t callconv lzss_decompress(const void* src, uint64_t slen, void* dst, uint64_t* dlen)
+exported sm_error_t callconv lzss_compress(const void* src, uint64_t slen, void *dst, uint64_t* dlen)
 {
 	lzss_encoder_t e;
 	lzss_encoder_reset(&e);
@@ -1436,50 +1173,94 @@ exported sm_error_t callconv lzss_decompress(const void* src, uint64_t slen, voi
 	register size_t n = *dlen;
 	while (n-- > UINT64_C(0)) *p++ = UINT8_C(0);
 
-	uint32_t sunk = 0;
-	uint32_t polled = 0;
-	size_t count = 0;
+	const uint8_t* input = (const uint8_t*)src;
+	uint8_t* output = (uint8_t*)dst;
+	size_t count = 0, sunk = 0, poll = 0, size = *dlen;
 
 	while (sunk < slen)
 	{
-		if (lzss_encoder_sink(&e, &s[sunk], slen - sunk, &count) >= 0)
-			sunk += count;
+		if(lzss_encoder_sink(&e, &input[sunk], slen - sunk, &count) < 0)
+			return SM_ERR_OPERATION_FAILED;
+
+		sunk += count;
 
 		if (sunk == slen)
+			if (lzss_encoder_finish(&e) != LZSS_ENCODER_RESULT_MORE)
+				return SM_ERR_OPERATION_FAILED;
+
+		lzss_encoder_result_t res = LZSS_ENCODER_RESULT_MORE;
+
+		do
 		{
-			lzss_encoder_finish(&e);
-
-		lzss_encoder_result_t res;
-
-		do 
-		{
-			res = lzss_encoder_poll(&e, &p[polled], n - polled, &count);
-
-			if (res < 0) return SM_ERR_OPERATION_FAILED;
-
-			polled += count;
+			if ((res = lzss_encoder_poll(&e, &output[poll], size - poll, &count)) < 0) 
+				return SM_ERR_OPERATION_FAILED;
+			poll += count;
 		} 
-		while (res == LZSS_ENCODER_MORE);
+		while (res == LZSS_ENCODER_RESULT_MORE);
 
-		if(res != LZSS_ENCODER_EMPTY)
+		if (res != LZSS_ENCODER_RESULT_EMPTY)
 			return SM_ERR_OPERATION_FAILED;
 
-		if (polled >= (slen + (slen / 2) + 4))
+		if (poll >= size)
 			return SM_ERR_OPERATION_FAILED;
+
+		if (sunk == slen)
+			if (lzss_encoder_finish(&e) != LZSS_ENCODER_RESULT_DONE)
+				return SM_ERR_OPERATION_FAILED;
 	}
 
-	if (sunk == slen && lzss_encoder_finish(&e) != LZSS_ENCODER_DONE)
-		return SM_ERR_OPERATION_FAILED;
-
-	*dlen = polled;
+	*dlen = poll;
 
 	return SM_ERR_NO_ERROR;
 }
 
 
-exported sm_error_t callconv lzss_compress(const void *const src, const uint64_t slen, void *dst, uint64_t *const dlen)
+exported sm_error_t callconv lzss_decompress(const void* src, uint64_t slen, void* dst, uint64_t* dlen)
 {
+	lzss_decoder_t d;
+	lzss_decoder_reset(&d);
 
+	register const uint8_t* input = (uint8_t*)src;
+	register uint8_t* output = (uint8_t*)dst;
+	register size_t n = *dlen;
+	while (n-- > UINT64_C(0)) *output++ = UINT8_C(0);
+
+	size_t size = *dlen, count = 0, sunk = 0, poll = 0;
+
+	output = (uint8_t*)dst;
+
+	while (sunk < slen)
+	{
+		if (lzss_decoder_sink(&d, &input[sunk], slen - sunk, &count) < 0)
+			return SM_ERR_OPERATION_FAILED;
+
+		sunk += count;
+
+		if (sunk == slen)
+			if (lzss_decoder_finish(&d) != LZSS_DECODER_RESULT_MORE)
+				return SM_ERR_OPERATION_FAILED;
+
+		lzss_decoder_result_t res = LZSS_DECODER_RESULT_MORE;
+
+		do
+		{
+			if ((res = lzss_decoder_poll(&d, &output[poll], size - poll, &count)) < 0)
+				return SM_ERR_OPERATION_FAILED;
+
+			poll += count;
+		} 
+		while (res == LZSS_DECODER_RESULT_MORE && count);
+
+		if (res != LZSS_DECODER_RESULT_EMPTY)
+			return SM_ERR_OPERATION_FAILED;
+
+		if (sunk == slen)
+			if (lzss_decoder_finish(&d) != LZSS_DECODER_RESULT_DONE)
+				return SM_ERR_OPERATION_FAILED;
+	}
+
+	*dlen = poll;
+
+	return SM_ERR_NO_ERROR;
 }
-
 
