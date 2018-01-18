@@ -54,7 +54,7 @@
     <ClCompile Include="foo.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ppm.c">
+    <ClCompile Include="lzma.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

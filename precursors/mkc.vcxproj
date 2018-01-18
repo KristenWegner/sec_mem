@@ -49,13 +49,13 @@
       <EnforceTypeConversionRules Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</EnforceTypeConversionRules>
       <OmitDefaultLibName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</OmitDefaultLibName>
     </ClCompile>
+    <ClCompile Include="lzma.c" />
     <ClCompile Include="mem.c">
       <InlineFunctionExpansion Condition="'$(Configuration)|$(Platform)'=='Release|x64'">AnySuitable</InlineFunctionExpansion>
       <StringPooling Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</StringPooling>
       <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Release|x64'">StdCall</CallingConvention>
     </ClCompile>
     <ClCompile Include="mkc.c" />
-    <ClCompile Include="ppm.c" />
     <ClCompile Include="ran.c">
       <InlineFunctionExpansion Condition="'$(Configuration)|$(Platform)'=='Release|x64'">AnySuitable</InlineFunctionExpansion>
       <StringPooling Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</StringPooling>
