@@ -123,7 +123,7 @@ struct lzma_compress_progress_t { lzma_rc_t (*progress)(const lzma_compress_prog
 
 
 typedef struct lzma_allocator_t lzma_allocator_t;
-typedef const lzma_allocator_t* lzma_allocator_ptr_t;
+typedef lzma_allocator_t* lzma_allocator_ptr_t;
 struct lzma_allocator_t
 {
 	void* (*allocate)(lzma_allocator_t* allocator, size_t size);
@@ -284,16 +284,16 @@ lzma_rc_t lzma_2_decode(uint8_t* dest, size_t* dest_len, const uint8_t* src, siz
 
 typedef enum lzma_2_state_e
 {
-	LZMA2_STATE_CONTROL,
-	LZMA2_STATE_UNPACK0,
-	LZMA2_STATE_UNPACK1,
-	LZMA2_STATE_PACK0,
-	LZMA2_STATE_PACK1,
-	LZMA2_STATE_PROP,
-	LZMA2_STATE_DATA,
-	LZMA2_STATE_DATA_CONT,
-	LZMA2_STATE_FINISHED,
-	LZMA2_STATE_ERROR
+	LZMA_2_STATE_CONTROL,
+	LZMA_2_STATE_UNPACK_0,
+	LZMA_2_STATE_UNPACK_1,
+	LZMA_2_STATE_PACK_0,
+	LZMA_2_STATE_PACK_1,
+	LZMA_2_STATE_PROP,
+	LZMA_2_STATE_DATA,
+	LZMA_2_STATE_DATA_CONT,
+	LZMA_2_STATE_FINISHED,
+	LZMA_2_STATE_ERROR
 }
 lzma_2_state_t;
 
@@ -351,8 +351,8 @@ static int32_t  lzma_decoder_decode_real(lzma_decoder_t* p, size_t limit, const 
 	uint16_t* probabilities = p->probabilities;
 	uint32_t state = p->state;
 	uint32_t rep_a = p->reps[0], rep_b = p->reps[1], rep_c = p->reps[2], rep_d = p->reps[3];
-	uint32_t pb_mask = ((uint32_t)1 << (p->properties.pb)) - 1;
-	uint32_t lp_mask = ((uint32_t)1 << (p->properties.lp)) - 1;
+	uint32_t pb_mask = (UINT32_C(1) << (p->properties.pb)) - 1;
+	uint32_t lp_mask = (UINT32_C(1) << (p->properties.lp)) - 1;
 	uint32_t lc = p->properties.lc;
 	uint8_t* dictionary = p->dictionary;
 	size_t dictionary_buffer_size = p->dictionary_buffer_size;
@@ -373,14 +373,14 @@ static int32_t  lzma_decoder_decode_real(lzma_decoder_t* p, size_t limit, const 
 
 		prob = probabilities + 0 + (state << 4) + pos_state;
 
-		ttt = *(prob); if (range < ((uint32_t)1 << 24)) { range <<= 8; code = (code << 8) | (*buffer++); }; bound = (range >> 11) * ttt; if (code < bound)
+		ttt = *(prob); if (range < (UINT32_C(1) << 24)) { range <<= 8; code = (code << 8) | (*buffer++); }; bound = (range >> 11) * ttt; if (code < bound)
 		{
 			uint32_t symbol;
 			range = bound; *(prob) = (uint16_t)(ttt + (((1 << 11) - ttt) >> 5));
 
 			prob = probabilities + (((((((((((0 + (12 << 4)) + 12) + 12) + 12) + 12) + (12 << 4)) + (4 << 6)) + (1 << (14 >> 1)) - 14) + (1 << 4)) + (((((0 + 1) + 1) + ((1 << 4) << 3)) + ((1 << 4) << 3)) + (1 << 8))) + (((((0 + 1) + 1) + ((1 << 4) << 3)) + ((1 << 4) << 3)) + (1 << 8)));
 
-			if (processed_position != 0 || check_dictionary_size != 0) prob += ((uint32_t)0x300 * (((processed_position & lp_mask) << lc) +
+			if (processed_position != 0 || check_dictionary_size != 0) prob += (UINT32_C(0x300) * (((processed_position & lp_mask) << lc) +
 				(dictionary[(dictionary_position == 0 ? dictionary_buffer_size : dictionary_position) - 1] >> (8 - lc))));
 
 			processed_position++;
@@ -394,7 +394,7 @@ static int32_t  lzma_decoder_decode_real(lzma_decoder_t* p, size_t limit, const 
 				{ 
 					ttt = *(prob + symbol); 
 					
-					if (range < ((uint32_t)1 << 24)) 
+					if (range < (UINT32_C(1) << 24)) 
 					{ 
 						range <<= 8; 
 						code = (code << 8) | (*buffer++); 
@@ -435,7 +435,7 @@ static int32_t  lzma_decoder_decode_real(lzma_decoder_t* p, size_t limit, const 
 					prob_lit = prob + offs + bit + symbol;
 					ttt = *(prob_lit);
 
-					if (range < ((uint32_t)1 << 24))
+					if (range < (UINT32_C(1) << 24))
 					{
 						range <<= 8;
 						code = (code << 8) | (*buffer++);
@@ -473,7 +473,7 @@ static int32_t  lzma_decoder_decode_real(lzma_decoder_t* p, size_t limit, const 
 			prob = probabilities + (0 + (12 << 4)) + state;
 			ttt = *(prob);
 
-			if (range < ((uint32_t)1 << 24))
+			if (range < (UINT32_C(1) << 24))
 			{
 				range <<= 8;
 				code = (code << 8) | (*buffer++);
@@ -500,7 +500,7 @@ static int32_t  lzma_decoder_decode_real(lzma_decoder_t* p, size_t limit, const 
 
 				ttt = *(prob); 
 				
-				if (range < ((uint32_t)1 << 24)) 
+				if (range < (UINT32_C(1) << 24)) 
 				{
 					range <<= 8; 
 					code = (code << 8) | (*buffer++); 
@@ -516,7 +516,7 @@ static int32_t  lzma_decoder_decode_real(lzma_decoder_t* p, size_t limit, const 
 
 					ttt = *(prob); 
 					
-					if (range < ((uint32_t)1 << 24)) 
+					if (range < (UINT32_C(1) << 24)) 
 					{ 
 						range <<= 8; 
 						code = (code << 8) | (*buffer++);
@@ -547,7 +547,7 @@ static int32_t  lzma_decoder_decode_real(lzma_decoder_t* p, size_t limit, const 
 					prob = probabilities + (((0 + (12 << 4)) + 12) + 12) + state;
 					ttt = *(prob); 
 					
-					if (range < ((uint32_t)1 << 24)) 
+					if (range < (UINT32_C(1) << 24)) 
 					{ 
 						range <<= 8; 
 						code = (code << 8) | (*buffer++);
@@ -566,7 +566,7 @@ static int32_t  lzma_decoder_decode_real(lzma_decoder_t* p, size_t limit, const 
 						prob = probabilities + ((((0 + (12 << 4)) + 12) + 12) + 12) + state;
 						ttt = *(prob); 
 						
-						if (range < ((uint32_t)1 << 24)) 
+						if (range < (UINT32_C(1) << 24)) 
 						{ 
 							range <<= 8; 
 							code = (code << 8) | (*buffer++); 
@@ -604,7 +604,7 @@ static int32_t  lzma_decoder_decode_real(lzma_decoder_t* p, size_t limit, const 
 
 				ttt = *(prob_len); 
 				
-				if (range < ((uint32_t)1 << 24)) 
+				if (range < (UINT32_C(1) << 24)) 
 				{ 
 					range <<= 8; 
 					code = (code << 8) | (*buffer++); 
@@ -625,7 +625,7 @@ static int32_t  lzma_decoder_decode_real(lzma_decoder_t* p, size_t limit, const 
 					prob_len = prob + 1;
 					ttt = *(prob_len); 
 					
-					if (range < ((uint32_t)1 << 24)) 
+					if (range < (UINT32_C(1) << 24)) 
 					{ 
 						range <<= 8; 
 						code = (code << 8) | (*buffer++); 
@@ -658,7 +658,7 @@ static int32_t  lzma_decoder_decode_real(lzma_decoder_t* p, size_t limit, const 
 						{ 
 							ttt = *((prob_len + len)); 
 							
-							if (range < ((uint32_t)1 << 24)) 
+							if (range < (UINT32_C(1) << 24)) 
 							{ 
 								range <<= 8; 
 								code = (code << 8) | (*buffer++); 
@@ -702,7 +702,7 @@ static int32_t  lzma_decoder_decode_real(lzma_decoder_t* p, size_t limit, const 
 						{ 
 							ttt = *((prob + distance)); 
 							
-							if (range < ((uint32_t)1 << 24)) 
+							if (range < (UINT32_C(1) << 24)) 
 							{ 
 								range <<= 8; 
 								code = (code << 8) | (*buffer++); 
@@ -750,7 +750,7 @@ static int32_t  lzma_decoder_decode_real(lzma_decoder_t* p, size_t limit, const 
 							{
 								ttt = *(prob + i); 
 								
-								if (range < ((uint32_t)1 << 24)) 
+								if (range < (UINT32_C(1) << 24)) 
 								{ 
 									range <<= 8;
 									code = (code << 8) | (*buffer++); 
@@ -784,7 +784,7 @@ static int32_t  lzma_decoder_decode_real(lzma_decoder_t* p, size_t limit, const 
 
 						do
 						{
-							if (range < ((uint32_t)1 << 24)) 
+							if (range < (UINT32_C(1) << 24)) 
 							{ 
 								range <<= 8; 
 								code = (code << 8) | (*buffer++); 
@@ -810,7 +810,7 @@ static int32_t  lzma_decoder_decode_real(lzma_decoder_t* p, size_t limit, const 
 
 							ttt = *(prob + i); 
 							
-							if (range < ((uint32_t)1 << 24)) { range <<= 8; code = (code << 8) | (*buffer++); }
+							if (range < (UINT32_C(1) << 24)) { range <<= 8; code = (code << 8) | (*buffer++); }
 							bound = (range >> 11) * ttt; 
 							
 							if (code < bound) { range = bound; *(prob + i) = (uint16_t)(ttt + (((1 << 11) - ttt) >> 5)); i = (i + i); }
@@ -818,7 +818,7 @@ static int32_t  lzma_decoder_decode_real(lzma_decoder_t* p, size_t limit, const 
 							
 							ttt = *(prob + i); 
 							
-							if (range < ((uint32_t)1 << 24)) { range <<= 8; code = (code << 8) | (*buffer++); }
+							if (range < (UINT32_C(1) << 24)) { range <<= 8; code = (code << 8) | (*buffer++); }
 							bound = (range >> 11) * ttt; 
 							
 							if (code < bound) { range = bound; *(prob + i) = (uint16_t)(ttt + (((1 << 11) - ttt) >> 5)); i = (i + i); }
@@ -826,7 +826,7 @@ static int32_t  lzma_decoder_decode_real(lzma_decoder_t* p, size_t limit, const 
 							
 							ttt = *(prob + i); 
 							
-							if (range < ((uint32_t)1 << 24)) { range <<= 8; code = (code << 8) | (*buffer++); }
+							if (range < (UINT32_C(1) << 24)) { range <<= 8; code = (code << 8) | (*buffer++); }
 							bound = (range >> 11) * ttt; 
 							
 							if (code < bound) { range = bound; *(prob + i) = (uint16_t)(ttt + (((1 << 11) - ttt) >> 5)); i = (i + i); }
@@ -834,7 +834,7 @@ static int32_t  lzma_decoder_decode_real(lzma_decoder_t* p, size_t limit, const 
 							
 							ttt = *(prob + i); 
 							
-							if (range < ((uint32_t)1 << 24)) { range <<= 8; code = (code << 8) | (*buffer++); }
+							if (range < (UINT32_C(1) << 24)) { range <<= 8; code = (code << 8) | (*buffer++); }
 							bound = (range >> 11) * ttt; 
 							
 							if (code < bound) { range = bound; *(prob + i) = (uint16_t)(ttt + (((1 << 11) - ttt) >> 5)); i = (i + i); }
@@ -921,7 +921,7 @@ static int32_t  lzma_decoder_decode_real(lzma_decoder_t* p, size_t limit, const 
 	} 
 	while (dictionary_position < limit && buffer < buffer_limit);
 
-	if (range < ((uint32_t)1 << 24)) { range <<= 8; code = (code << 8) | (*buffer++); }
+	if (range < (UINT32_C(1) << 24)) { range <<= 8; code = (code << 8) | (*buffer++); }
 
 	p->buffer = buffer;
 	p->range = range;
@@ -939,7 +939,7 @@ static int32_t  lzma_decoder_decode_real(lzma_decoder_t* p, size_t limit, const 
 }
 
 
-static void  lzma_decoder_write_rem(lzma_decoder_t *p, size_t limit)
+static void  lzma_decoder_write_rem(lzma_decoder_t* p, size_t limit)
 {
 	if (p->remaining_length != 0 && p->remaining_length < (2 + (1 << 3) + (1 << 3) + (1 << 8)))
 	{
@@ -971,8 +971,10 @@ static void  lzma_decoder_write_rem(lzma_decoder_t *p, size_t limit)
 }
 
 
-static int32_t lzma_decoder_decode_real_ex(lzma_decoder_t *p, size_t limit, const uint8_t *buffer_limit)
+static int32_t lzma_decoder_decode_real_ex(lzma_decoder_t* p, size_t limit, const uint8_t *buffer_limit)
 {
+	lzma_rc_t rc;
+
 	do
 	{
 		size_t limit_b = limit;
@@ -985,7 +987,9 @@ static int32_t lzma_decoder_decode_real_ex(lzma_decoder_t *p, size_t limit, cons
 				limit_b = p->dictionary_position + rem;
 		}
 
-		{ lzma_rc_t rc__ = (lzma_decoder_decode_real(p, limit_b, buffer_limit)); if (rc__ != 0) return rc__; };
+		rc = lzma_decoder_decode_real(p, limit_b, buffer_limit); 
+		
+		if (rc) return rc;
 
 		if (p->check_dictionary_size == 0 && p->processed_position >= p->properties.dictionary_size)
 			p->check_dictionary_size = p->properties.dictionary_size;
@@ -1030,7 +1034,7 @@ static lzma_dummy_t lzma_decoder_try_dummy(const lzma_decoder_t *p, const uint8_
 
 		ttt = *(prob); 
 		
-		if (range < ((uint32_t)1 << 24)) 
+		if (range < (UINT32_C(1) << 24)) 
 		{ 
 			if (buffer >= buffer_limit) return LZMA_DUMMY_ERROR; 
 			range <<= 8; 
@@ -1046,7 +1050,7 @@ static lzma_dummy_t lzma_decoder_try_dummy(const lzma_decoder_t *p, const uint8_
 			prob = probabilities + (((((((((((0 + (12 << 4)) + 12) + 12) + 12) + 12) + (12 << 4)) + (4 << 6)) + (1 << (14 >> 1)) - 14) + (1 << 4)) + (((((0 + 1) + 1) + ((1 << 4) << 3)) + ((1 << 4) << 3)) + (1 << 8))) + (((((0 + 1) + 1) + ((1 << 4) << 3)) + ((1 << 4) << 3)) + (1 << 8)));
 
 			if (p->check_dictionary_size != 0 || p->processed_position != 0)
-				prob += ((uint32_t)0x300 * ((((p->processed_position) & ((1 << (p->properties.lp)) - 1)) << p->properties.lc) +
+				prob += (UINT32_C(0x300) * ((((p->processed_position) & ((1 << (p->properties.lp)) - 1)) << p->properties.lc) +
 				(p->dictionary[(p->dictionary_position == 0 ? p->dictionary_buffer_size : p->dictionary_position) - 1] >> (8 - p->properties.lc))));
 
 			if (state < 7)
@@ -1057,7 +1061,7 @@ static lzma_dummy_t lzma_decoder_try_dummy(const lzma_decoder_t *p, const uint8_
 				{ 
 					ttt = *(prob + symbol); 
 					
-					if (range < ((uint32_t)1 << 24)) 
+					if (range < (UINT32_C(1) << 24)) 
 					{ 
 						if (buffer >= buffer_limit) return LZMA_DUMMY_ERROR; 
 						range <<= 8; 
@@ -1095,7 +1099,7 @@ static lzma_dummy_t lzma_decoder_try_dummy(const lzma_decoder_t *p, const uint8_
 					prob_lit = prob + offs + bit + symbol;
 					ttt = *(prob_lit); 
 					
-					if (range < ((uint32_t)1 << 24)) 
+					if (range < (UINT32_C(1) << 24)) 
 					{ 
 						if (buffer >= buffer_limit) return LZMA_DUMMY_ERROR; 
 						range <<= 8; code = (code << 8) | (*buffer++); 
@@ -1121,7 +1125,7 @@ static lzma_dummy_t lzma_decoder_try_dummy(const lzma_decoder_t *p, const uint8_
 
 			ttt = *(prob); 
 			
-			if (range < ((uint32_t)1 << 24)) { if (buffer >= buffer_limit) return LZMA_DUMMY_ERROR; range <<= 8; code = (code << 8) | (*buffer++); }
+			if (range < (UINT32_C(1) << 24)) { if (buffer >= buffer_limit) return LZMA_DUMMY_ERROR; range <<= 8; code = (code << 8) | (*buffer++); }
 			
 			bound = (range >> 11) * ttt; 
 			
@@ -1140,7 +1144,7 @@ static lzma_dummy_t lzma_decoder_try_dummy(const lzma_decoder_t *p, const uint8_
 
 				ttt = *(prob); 
 				
-				if (range < ((uint32_t)1 << 24)) { if (buffer >= buffer_limit) return LZMA_DUMMY_ERROR; range <<= 8; code = (code << 8) | (*buffer++); }
+				if (range < (UINT32_C(1) << 24)) { if (buffer >= buffer_limit) return LZMA_DUMMY_ERROR; range <<= 8; code = (code << 8) | (*buffer++); }
 				
 				bound = (range >> 11) * ttt; 
 				
@@ -1151,7 +1155,7 @@ static lzma_dummy_t lzma_decoder_try_dummy(const lzma_decoder_t *p, const uint8_
 
 					ttt = *(prob); 
 					
-					if (range < ((uint32_t)1 << 24)) { if (buffer >= buffer_limit) return LZMA_DUMMY_ERROR; range <<= 8; code = (code << 8) | (*buffer++); }
+					if (range < (UINT32_C(1) << 24)) { if (buffer >= buffer_limit) return LZMA_DUMMY_ERROR; range <<= 8; code = (code << 8) | (*buffer++); }
 					
 					bound = (range >> 11) * ttt; 
 					
@@ -1159,7 +1163,7 @@ static lzma_dummy_t lzma_decoder_try_dummy(const lzma_decoder_t *p, const uint8_
 					{
 						range = bound;
 
-						if (range < ((uint32_t)1 << 24)) { if (buffer >= buffer_limit) return LZMA_DUMMY_ERROR; range <<= 8; code = (code << 8) | (*buffer++); }
+						if (range < (UINT32_C(1) << 24)) { if (buffer >= buffer_limit) return LZMA_DUMMY_ERROR; range <<= 8; code = (code << 8) | (*buffer++); }
 
 						return LZMA_DUMMY_REP;
 					}
@@ -1176,7 +1180,7 @@ static lzma_dummy_t lzma_decoder_try_dummy(const lzma_decoder_t *p, const uint8_
 
 					ttt = *(prob); 
 					
-					if (range < ((uint32_t)1 << 24)) { if (buffer >= buffer_limit) return LZMA_DUMMY_ERROR; range <<= 8; code = (code << 8) | (*buffer++); }
+					if (range < (UINT32_C(1) << 24)) { if (buffer >= buffer_limit) return LZMA_DUMMY_ERROR; range <<= 8; code = (code << 8) | (*buffer++); }
 					
 					bound = (range >> 11) * ttt; 
 					
@@ -1191,7 +1195,7 @@ static lzma_dummy_t lzma_decoder_try_dummy(const lzma_decoder_t *p, const uint8_
 
 						ttt = *(prob); 
 						
-						if (range < ((uint32_t)1 << 24)) { if (buffer >= buffer_limit) return LZMA_DUMMY_ERROR; range <<= 8; code = (code << 8) | (*buffer++); }
+						if (range < (UINT32_C(1) << 24)) { if (buffer >= buffer_limit) return LZMA_DUMMY_ERROR; range <<= 8; code = (code << 8) | (*buffer++); }
 						
 						bound = (range >> 11) * ttt; 
 						
@@ -1215,7 +1219,7 @@ static lzma_dummy_t lzma_decoder_try_dummy(const lzma_decoder_t *p, const uint8_
 
 				ttt = *(prob_len); 
 				
-				if (range < ((uint32_t)1 << 24)) { if (buffer >= buffer_limit) return LZMA_DUMMY_ERROR; range <<= 8; code = (code << 8) | (*buffer++); }
+				if (range < (UINT32_C(1) << 24)) { if (buffer >= buffer_limit) return LZMA_DUMMY_ERROR; range <<= 8; code = (code << 8) | (*buffer++); }
 				
 				bound = (range >> 11) * ttt; 
 				
@@ -1233,7 +1237,7 @@ static lzma_dummy_t lzma_decoder_try_dummy(const lzma_decoder_t *p, const uint8_
 
 					ttt = *(prob_len); 
 					
-					if (range < ((uint32_t)1 << 24)) { if (buffer >= buffer_limit) return LZMA_DUMMY_ERROR; range <<= 8; code = (code << 8) | (*buffer++); }
+					if (range < (UINT32_C(1) << 24)) { if (buffer >= buffer_limit) return LZMA_DUMMY_ERROR; range <<= 8; code = (code << 8) | (*buffer++); }
 					
 					bound = (range >> 11) * ttt; 
 					
@@ -1259,7 +1263,7 @@ static lzma_dummy_t lzma_decoder_try_dummy(const lzma_decoder_t *p, const uint8_
 					do 
 					{ 
 						ttt = *(prob_len + len); 
-						if (range < ((uint32_t)1 << 24)) 
+						if (range < (UINT32_C(1) << 24)) 
 						{ 
 							if (buffer >= buffer_limit) return LZMA_DUMMY_ERROR; 
 							range <<= 8; code = (code << 8) | (*buffer++); 
@@ -1289,7 +1293,7 @@ static lzma_dummy_t lzma_decoder_try_dummy(const lzma_decoder_t *p, const uint8_
 					{ 
 						ttt = *(prob + pos_slot); 
 						
-						if (range < ((uint32_t)1 << 24)) { if (buffer >= buffer_limit) return LZMA_DUMMY_ERROR; range <<= 8; code = (code << 8) | (*buffer++); }
+						if (range < (UINT32_C(1) << 24)) { if (buffer >= buffer_limit) return LZMA_DUMMY_ERROR; range <<= 8; code = (code << 8) | (*buffer++); }
 						
 						bound = (range >> 11) * ttt; 
 						
@@ -1314,7 +1318,7 @@ static lzma_dummy_t lzma_decoder_try_dummy(const lzma_decoder_t *p, const uint8_
 						nr_direct_bits -= 4;
 						do
 						{
-							if (range < ((uint32_t)1 << 24)) { if (buffer >= buffer_limit) return LZMA_DUMMY_ERROR; range <<= 8; code = (code << 8) | (*buffer++); }
+							if (range < (UINT32_C(1) << 24)) { if (buffer >= buffer_limit) return LZMA_DUMMY_ERROR; range <<= 8; code = (code << 8) | (*buffer++); }
 							range >>= 1;
 							code -= range & (((code - range) >> 31) - 1);
 
@@ -1331,7 +1335,7 @@ static lzma_dummy_t lzma_decoder_try_dummy(const lzma_decoder_t *p, const uint8_
 						{
 							ttt = *(prob + i); 
 							
-							if (range < ((uint32_t)1 << 24)) { if (buffer >= buffer_limit) return LZMA_DUMMY_ERROR; range <<= 8; code = (code << 8) | (*buffer++); }
+							if (range < (UINT32_C(1) << 24)) { if (buffer >= buffer_limit) return LZMA_DUMMY_ERROR; range <<= 8; code = (code << 8) | (*buffer++); }
 							
 							bound = (range >> 11) * ttt; 
 							
@@ -1345,7 +1349,7 @@ static lzma_dummy_t lzma_decoder_try_dummy(const lzma_decoder_t *p, const uint8_
 		}
 	}
 
-	if (range < ((uint32_t)1 << 24)) 
+	if (range < (UINT32_C(1) << 24)) 
 	{ 
 		if (buffer >= buffer_limit) return LZMA_DUMMY_ERROR; 
 		range <<= 8; code = (code << 8) | (*buffer++); 
@@ -1355,7 +1359,7 @@ static lzma_dummy_t lzma_decoder_try_dummy(const lzma_decoder_t *p, const uint8_
 }
 
 
-void lzma_decoder_init_dictionary_and_state(lzma_decoder_t *p, uint8_t init_dictionary, uint8_t init_state)
+void lzma_decoder_init_dictionary_and_state(lzma_decoder_t* p, uint8_t init_dictionary, uint8_t init_state)
 {
 	p->need_to_flush = 1;
 	p->remaining_length = 0;
@@ -1373,17 +1377,16 @@ void lzma_decoder_init_dictionary_and_state(lzma_decoder_t *p, uint8_t init_dict
 }
 
 
-void lzma_decoder_init(lzma_decoder_t *p)
+void lzma_decoder_init(lzma_decoder_t* p)
 {
 	p->dictionary_position = 0;
 	lzma_decoder_init_dictionary_and_state(p, 1, 1);
 }
 
 
-static void lzma_decoder_init_state_real(lzma_decoder_t *p)
+static void lzma_decoder_init_state_real(lzma_decoder_t* p)
 {
-	size_t probabilities_count = ((((((((((((0 + (12 << 4)) + 12) + 12) + 12) + 12) + (12 << 4)) + (4 << 6)) + (1 << (14 >> 1)) - 14) + (1 << 4)) + (((((0 + 1) + 1) + ((1 << 4) << 3)) + ((1 << 4) << 3)) + (1 << 8))) + (((((0 + 1) + 1) + ((1 << 4) << 3)) + ((1 << 4) << 3)) + (1 << 8))) + ((uint32_t)0x300 << ((&p->properties)->lc + (&p->properties)->lp)));
-	size_t i;
+	size_t i, probabilities_count = ((((((((((((0 + (12 << 4)) + 12) + 12) + 12) + 12) + (12 << 4)) + (4 << 6)) + (1 << (14 >> 1)) - 14) + (1 << 4)) + (((((0 + 1) + 1) + ((1 << 4) << 3)) + ((1 << 4) << 3)) + (1 << 8))) + (((((0 + 1) + 1) + ((1 << 4) << 3)) + ((1 << 4) << 3)) + (1 << 8))) + (UINT32_C(0x300) << ((&p->properties)->lc + (&p->properties)->lp)));
 	uint16_t* probabilities = p->probabilities;
 
 	for (i = 0; i < probabilities_count; ++i)
@@ -1395,7 +1398,7 @@ static void lzma_decoder_init_state_real(lzma_decoder_t *p)
 }
 
 
-lzma_rc_t lzma_decoder_decode_to_dictionary(lzma_decoder_t *p, size_t dictionary_limit, const uint8_t *src, size_t *src_len, lzma_finish_mode_t finish_mode, lzma_status_t *status)
+lzma_rc_t lzma_decoder_decode_to_dictionary(lzma_decoder_t* p, size_t dictionary_limit, const uint8_t *src, size_t *src_len, lzma_finish_mode_t finish_mode, lzma_status_t *status)
 {
 	size_t in_size = *src_len;
 
@@ -1474,6 +1477,7 @@ lzma_rc_t lzma_decoder_decode_to_dictionary(lzma_decoder_t *p, size_t dictionary
 				if (dummy_rc == LZMA_DUMMY_ERROR)
 				{
 					lzma_memcpy(p->temp_buffer, src, in_size);
+
 					p->temp_buffer_size = (uint32_t)in_size;
 					(*src_len) += in_size;
 					*status = LZMA_STATUS_NEEDS_MORE_INPUT;
@@ -1564,7 +1568,7 @@ lzma_rc_t lzma_decoder_decode_to_dictionary(lzma_decoder_t *p, size_t dictionary
 }
 
 
-lzma_rc_t lzma_decoder_decode_to_buffer(lzma_decoder_t *p, uint8_t *dest, size_t *dest_len, const uint8_t *src, size_t *src_len, lzma_finish_mode_t finish_mode, lzma_status_t *status)
+lzma_rc_t lzma_decoder_decode_to_buffer(lzma_decoder_t* p, uint8_t *dest, size_t *dest_len, const uint8_t *src, size_t *src_len, lzma_finish_mode_t finish_mode, lzma_status_t *status)
 {
 	size_t out_size = *dest_len;
 	size_t in_size = *src_len;
@@ -1573,9 +1577,9 @@ lzma_rc_t lzma_decoder_decode_to_buffer(lzma_decoder_t *p, uint8_t *dest, size_t
 
 	for (;;)
 	{
-		size_t inSizeCur = in_size, outSizeCur, dictionary_position;
-		lzma_finish_mode_t curFinishMode;
-		lzma_rc_t res;
+		size_t in_size_cur = in_size, out_size_cur, dictionary_position;
+		lzma_finish_mode_t cur_finish_mode;
+		lzma_rc_t rc;
 
 		if (p->dictionary_position == p->dictionary_buffer_size)
 			p->dictionary_position = 0;
@@ -1584,65 +1588,63 @@ lzma_rc_t lzma_decoder_decode_to_buffer(lzma_decoder_t *p, uint8_t *dest, size_t
 
 		if (out_size > p->dictionary_buffer_size - dictionary_position)
 		{
-			outSizeCur = p->dictionary_buffer_size;
-			curFinishMode = LZMA_FINISH_ANY;
+			out_size_cur = p->dictionary_buffer_size;
+			cur_finish_mode = LZMA_FINISH_ANY;
 		}
 		else
 		{
-			outSizeCur = dictionary_position + out_size;
-			curFinishMode = finish_mode;
+			out_size_cur = dictionary_position + out_size;
+			cur_finish_mode = finish_mode;
 		}
 
-		res = lzma_decoder_decode_to_dictionary(p, outSizeCur, src, &inSizeCur, curFinishMode, status);
+		rc = lzma_decoder_decode_to_dictionary(p, out_size_cur, src, &in_size_cur, cur_finish_mode, status);
 
-		src += inSizeCur;
-		in_size -= inSizeCur;
-		*src_len += inSizeCur;
-		outSizeCur = p->dictionary_position - dictionary_position;
+		src += in_size_cur;
+		in_size -= in_size_cur;
+		*src_len += in_size_cur;
+		out_size_cur = p->dictionary_position - dictionary_position;
 
-		lzma_memcpy(dest, p->dictionary + dictionary_position, outSizeCur);
+		lzma_memcpy(dest, p->dictionary + dictionary_position, out_size_cur);
 
-		dest += outSizeCur;
-		out_size -= outSizeCur;
-		*dest_len += outSizeCur;
+		dest += out_size_cur;
+		out_size -= out_size_cur;
+		*dest_len += out_size_cur;
 
-		if (res != 0)
-			return res;
+		if (rc) return rc;
 
-		if (outSizeCur == 0 || out_size == 0)
+		if (!out_size_cur || !out_size)
 			return LZMA_RC_OK;
 	}
 }
 
 
-void lzma_decoder_release_probabilities(lzma_decoder_t *p, lzma_allocator_ptr_t allocator)
+void lzma_decoder_release_probabilities(lzma_decoder_t* p, lzma_allocator_ptr_t allocator)
 {
-	(allocator)->release(allocator, p->probabilities);
-	p->probabilities = ((void *)0);
+	allocator->release(allocator, p->probabilities);
+	p->probabilities = NULL;
 }
 
 
-static void LzmaDec_FreeDict(lzma_decoder_t *p, lzma_allocator_ptr_t allocator)
+static void lzma_decoder_free_dictionary(lzma_decoder_t* p, lzma_allocator_ptr_t allocator)
 {
-	(allocator)->release(allocator, p->dictionary);
-	p->dictionary = ((void *)0);
+	allocator->release(allocator, p->dictionary);
+	p->dictionary = NULL;
 }
 
 
-void lzma_decoder_release(lzma_decoder_t *p, lzma_allocator_ptr_t allocator)
+void lzma_decoder_release(lzma_decoder_t* p, lzma_allocator_ptr_t allocator)
 {
 	lzma_decoder_release_probabilities(p, allocator);
-	LzmaDec_FreeDict(p, allocator);
+	lzma_decoder_free_dictionary(p, allocator);
 }
 
 
-lzma_rc_t lzma_properties_decode(lzma_properties_t *p, const uint8_t *data, uint32_t size)
+lzma_rc_t lzma_properties_decode(lzma_properties_t* p, const uint8_t* data, uint32_t size)
 {
 	uint32_t dictionary_size;
 	uint8_t d;
 
-	if (size < 5)
-		return LZMA_RC_UNSUPPORTED;
+	if (size < 5) return LZMA_RC_UNSUPPORTED;
 	else dictionary_size = data[1] | ((uint32_t)data[2] << 8) | ((uint32_t)data[3] << 16) | ((uint32_t)data[4] << 24);
 
 	if (dictionary_size < (1 << 12))
@@ -1652,7 +1654,7 @@ lzma_rc_t lzma_properties_decode(lzma_properties_t *p, const uint8_t *data, uint
 
 	d = data[0];
 
-	if (d >= (9 * 5 * 5))
+	if (d >= 225)
 		return LZMA_RC_UNSUPPORTED;
 
 	p->lc = d % 9;
@@ -1664,15 +1666,15 @@ lzma_rc_t lzma_properties_decode(lzma_properties_t *p, const uint8_t *data, uint
 }
 
 
-static lzma_rc_t LzmaDec_AllocateProbs2(lzma_decoder_t *p, const lzma_properties_t *propNew, lzma_allocator_ptr_t allocator)
+static lzma_rc_t lzma_decoder_allocate_probabilities_ex(lzma_decoder_t* p, const lzma_properties_t *new_prop, lzma_allocator_ptr_t allocator)
 {
-	uint32_t probabilities_count = ((((((((((((0 + (12 << 4)) + 12) + 12) + 12) + 12) + (12 << 4)) + (4 << 6)) + (1 << (14 >> 1)) - 14) + (1 << 4)) + (((((0 + 1) + 1) + ((1 << 4) << 3)) + ((1 << 4) << 3)) + (1 << 8))) + (((((0 + 1) + 1) + ((1 << 4) << 3)) + ((1 << 4) << 3)) + (1 << 8))) + ((uint32_t)0x300 << ((propNew)->lc + (propNew)->lp)));
+	uint32_t probabilities_count = ((((((((((((0 + (12 << 4)) + 12) + 12) + 12) + 12) + (12 << 4)) + (4 << 6)) + (1 << (14 >> 1)) - 14) + (1 << 4)) + (((((0 + 1) + 1) + ((1 << 4) << 3)) + ((1 << 4) << 3)) + (1 << 8))) + (((((0 + 1) + 1) + ((1 << 4) << 3)) + ((1 << 4) << 3)) + (1 << 8))) + (UINT32_C(0x300) << ((new_prop)->lc + (new_prop)->lp)));
 
 	if (!p->probabilities || probabilities_count != p->probabilities_count)
 	{
 		lzma_decoder_release_probabilities(p, allocator);
 
-		p->probabilities = (uint16_t *)(allocator)->allocate(allocator, probabilities_count * sizeof(uint16_t));
+		p->probabilities = (uint16_t*)allocator->allocate(allocator, probabilities_count * sizeof(uint16_t));
 		p->probabilities_count = probabilities_count;
 
 		if (!p->probabilities)
@@ -1683,32 +1685,45 @@ static lzma_rc_t LzmaDec_AllocateProbs2(lzma_decoder_t *p, const lzma_properties
 }
 
 
-lzma_rc_t lzma_decoder_allocate_probabilities(lzma_decoder_t *p, const uint8_t *properties, uint32_t properties_size, lzma_allocator_ptr_t allocator)
+lzma_rc_t lzma_decoder_allocate_probabilities(lzma_decoder_t* p, const uint8_t *properties, uint32_t properties_size, lzma_allocator_ptr_t allocator)
 {
-	lzma_properties_t propNew;
+	lzma_rc_t rc;
+	lzma_properties_t new_prop;
 
-	{ lzma_rc_t rc__ = (lzma_properties_decode(&propNew, properties, properties_size)); if (rc__ != 0) return rc__; };
-	{ lzma_rc_t rc__ = (LzmaDec_AllocateProbs2(p, &propNew, allocator)); if (rc__ != 0) return rc__; };
-	p->properties = propNew;
+	rc = lzma_properties_decode(&new_prop, properties, properties_size); 
+
+	if (rc) return rc;
+
+	rc = lzma_decoder_allocate_probabilities_ex(p, &new_prop, allocator); 
+
+	if (rc) return rc;
+
+	p->properties = new_prop;
 
 	return LZMA_RC_OK;
 }
 
 
-lzma_rc_t lzma_decoder_allocate(lzma_decoder_t *p, const uint8_t *properties, uint32_t properties_size, lzma_allocator_ptr_t allocator)
+lzma_rc_t lzma_decoder_allocate(lzma_decoder_t* p, const uint8_t *properties, uint32_t properties_size, lzma_allocator_ptr_t allocator)
 {
-	lzma_properties_t propNew;
+	lzma_rc_t rc;
+	lzma_properties_t new_prop;
 	size_t dictionary_buffer_size;
 
-	{ lzma_rc_t rc__ = (lzma_properties_decode(&propNew, properties, properties_size)); if (rc__ != 0) return rc__; };
-	{ lzma_rc_t rc__ = (LzmaDec_AllocateProbs2(p, &propNew, allocator)); if (rc__ != 0) return rc__; };
+	rc = lzma_properties_decode(&new_prop, properties, properties_size); 
+
+	if (rc) return rc;
+
+	rc = lzma_decoder_allocate_probabilities_ex(p, &new_prop, allocator); 
+	
+	if (rc) return rc;
 
 	{
-		uint32_t dictionary_size = propNew.dictionary_size;
-		size_t mask = ((uint32_t)1 << 12) - 1;
+		uint32_t dictionary_size = new_prop.dictionary_size;
+		size_t mask = (UINT32_C(1) << 12) - 1;
 
-		if (dictionary_size >= ((uint32_t)1 << 30)) mask = ((uint32_t)1 << 22) - 1;
-		else if (dictionary_size >= ((uint32_t)1 << 22)) mask = ((uint32_t)1 << 20) - 1;
+		if (dictionary_size >= (UINT32_C(1) << 30)) mask = (UINT32_C(1) << 22) - 1;
+		else if (dictionary_size >= (UINT32_C(1) << 22)) mask = (UINT32_C(1) << 20) - 1;
 
 		dictionary_buffer_size = ((size_t)dictionary_size + mask) & ~mask;
 
@@ -1718,9 +1733,9 @@ lzma_rc_t lzma_decoder_allocate(lzma_decoder_t *p, const uint8_t *properties, ui
 
 	if (!p->dictionary || dictionary_buffer_size != p->dictionary_buffer_size)
 	{
-		LzmaDec_FreeDict(p, allocator);
+		lzma_decoder_free_dictionary(p, allocator);
 
-		p->dictionary = (uint8_t *)(allocator)->allocate(allocator, dictionary_buffer_size);
+		p->dictionary = (uint8_t*)allocator->allocate(allocator, dictionary_buffer_size);
 
 		if (!p->dictionary)
 		{
@@ -1731,7 +1746,7 @@ lzma_rc_t lzma_decoder_allocate(lzma_decoder_t *p, const uint8_t *properties, ui
 	}
 
 	p->dictionary_buffer_size = dictionary_buffer_size;
-	p->properties = propNew;
+	p->properties = new_prop;
 
 	return LZMA_RC_OK;
 }
@@ -1739,8 +1754,8 @@ lzma_rc_t lzma_decoder_allocate(lzma_decoder_t *p, const uint8_t *properties, ui
 
 lzma_rc_t lzma_decode(uint8_t *dest, size_t *dest_len, const uint8_t *src, size_t *src_len, const uint8_t *properties_data, uint32_t properties_size, lzma_finish_mode_t finish_mode, lzma_status_t *status, lzma_allocator_ptr_t allocator)
 {
+	lzma_rc_t rc;
 	lzma_decoder_t p;
-	lzma_rc_t res;
 	size_t out_size = *dest_len, in_size = *src_len;
 
 	*dest_len = *src_len = 0;
@@ -1749,8 +1764,12 @@ lzma_rc_t lzma_decode(uint8_t *dest, size_t *dest_len, const uint8_t *src, size_
 	if (in_size < 5)
 		return LZMA_RC_INPUT_EOF;
 
-	{ (&p)->dictionary = 0; (&p)->probabilities = 0; };
-	{ lzma_rc_t rc__ = (lzma_decoder_allocate_probabilities(&p, properties_data, properties_size, allocator)); if (rc__ != 0) return rc__; };
+	p.dictionary = 0; 
+	p.probabilities = 0;
+
+	rc = lzma_decoder_allocate_probabilities(&p, properties_data, properties_size, allocator);
+
+	if (rc) return rc;
 
 	p.dictionary = dest;
 	p.dictionary_buffer_size = out_size;
@@ -1759,29 +1778,29 @@ lzma_rc_t lzma_decode(uint8_t *dest, size_t *dest_len, const uint8_t *src, size_
 
 	*src_len = in_size;
 
-	res = lzma_decoder_decode_to_dictionary(&p, out_size, src, src_len, finish_mode, status);
+	rc = lzma_decoder_decode_to_dictionary(&p, out_size, src, src_len, finish_mode, status);
 
 	*dest_len = p.dictionary_position;
 
-	if (res == LZMA_RC_OK && *status == LZMA_STATUS_NEEDS_MORE_INPUT)
-		res = LZMA_RC_INPUT_EOF;
+	if (rc == LZMA_RC_OK && *status == LZMA_STATUS_NEEDS_MORE_INPUT)
+		rc = LZMA_RC_INPUT_EOF;
 
 	lzma_decoder_release_probabilities(&p, allocator);
 
-	return res;
+	return rc;
 }
 
 
-static lzma_rc_t Lzma2Dec_GetOldProps(uint8_t properties, uint8_t* buffer)
+static lzma_rc_t lzma_2_decoder_get_old_properties(uint8_t properties, uint8_t* buffer)
 {
 	uint32_t dictionary_size;
 
 	if (properties > 40)
 		return LZMA_RC_UNSUPPORTED;
 
-	dictionary_size = (properties == 40) ? 0xFFFFFFFF : (((uint32_t)2 | ((properties) & 1)) << ((properties) / 2 + 11));
+	dictionary_size = (properties == 40) ? UINT32_C(0xFFFFFFFF) : ((UINT32_C(2) | (properties & 1)) << (properties / 13));
 
-	buffer[0] = (uint8_t)4;
+	buffer[0] = UINT8_C(4);
 	buffer[1] = (uint8_t)(dictionary_size);
 	buffer[2] = (uint8_t)(dictionary_size >> 8);
 	buffer[3] = (uint8_t)(dictionary_size >> 16);
@@ -1791,94 +1810,112 @@ static lzma_rc_t Lzma2Dec_GetOldProps(uint8_t properties, uint8_t* buffer)
 }
 
 
-lzma_rc_t Lzma2Dec_AllocateProbs(lzma_2_decoder_t *p, uint8_t properties, lzma_allocator_ptr_t allocator)
+lzma_rc_t lzma_2_decoder_allocate_probabilities(lzma_2_decoder_t *p, uint8_t properties, lzma_allocator_ptr_t allocator)
 {
-	uint8_t properties[5];
-	{ lzma_rc_t rc__ = (Lzma2Dec_GetOldProps(properties, properties)); if (rc__ != 0) return rc__; };
-	return lzma_decoder_allocate_probabilities(&p->decoder, properties, 5, allocator);
+	lzma_rc_t rc;
+	uint8_t buffer[5];
+
+	rc = lzma_2_decoder_get_old_properties(properties, buffer);
+
+	if (rc) return rc;
+
+	return lzma_decoder_allocate_probabilities(&p->decoder, buffer, 5, allocator);
 }
 
 
-lzma_rc_t Lzma2Dec_Allocate(lzma_2_decoder_t *p, uint8_t properties, lzma_allocator_ptr_t allocator)
+lzma_rc_t lzma_2_decoder_allocate(lzma_2_decoder_t *p, uint8_t properties, lzma_allocator_ptr_t allocator)
 {
-	uint8_t properties[5];
-	{ lzma_rc_t rc__ = (Lzma2Dec_GetOldProps(properties, properties)); if (rc__ != 0) return rc__; };
-	return lzma_decoder_allocate(&p->decoder, properties, 5, allocator);
+	lzma_rc_t rc;
+	uint8_t buffer[5];
+
+	rc = lzma_2_decoder_get_old_properties(properties, buffer);
+	
+	if (rc) return rc;
+
+	return lzma_decoder_allocate(&p->decoder, buffer, 5, allocator);
 }
 
 
-void Lzma2Dec_Init(lzma_2_decoder_t *p)
+void lzma_2_decoder_init(lzma_2_decoder_t *p)
 {
-	p->state = LZMA2_STATE_CONTROL;
+	p->state = LZMA_2_STATE_CONTROL;
 	p->need_to_init_dictionary = 1;
 	p->need_to_init_state = 1;
 	p->need_to_init_properties = 1;
+
 	lzma_decoder_init(&p->decoder);
 }
 
 
-static lzma_2_state_t Lzma2Dec_UpdateState(lzma_2_decoder_t *p, uint8_t b)
+static lzma_2_state_t lzma_2_decoder_update_state(lzma_2_decoder_t *p, uint8_t b)
 {
 	switch (p->state)
 	{
-	case LZMA2_STATE_CONTROL:
+	case LZMA_2_STATE_CONTROL:
 
 		p->control = b;
 
-		if (b == 0) return LZMA2_STATE_FINISHED;
+		if (b == 0) return LZMA_2_STATE_FINISHED;
 
-		if ((((p)->control & (1 << 7)) == 0))
+		if (p->control & 0x80 == 0)
 		{
-			if (b > 2) return LZMA2_STATE_ERROR;
+			if (b > 2) return LZMA_2_STATE_ERROR;
 			p->unpacked_size = 0;
 		}
 		else p->unpacked_size = (uint32_t)(b & 0x1F) << 16;
 
-		return LZMA2_STATE_UNPACK0;
+		return LZMA_2_STATE_UNPACK_0;
 
-	case LZMA2_STATE_UNPACK0:
+	case LZMA_2_STATE_UNPACK_0:
 
-		p->unpacked_size |= (uint32_t)b << 8;
-		return LZMA2_STATE_UNPACK1;
+		p->unpacked_size |= ((uint32_t)b) << 8;
+		return LZMA_2_STATE_UNPACK_1;
 
-	case LZMA2_STATE_UNPACK1:
-		p->unpacked_size |= (uint32_t)b;
+	case LZMA_2_STATE_UNPACK_1:
+
+		p->unpacked_size |= ((uint32_t)b);
 		p->unpacked_size++;
-		return ((((p)->control & (1 << 7)) == 0)) ? LZMA2_STATE_DATA : LZMA2_STATE_PACK0;
 
-	case LZMA2_STATE_PACK0:
-		p->packed_size = (uint32_t)b << 8;
-		return LZMA2_STATE_PACK1;
+		return (p->control & 0x80 == 0) ? LZMA_2_STATE_DATA : LZMA_2_STATE_PACK_0;
 
-	case LZMA2_STATE_PACK1:
-		p->packed_size |= (uint32_t)b;
+	case LZMA_2_STATE_PACK_0:
+
+		p->packed_size = ((uint32_t)b) << 8;
+		return LZMA_2_STATE_PACK_1;
+
+	case LZMA_2_STATE_PACK_1:
+
+		p->packed_size |= ((uint32_t)b);
 		p->packed_size++;
-		return (((((p)->control >> 5) & 3)) >= 2) ? LZMA2_STATE_PROP :
-			(p->need_to_init_properties ? LZMA2_STATE_ERROR : LZMA2_STATE_DATA);
 
-	case LZMA2_STATE_PROP:
+		return ((((p->control >> 5) & 3)) >= 2) ? LZMA_2_STATE_PROP : (p->need_to_init_properties ? LZMA_2_STATE_ERROR : LZMA_2_STATE_DATA);
+
+	case LZMA_2_STATE_PROP:
 	{
 		uint32_t lc, lp;
-		if (b >= (9 * 5 * 5))
-			return LZMA2_STATE_ERROR;
+
+		if (b >= 225) return LZMA_2_STATE_ERROR;
+
 		lc = b % 9;
 		b /= 9;
 		p->decoder.properties.pb = b / 5;
 		lp = b % 5;
-		if (lc + lp > 4)
-			return LZMA2_STATE_ERROR;
+
+		if (lc + lp > 4) return LZMA_2_STATE_ERROR;
+
 		p->decoder.properties.lc = lc;
 		p->decoder.properties.lp = lp;
 		p->need_to_init_properties = 0;
-		return LZMA2_STATE_DATA;
+
+		return LZMA_2_STATE_DATA;
 	}
 	}
 
-	return LZMA2_STATE_ERROR;
+	return LZMA_2_STATE_ERROR;
 }
 
 
-static void LzmaDec_UpdateWithUncompressed(lzma_decoder_t *p, const uint8_t *src, size_t size)
+static void lzma_decoder_update_with_uncompressed(lzma_decoder_t* p, const uint8_t *src, size_t size)
 {
 	lzma_memcpy(p->dictionary + p->dictionary_position, src, size);
 
@@ -1891,22 +1928,24 @@ static void LzmaDec_UpdateWithUncompressed(lzma_decoder_t *p, const uint8_t *src
 }
 
 
-void lzma_decoder_init_dictionary_and_state(lzma_decoder_t *p, uint8_t init_dictionary, uint8_t init_state);
+void lzma_decoder_init_dictionary_and_state(lzma_decoder_t* p, uint8_t init_dictionary, uint8_t init_state);
 
 
-lzma_rc_t Lzma2Dec_DecodeToDic(lzma_2_decoder_t *p, size_t dictionary_limit, const uint8_t *src, size_t *src_len, lzma_finish_mode_t finish_mode, lzma_status_t *status)
+lzma_rc_t lzma_2_decoder_decode_to_dictionary(lzma_2_decoder_t *p, size_t dictionary_limit, const uint8_t *src, size_t *src_len, lzma_finish_mode_t finish_mode, lzma_status_t *status)
 {
 	size_t in_size = *src_len;
+
 	*src_len = 0;
 	*status = LZMA_STATUS_NOT_SPECIFIED;
 
-	while (p->state != LZMA2_STATE_ERROR)
+	while (p->state != LZMA_2_STATE_ERROR)
 	{
 		size_t dictionary_position;
 
-		if (p->state == LZMA2_STATE_FINISHED)
+		if (p->state == LZMA_2_STATE_FINISHED)
 		{
 			*status = LZMA_STATUS_FINISHED_WITH_MARK;
+
 			return LZMA_RC_OK;
 		}
 
@@ -1915,110 +1954,118 @@ lzma_rc_t Lzma2Dec_DecodeToDic(lzma_2_decoder_t *p, size_t dictionary_limit, con
 		if (dictionary_position == dictionary_limit && finish_mode == LZMA_FINISH_ANY)
 		{
 			*status = LZMA_STATUS_NOT_FINISHED;
+
 			return LZMA_RC_OK;
 		}
 
-		if (p->state != LZMA2_STATE_DATA && p->state != LZMA2_STATE_DATA_CONT)
+		if (p->state != LZMA_2_STATE_DATA && p->state != LZMA_2_STATE_DATA_CONT)
 		{
 			if (*src_len == in_size)
 			{
 				*status = LZMA_STATUS_NEEDS_MORE_INPUT;
+
 				return LZMA_RC_OK;
 			}
 
 			(*src_len)++;
-			p->state = Lzma2Dec_UpdateState(p, *src++);
-			if (dictionary_position == dictionary_limit && p->state != LZMA2_STATE_FINISHED)
+
+			p->state = lzma_2_decoder_update_state(p, *src++);
+
+			if (dictionary_position == dictionary_limit && p->state != LZMA_2_STATE_FINISHED)
 				break;
 
 			continue;
 		}
 
 		{
-			size_t inCur = in_size - *src_len;
-			size_t outCur = dictionary_limit - dictionary_position;
-			lzma_finish_mode_t curFinishMode = LZMA_FINISH_ANY;
+			size_t in_cur = in_size - *src_len;
+			size_t out_cur = dictionary_limit - dictionary_position;
+			lzma_finish_mode_t cur_finish_mode = LZMA_FINISH_ANY;
 
-			if (outCur >= p->unpacked_size)
+			if (out_cur >= p->unpacked_size)
 			{
-				outCur = (size_t)p->unpacked_size;
-				curFinishMode = LZMA_FINISH_END;
+				out_cur = (size_t)p->unpacked_size;
+				cur_finish_mode = LZMA_FINISH_END;
 			}
 
-			if ((((p)->control & (1 << 7)) == 0))
+			if (p->control & 0x80 == 0)
 			{
-				if (inCur == 0)
+				if (in_cur == 0)
 				{
 					*status = LZMA_STATUS_NEEDS_MORE_INPUT;
+
 					return LZMA_RC_OK;
 				}
 
-				if (p->state == LZMA2_STATE_DATA)
+				if (p->state == LZMA_2_STATE_DATA)
 				{
 					uint8_t init_dictionary = (p->control == 1);
+
 					if (init_dictionary)
 						p->need_to_init_properties = p->need_to_init_state = 1;
-					else if (p->need_to_init_dictionary)
-						break;
+					else if (p->need_to_init_dictionary) break;
+
 					p->need_to_init_dictionary = 0;
+
 					lzma_decoder_init_dictionary_and_state(&p->decoder, init_dictionary, 0);
 				}
 
-				if (inCur > outCur) inCur = outCur;
-				if (inCur == 0) break;
+				if (in_cur > out_cur) in_cur = out_cur;
+				if (!in_cur) break;
 
-				LzmaDec_UpdateWithUncompressed(&p->decoder, src, inCur);
+				lzma_decoder_update_with_uncompressed(&p->decoder, src, in_cur);
 
-				src += inCur;
-				*src_len += inCur;
-				p->unpacked_size -= (uint32_t)inCur;
-				p->state = (p->unpacked_size == 0) ? LZMA2_STATE_CONTROL : LZMA2_STATE_DATA_CONT;
+				src += in_cur;
+				*src_len += in_cur;
+				p->unpacked_size -= (uint32_t)in_cur;
+				p->state = (p->unpacked_size == 0) ? LZMA_2_STATE_CONTROL : LZMA_2_STATE_DATA_CONT;
 			}
 			else
 			{
-				lzma_rc_t res;
+				lzma_rc_t rc;
 
-				if (p->state == LZMA2_STATE_DATA)
+				if (p->state == LZMA_2_STATE_DATA)
 				{
-					uint32_t mode = (((p)->control >> 5) & 3);
+					uint32_t mode = ((p->control >> 5) & 3);
 					uint8_t init_dictionary = (mode == 3);
 					uint8_t init_state = (mode != 0);
+
 					if ((!init_dictionary && p->need_to_init_dictionary) || (!init_state && p->need_to_init_state))
 						break;
 
 					lzma_decoder_init_dictionary_and_state(&p->decoder, init_dictionary, init_state);
+
 					p->need_to_init_dictionary = 0;
 					p->need_to_init_state = 0;
-					p->state = LZMA2_STATE_DATA_CONT;
+					p->state = LZMA_2_STATE_DATA_CONT;
 				}
 
-				if (inCur > p->packed_size)
-					inCur = (size_t)p->packed_size;
+				if (in_cur > p->packed_size)
+					in_cur = (size_t)p->packed_size;
 
-				res = lzma_decoder_decode_to_dictionary(&p->decoder, dictionary_position + outCur, src, &inCur, curFinishMode, status);
+				rc = lzma_decoder_decode_to_dictionary(&p->decoder, dictionary_position + out_cur, src, &in_cur, cur_finish_mode, status);
 
-				src += inCur;
-				*src_len += inCur;
-				p->packed_size -= (uint32_t)inCur;
-				outCur = p->decoder.dictionary_position - dictionary_position;
-				p->unpacked_size -= (uint32_t)outCur;
+				src += in_cur;
+				*src_len += in_cur;
+				p->packed_size -= (uint32_t)in_cur;
+				out_cur = p->decoder.dictionary_position - dictionary_position;
+				p->unpacked_size -= (uint32_t)out_cur;
 
-				if (res != 0)
-					break;
+				if (rc) break;
 
 				if (*status == LZMA_STATUS_NEEDS_MORE_INPUT)
 				{
-					if (p->packed_size == 0)
-						break;
+					if (!p->packed_size) break;
+
 					return LZMA_RC_OK;
 				}
 
-				if (inCur == 0 && outCur == 0)
+				if (!in_cur && !out_cur)
 				{
-					if (*status != LZMA_STATUS_MAYBE_FINISHED_WITHOUT_MARK || p->unpacked_size != 0 || p->packed_size != 0)
+					if (*status != LZMA_STATUS_MAYBE_FINISHED_WITHOUT_MARK || p->unpacked_size || p->packed_size)
 						break;
 
-					p->state = LZMA2_STATE_CONTROL;
+					p->state = LZMA_2_STATE_CONTROL;
 				}
 
 				*status = LZMA_STATUS_NOT_SPECIFIED;
@@ -2027,86 +2074,94 @@ lzma_rc_t Lzma2Dec_DecodeToDic(lzma_2_decoder_t *p, size_t dictionary_limit, con
 	}
 
 	*status = LZMA_STATUS_NOT_SPECIFIED;
-	p->state = LZMA2_STATE_ERROR;
+	p->state = LZMA_2_STATE_ERROR;
 
 	return LZMA_RC_DATA;
 }
 
 
-lzma_rc_t Lzma2Dec_DecodeToBuf(lzma_2_decoder_t *p, uint8_t *dest, size_t *dest_len, const uint8_t *src, size_t *src_len, lzma_finish_mode_t finish_mode, lzma_status_t *status)
+lzma_rc_t lzma_2_decoder_decode_to_buffer(lzma_2_decoder_t *p, uint8_t *dest, size_t *dest_len, const uint8_t *src, size_t *src_len, lzma_finish_mode_t finish_mode, lzma_status_t *status)
 {
 	size_t out_size = *dest_len, in_size = *src_len;
 	*src_len = *dest_len = 0;
 
 	for (;;)
 	{
-		size_t inCur = in_size, outCur, dictionary_position;
-		lzma_finish_mode_t curFinishMode;
-		lzma_rc_t res;
+		size_t in_cur = in_size, out_cur, dictionary_position;
+		lzma_finish_mode_t cur_finish_mode;
+		lzma_rc_t rc;
 
 		if (p->decoder.dictionary_position == p->decoder.dictionary_buffer_size)
 			p->decoder.dictionary_position = 0;
 
 		dictionary_position = p->decoder.dictionary_position;
-		curFinishMode = LZMA_FINISH_ANY;
-		outCur = p->decoder.dictionary_buffer_size - dictionary_position;
+		cur_finish_mode = LZMA_FINISH_ANY;
+		out_cur = p->decoder.dictionary_buffer_size - dictionary_position;
 
-		if (outCur >= out_size)
+		if (out_cur >= out_size)
 		{
-			outCur = out_size;
-			curFinishMode = finish_mode;
+			out_cur = out_size;
+			cur_finish_mode = finish_mode;
 		}
 
-		res = Lzma2Dec_DecodeToDic(p, dictionary_position + outCur, src, &inCur, curFinishMode, status);
+		rc = lzma_2_decoder_decode_to_dictionary(p, dictionary_position + out_cur, src, &in_cur, cur_finish_mode, status);
 
-		src += inCur;
-		in_size -= inCur;
-		*src_len += inCur;
-		outCur = p->decoder.dictionary_position - dictionary_position;
-		lzma_memcpy(dest, p->decoder.dictionary + dictionary_position, outCur);
-		dest += outCur;
-		out_size -= outCur;
-		*dest_len += outCur;
+		src += in_cur;
+		in_size -= in_cur;
+		*src_len += in_cur;
+		out_cur = p->decoder.dictionary_position - dictionary_position;
 
-		if (res != 0) return res;
-		if (outCur == 0 || out_size == 0) return LZMA_RC_OK;
+		lzma_memcpy(dest, p->decoder.dictionary + dictionary_position, out_cur);
+
+		dest += out_cur;
+		out_size -= out_cur;
+		*dest_len += out_cur;
+
+		if (rc) return rc;
+
+		if (!out_cur || !out_size) 
+			return LZMA_RC_OK;
 	}
 }
 
 
-lzma_rc_t Lzma2Decode(uint8_t *dest, size_t *dest_len, const uint8_t *src, size_t *src_len, uint8_t properties, lzma_finish_mode_t finish_mode, lzma_status_t *status, lzma_allocator_ptr_t allocator)
+lzma_rc_t lzma_2_decode(uint8_t *dest, size_t *dest_len, const uint8_t *src, size_t *src_len, uint8_t properties, lzma_finish_mode_t finish_mode, lzma_status_t *status, lzma_allocator_ptr_t allocator)
 {
+	lzma_rc_t rc;
 	lzma_2_decoder_t p;
-	lzma_rc_t res;
 	size_t out_size = *dest_len, in_size = *src_len;
 
 	*dest_len = *src_len = 0;
 	*status = LZMA_STATUS_NOT_SPECIFIED;
 
-	{ (&(&p)->decoder)->dictionary = 0; (&(&p)->decoder)->probabilities = 0; };
-	{ lzma_rc_t rc__ = (Lzma2Dec_AllocateProbs(&p, properties, allocator)); if (rc__ != 0) return rc__; };
+	p.decoder.dictionary = 0; 
+	p.decoder.probabilities = 0;
+
+	rc = lzma_2_decoder_allocate_probabilities(&p, properties, allocator); 
+	
+	if (rc) return rc;
 
 	p.decoder.dictionary = dest;
 	p.decoder.dictionary_buffer_size = out_size;
 
-	Lzma2Dec_Init(&p);
+	lzma_2_decoder_init(&p);
 
 	*src_len = in_size;
 
-	res = Lzma2Dec_DecodeToDic(&p, out_size, src, src_len, finish_mode, status);
+	rc = lzma_2_decoder_decode_to_dictionary(&p, out_size, src, src_len, finish_mode, status);
 
 	*dest_len = p.decoder.dictionary_position;
 
-	if (res == LZMA_RC_OK && *status == LZMA_STATUS_NEEDS_MORE_INPUT)
-		res = LZMA_RC_INPUT_EOF;
+	if (rc == LZMA_RC_OK && *status == LZMA_STATUS_NEEDS_MORE_INPUT)
+		rc = LZMA_RC_INPUT_EOF;
 
-	lzma_decoder_release_probabilities(&(&p)->decoder, allocator);
+	lzma_decoder_release_probabilities(&p.decoder, allocator);
 
-	return res;
+	return rc;
 }
 
 
-typedef uint32_t CLzRef;
+typedef uint32_t lzma_lz_ref_t;
 
 
 typedef struct lzma_match_finder_s
@@ -2123,8 +2178,8 @@ typedef struct lzma_match_finder_s
 	uint8_t bigHash;
 	uint8_t directInput;
 	uint32_t matchMaxLen;
-	CLzRef* hash;
-	CLzRef* son;
+	lzma_lz_ref_t* hash;
+	lzma_lz_ref_t* son;
 	uint32_t hashMask;
 	uint32_t cutValue;
 	uint8_t* bufferBase;
@@ -2145,16 +2200,16 @@ typedef struct lzma_match_finder_s
 lzma_match_finder_t;
 
 
-int32_t MatchFinder_NeedMove(lzma_match_finder_t *p);
-uint8_t *MatchFinder_GetPointerToCurrentPos(lzma_match_finder_t *p);
-void MatchFinder_MoveBlock(lzma_match_finder_t *p);
-void MatchFinder_ReadIfRequired(lzma_match_finder_t *p);
-void MatchFinder_Construct(lzma_match_finder_t *p);
-int32_t MatchFinder_Create(lzma_match_finder_t *p, uint32_t historySize, uint32_t keepAddBufferBefore, uint32_t matchMaxLen, uint32_t keepAddBufferAfter, lzma_allocator_ptr_t allocator);
-void MatchFinder_Free(lzma_match_finder_t *p, lzma_allocator_ptr_t allocator);
-void MatchFinder_Normalize3(uint32_t subValue, CLzRef *items, size_t numItems);
-void MatchFinder_ReduceOffsets(lzma_match_finder_t *p, uint32_t subValue);
-uint32_t* GetMatchesSpec1(uint32_t lenLimit, uint32_t curMatch, uint32_t pos, const uint8_t *buffer, CLzRef *son, uint32_t _cyclicBufferPos, uint32_t _cyclicBufferSize, uint32_t _cutValue, uint32_t *distances, uint32_t maxLen);
+uint8_t MatchFinder_NeedMove(lzma_match_finder_t* p);
+uint8_t* MatchFinder_GetPointerToCurrentPos(lzma_match_finder_t* p);
+void MatchFinder_MoveBlock(lzma_match_finder_t* p);
+void MatchFinder_ReadIfRequired(lzma_match_finder_t* p);
+void MatchFinder_Construct(lzma_match_finder_t* p);
+uint8_t MatchFinder_Create(lzma_match_finder_t* p, uint32_t historySize, uint32_t keepAddBufferBefore, uint32_t matchMaxLen, uint32_t keepAddBufferAfter, lzma_allocator_ptr_t allocator);
+void MatchFinder_Free(lzma_match_finder_t* p, lzma_allocator_ptr_t allocator);
+void MatchFinder_Normalize3(uint32_t sub_value, lzma_lz_ref_t *items, size_t numItems);
+void MatchFinder_ReduceOffsets(lzma_match_finder_t* p, uint32_t sub_value);
+uint32_t* GetMatchesSpec1(uint32_t lenLimit, uint32_t curMatch, uint32_t pos, const uint8_t *buffer, lzma_lz_ref_t *son, uint32_t _cyclicBufferPos, uint32_t _cyclicBufferSize, uint32_t _cutValue, uint32_t *distances, uint32_t maxLen);
 
 
 typedef void (*Mf_Init_Func)(void* object);
@@ -2175,28 +2230,28 @@ typedef struct _IMatchFinder
 IMatchFinder;
 
 
-void MatchFinder_CreateVTable(lzma_match_finder_t *p, IMatchFinder *vTable);
-void MatchFinder_Init_LowHash(lzma_match_finder_t *p);
-void MatchFinder_Init_HighHash(lzma_match_finder_t *p);
-void MatchFinder_Init_3(lzma_match_finder_t *p, int32_t readData);
-void MatchFinder_Init(lzma_match_finder_t *p);
-uint32_t Bt3Zip_MatchFinder_GetMatches(lzma_match_finder_t *p, uint32_t *distances);
-uint32_t Hc3Zip_MatchFinder_GetMatches(lzma_match_finder_t *p, uint32_t *distances);
-void Bt3Zip_MatchFinder_Skip(lzma_match_finder_t *p, uint32_t num);
-void Hc3Zip_MatchFinder_Skip(lzma_match_finder_t *p, uint32_t num);
+void MatchFinder_CreateVTable(lzma_match_finder_t* p, IMatchFinder *vTable);
+void MatchFinder_Init_LowHash(lzma_match_finder_t* p);
+void MatchFinder_Init_HighHash(lzma_match_finder_t* p);
+void MatchFinder_Init_3(lzma_match_finder_t* p, int32_t readData);
+void MatchFinder_Init(lzma_match_finder_t* p);
+uint32_t Bt3Zip_MatchFinder_GetMatches(lzma_match_finder_t* p, uint32_t *distances);
+uint32_t Hc3Zip_MatchFinder_GetMatches(lzma_match_finder_t* p, uint32_t *distances);
+void Bt3Zip_MatchFinder_Skip(lzma_match_finder_t* p, uint32_t num);
+void Hc3Zip_MatchFinder_Skip(lzma_match_finder_t* p, uint32_t num);
 
 
-static void LzInWindow_Free(lzma_match_finder_t *p, lzma_allocator_ptr_t allocator)
+static void LzInWindow_Free(lzma_match_finder_t* p, lzma_allocator_ptr_t allocator)
 {
 	if (!p->directInput)
 	{
-		(allocator)->release(allocator, p->bufferBase);
-		p->bufferBase = ((void *)0);
+		allocator->release(allocator, p->bufferBase);
+		p->bufferBase = NULL;
 	}
 }
 
 
-static int32_t LzInWindow_Create(lzma_match_finder_t *p, uint32_t keepSizeReserv, lzma_allocator_ptr_t allocator)
+static int32_t LzInWindow_Create(lzma_match_finder_t* p, uint32_t keepSizeReserv, lzma_allocator_ptr_t allocator)
 {
 	uint32_t block_size = p->keepSizeBefore + p->keepSizeAfter + keepSizeReserv;
 
@@ -2211,39 +2266,39 @@ static int32_t LzInWindow_Create(lzma_match_finder_t *p, uint32_t keepSizeReserv
 		LzInWindow_Free(p, allocator);
 
 		p->block_size = block_size;
-		p->bufferBase = (uint8_t *)(allocator)->allocate(allocator, (size_t)block_size);
+		p->bufferBase = (uint8_t*)allocator->allocate(allocator, (size_t)block_size);
 	}
 
-	return (p->bufferBase != ((void *)0));
+	return (p->bufferBase != NULL);
 }
 
 
-uint8_t* MatchFinder_GetPointerToCurrentPos(lzma_match_finder_t *p) { return p->buffer; }
-uint32_t MatchFinder_GetNumAvailableBytes(lzma_match_finder_t *p) { return p->streamPos - p->position; }
+uint8_t* MatchFinder_GetPointerToCurrentPos(lzma_match_finder_t* p) { return p->buffer; }
+uint32_t MatchFinder_GetNumAvailableBytes(lzma_match_finder_t* p) { return p->streamPos - p->position; }
 
 
-void MatchFinder_ReduceOffsets(lzma_match_finder_t *p, uint32_t subValue)
+void MatchFinder_ReduceOffsets(lzma_match_finder_t* p, uint32_t sub_value)
 {
-	p->posLimit -= subValue;
-	p->position -= subValue;
-	p->streamPos -= subValue;
+	p->posLimit -= sub_value;
+	p->position -= sub_value;
+	p->streamPos -= sub_value;
 }
 
 
-static void MatchFinder_ReadBlock(lzma_match_finder_t *p)
+static void MatchFinder_ReadBlock(lzma_match_finder_t* p)
 {
 	if (p->streamEndWasReached || p->result != LZMA_RC_OK)
 		return;
 
 	if (p->directInput)
 	{
-		uint32_t curSize = 0xFFFFFFFF - (p->streamPos - p->position);
+		uint32_t cur_size = UINT32_C(0xFFFFFFFF) - (p->streamPos - p->position);
 
-		if (curSize > p->directInputRem)
-			curSize = (uint32_t)p->directInputRem;
+		if (cur_size > p->directInputRem)
+			cur_size = (uint32_t)p->directInputRem;
 
-		p->directInputRem -= curSize;
-		p->streamPos += curSize;
+		p->directInputRem -= cur_size;
+		p->streamPos += cur_size;
 
 		if (p->directInputRem == 0)
 			p->streamEndWasReached = 1;
@@ -2253,20 +2308,20 @@ static void MatchFinder_ReadBlock(lzma_match_finder_t *p)
 
 	for (;;)
 	{
-		uint8_t *dest = p->buffer + (p->streamPos - p->position);
+		uint8_t* dest = p->buffer + (p->streamPos - p->position);
 		size_t size = (p->bufferBase + p->block_size - dest);
 
-		if (size == 0)
-			return;
+		if (!size) return;
 
 		p->result = (p->stream)->read(p->stream, dest, &size);
 
 		if (p->result != LZMA_RC_OK)
 			return;
 
-		if (size == 0)
+		if (!size)
 		{
 			p->streamEndWasReached = 1;
+
 			return;
 		}
 
@@ -2278,21 +2333,23 @@ static void MatchFinder_ReadBlock(lzma_match_finder_t *p)
 }
 
 
-void MatchFinder_MoveBlock(lzma_match_finder_t *p)
+void MatchFinder_MoveBlock(lzma_match_finder_t* p)
 {
 	lzma_memmove(p->bufferBase, p->buffer - p->keepSizeBefore, (size_t)(p->streamPos - p->position) + p->keepSizeBefore);
+
 	p->buffer = p->bufferBase + p->keepSizeBefore;
 }
 
 
-int32_t MatchFinder_NeedMove(lzma_match_finder_t *p)
+uint8_t MatchFinder_NeedMove(lzma_match_finder_t* p)
 {
 	if (p->directInput) return 0;
+
 	return ((size_t)(p->bufferBase + p->block_size - p->buffer) <= p->keepSizeAfter);
 }
 
 
-void MatchFinder_ReadIfRequired(lzma_match_finder_t *p)
+void MatchFinder_ReadIfRequired(lzma_match_finder_t* p)
 {
 	if (p->streamEndWasReached)
 		return;
@@ -2302,7 +2359,7 @@ void MatchFinder_ReadIfRequired(lzma_match_finder_t *p)
 }
 
 
-static void MatchFinder_CheckAndMoveAndRead(lzma_match_finder_t *p)
+static void MatchFinder_CheckAndMoveAndRead(lzma_match_finder_t* p)
 {
 	if (MatchFinder_NeedMove(p))
 		MatchFinder_MoveBlock(p);
@@ -2311,7 +2368,7 @@ static void MatchFinder_CheckAndMoveAndRead(lzma_match_finder_t *p)
 }
 
 
-static void MatchFinder_SetDefaultSettings(lzma_match_finder_t *p)
+static void MatchFinder_SetDefaultSettings(lzma_match_finder_t* p)
 {
 	p->cutValue = 32;
 	p->mode_bt = 1;
@@ -2323,14 +2380,14 @@ static void MatchFinder_SetDefaultSettings(lzma_match_finder_t *p)
 
 
 
-void MatchFinder_Construct(lzma_match_finder_t *p)
+void MatchFinder_Construct(lzma_match_finder_t* p)
 {
 	uint32_t i;
 
-	p->bufferBase = ((void *)0);
+	p->bufferBase = NULL;
 	p->directInput = 0;
-	p->hash = ((void *)0);
-	p->expectedDataSize = (uint64_t)(int64_t)-1;
+	p->hash = NULL;
+	p->expectedDataSize = (uint64_t)INT64_C(-1);
 	MatchFinder_SetDefaultSettings(p);
 
 	for (i = 0; i < 256; ++i)
@@ -2338,7 +2395,7 @@ void MatchFinder_Construct(lzma_match_finder_t *p)
 		uint32_t r = i;
 		uint32_t j;
 
-		for (j = 0; j < 8; j++)
+		for (j = 0; j < 8; ++j)
 			r = (r >> 1) ^ (0xEDB88320 & ((uint32_t)0 - (r & 1)));
 
 		p->crc[i] = r;
@@ -2346,61 +2403,64 @@ void MatchFinder_Construct(lzma_match_finder_t *p)
 }
 
 
-static void MatchFinder_FreeThisClassMemory(lzma_match_finder_t *p, lzma_allocator_ptr_t allocator)
+static void MatchFinder_FreeThisClassMemory(lzma_match_finder_t* p, lzma_allocator_ptr_t allocator)
 {
-	(allocator)->release(allocator, p->hash);
-	p->hash = ((void *)0);
+	allocator->release(allocator, p->hash);
+	p->hash = NULL;
 }
 
 
-void MatchFinder_Free(lzma_match_finder_t *p, lzma_allocator_ptr_t allocator)
+void MatchFinder_Free(lzma_match_finder_t* p, lzma_allocator_ptr_t allocator)
 {
 	MatchFinder_FreeThisClassMemory(p, allocator);
 	LzInWindow_Free(p, allocator);
 }
 
 
-static CLzRef* AllocRefs(size_t num, lzma_allocator_ptr_t allocator)
+static lzma_lz_ref_t* AllocRefs(size_t num, lzma_allocator_ptr_t allocator)
 {
-	size_t sizeInBytes = (size_t)num * sizeof(CLzRef);
+	size_t sizeInBytes = num * sizeof(lzma_lz_ref_t);
 
-	if (sizeInBytes / sizeof(CLzRef) != num)
-		return ((void *)0);
+	if (sizeInBytes / sizeof(lzma_lz_ref_t) != num)
+		return NULL;
 
-	return (CLzRef *)(allocator)->allocate(allocator, sizeInBytes);
+	return (lzma_lz_ref_t *)allocator->allocate(allocator, sizeInBytes);
 }
 
 
-int32_t MatchFinder_Create(lzma_match_finder_t *p, uint32_t historySize, uint32_t keepAddBufferBefore, uint32_t matchMaxLen, uint32_t keepAddBufferAfter, lzma_allocator_ptr_t allocator)
+uint8_t MatchFinder_Create(lzma_match_finder_t* p, uint32_t historySize, uint32_t keepAddBufferBefore, uint32_t matchMaxLen, uint32_t keepAddBufferAfter, lzma_allocator_ptr_t allocator)
 {
 	uint32_t sizeReserv;
 
-	if (historySize > ((uint32_t)7 << 29))
+	if (historySize > UINT32_C(0xE0000000))
 	{
 		MatchFinder_Free(p, allocator);
+
 		return 0;
 	}
 
 	sizeReserv = historySize >> 1;
-	if (historySize >= ((uint32_t)3 << 30)) sizeReserv = historySize >> 3;
-	else if (historySize >= ((uint32_t)2 << 30)) sizeReserv = historySize >> 2;
 
-	sizeReserv += (keepAddBufferBefore + matchMaxLen + keepAddBufferAfter) / 2 + (1 << 19);
+	if (historySize >= UINT32_C(0xC0000000)) sizeReserv = historySize >> 3;
+	else if (historySize >= UINT32_C(0x80000000)) sizeReserv = historySize >> 2;
 
-	p->keepSizeBefore = historySize + keepAddBufferBefore + 1;
+	sizeReserv += (keepAddBufferBefore + matchMaxLen + keepAddBufferAfter) / UINT32_C(0x80002);
+
+	p->keepSizeBefore = historySize + keepAddBufferBefore + UINT32_C(1);
 	p->keepSizeAfter = matchMaxLen + keepAddBufferAfter;
 
 	if (LzInWindow_Create(p, sizeReserv, allocator))
 	{
-		uint32_t newCyclicBufferSize = historySize + 1;
+		uint32_t newCyclicBufferSize = historySize + UINT32_C(1);
 		uint32_t hs;
 
 		p->matchMaxLen = matchMaxLen;
-		{
-			p->fixedHashSize = 0;
 
-			if (p->hash_byte_count == 2)
-				hs = (1 << 16) - 1;
+		{
+			p->fixedHashSize = UINT32_C(0);
+
+			if (p->hash_byte_count == UINT32_C(2))
+				hs = UINT32_C(0xFFFF);
 			else
 			{
 				hs = historySize;
@@ -2408,20 +2468,21 @@ int32_t MatchFinder_Create(lzma_match_finder_t *p, uint32_t historySize, uint32_
 				if (hs > p->expectedDataSize)
 					hs = (uint32_t)p->expectedDataSize;
 
-				if (hs != 0)
-					hs--;
+				if (hs) hs--;
 
 				hs |= (hs >> 1);
 				hs |= (hs >> 2);
 				hs |= (hs >> 4);
 				hs |= (hs >> 8);
-				hs >>= 1;
-				hs |= 0xFFFF;
 
-				if (hs > (1 << 24))
+				hs >>= 1;
+
+				hs |= UINT32_C(0xFFFF);
+
+				if (hs > UINT32_C(0x1000000))
 				{
-					if (p->hash_byte_count == 3)
-						hs = (1 << 24) - 1;
+					if (p->hash_byte_count == UINT32_C(3))
+						hs = UINT32_C(0xFFFFFF);
 					else hs >>= 1;
 				}
 			}
@@ -2429,40 +2490,38 @@ int32_t MatchFinder_Create(lzma_match_finder_t *p, uint32_t historySize, uint32_
 			p->hashMask = hs;
 			hs++;
 
-			if (p->hash_byte_count > 2) p->fixedHashSize += (1 << 10);
-			if (p->hash_byte_count > 3) p->fixedHashSize += (1 << 16);
-			if (p->hash_byte_count > 4) p->fixedHashSize += (1 << 20);
+			if (p->hash_byte_count > 2) p->fixedHashSize += UINT32_C(0x400);
+			if (p->hash_byte_count > 3) p->fixedHashSize += UINT32_C(0x10000);
+			if (p->hash_byte_count > 4) p->fixedHashSize += UINT32_C(0x100000);
 
 			hs += p->fixedHashSize;
 		}
 
+		size_t newSize, numSons;
+
+		p->historySize = historySize;
+		p->hashSizeSum = hs;
+		p->cyclicBufferSize = newCyclicBufferSize;
+
+		numSons = newCyclicBufferSize;
+
+		if (p->mode_bt)
+			numSons <<= 1;
+
+		newSize = hs + numSons;
+
+		if (p->hash && p->numRefs == newSize)
+			return 1;
+
+		MatchFinder_FreeThisClassMemory(p, allocator);
+		p->numRefs = newSize;
+		p->hash = AllocRefs(newSize, allocator);
+
+		if (p->hash)
 		{
-			size_t newSize;
-			size_t numSons;
-			p->historySize = historySize;
-			p->hashSizeSum = hs;
-			p->cyclicBufferSize = newCyclicBufferSize;
+			p->son = p->hash + p->hashSizeSum;
 
-			numSons = newCyclicBufferSize;
-
-			if (p->mode_bt)
-				numSons <<= 1;
-
-			newSize = hs + numSons;
-
-			if (p->hash && p->numRefs == newSize)
-				return 1;
-
-			MatchFinder_FreeThisClassMemory(p, allocator);
-			p->numRefs = newSize;
-			p->hash = AllocRefs(newSize, allocator);
-
-			if (p->hash)
-			{
-				p->son = p->hash + p->hashSizeSum;
-
-				return 1;
-			}
+			return 1;
 		}
 	}
 
@@ -2472,7 +2531,7 @@ int32_t MatchFinder_Create(lzma_match_finder_t *p, uint32_t historySize, uint32_
 }
 
 
-static void MatchFinder_SetLimits(lzma_match_finder_t *p)
+static void MatchFinder_SetLimits(lzma_match_finder_t* p)
 {
 	uint32_t limit = (UINT32_C(0xFFFFFFFF)) - p->position;
 	uint32_t limit_b = p->cyclicBufferSize - p->cyclicBufferPos;
@@ -2505,20 +2564,20 @@ static void MatchFinder_SetLimits(lzma_match_finder_t *p)
 }
 
 
-void MatchFinder_Init_LowHash(lzma_match_finder_t *p)
+void MatchFinder_Init_LowHash(lzma_match_finder_t* p)
 {
 	size_t i;
-	CLzRef *items = p->hash;
+	lzma_lz_ref_t *items = p->hash;
 	size_t numItems = p->fixedHashSize;
 	for (i = 0; i < numItems; ++i)
 		items[i] = 0;
 }
 
 
-void MatchFinder_Init_HighHash(lzma_match_finder_t *p)
+void MatchFinder_Init_HighHash(lzma_match_finder_t* p)
 {
 	size_t i;
-	CLzRef *items = p->hash + p->fixedHashSize;
+	lzma_lz_ref_t *items = p->hash + p->fixedHashSize;
 	size_t numItems = (size_t)p->hashMask + 1;
 
 	for (i = 0; i < numItems; ++i)
@@ -2526,7 +2585,7 @@ void MatchFinder_Init_HighHash(lzma_match_finder_t *p)
 }
 
 
-void MatchFinder_Init_3(lzma_match_finder_t *p, int32_t readData)
+void MatchFinder_Init_3(lzma_match_finder_t* p, int32_t readData)
 {
 	p->cyclicBufferPos = 0;
 	p->buffer = p->bufferBase;
@@ -2542,7 +2601,7 @@ void MatchFinder_Init_3(lzma_match_finder_t *p, int32_t readData)
 }
 
 
-void MatchFinder_Init(lzma_match_finder_t *p)
+void MatchFinder_Init(lzma_match_finder_t* p)
 {
 	MatchFinder_Init_HighHash(p);
 	MatchFinder_Init_LowHash(p);
@@ -2550,13 +2609,13 @@ void MatchFinder_Init(lzma_match_finder_t *p)
 }
 
 
-static uint32_t MatchFinder_GetSubValue(lzma_match_finder_t *p)
+static uint32_t MatchFinder_GetSubValue(lzma_match_finder_t* p)
 {
 	return (p->position - p->historySize - 1) & (~(uint32_t)((1 << 10) - 1));
 }
 
 
-void MatchFinder_Normalize3(uint32_t subValue, CLzRef *items, size_t numItems)
+void MatchFinder_Normalize3(uint32_t sub_value, lzma_lz_ref_t *items, size_t numItems)
 {
 	size_t i;
 
@@ -2564,24 +2623,24 @@ void MatchFinder_Normalize3(uint32_t subValue, CLzRef *items, size_t numItems)
 	{
 		uint32_t value = items[i];
 
-		if (value <= subValue)
+		if (value <= sub_value)
 			value = 0;
-		else value -= subValue;
+		else value -= sub_value;
 
 		items[i] = value;
 	}
 }
 
 
-static void MatchFinder_Normalize(lzma_match_finder_t *p)
+static void MatchFinder_Normalize(lzma_match_finder_t* p)
 {
-	uint32_t subValue = MatchFinder_GetSubValue(p);
-	MatchFinder_Normalize3(subValue, p->hash, p->numRefs);
-	MatchFinder_ReduceOffsets(p, subValue);
+	uint32_t sub_value = MatchFinder_GetSubValue(p);
+	MatchFinder_Normalize3(sub_value, p->hash, p->numRefs);
+	MatchFinder_ReduceOffsets(p, sub_value);
 }
 
 
-static void MatchFinder_CheckLimits(lzma_match_finder_t *p)
+static void MatchFinder_CheckLimits(lzma_match_finder_t* p)
 {
 	if (p->position == (UINT32_C(0xFFFFFFFF)))
 		MatchFinder_Normalize(p);
@@ -2596,7 +2655,7 @@ static void MatchFinder_CheckLimits(lzma_match_finder_t *p)
 }
 
 
-static uint32_t * Hc_GetMatchesSpec(uint32_t lenLimit, uint32_t curMatch, uint32_t pos, const uint8_t *cur, CLzRef *son, uint32_t _cyclicBufferPos, uint32_t _cyclicBufferSize, uint32_t cutValue, uint32_t *distances, uint32_t maxLen)
+static uint32_t * Hc_GetMatchesSpec(uint32_t lenLimit, uint32_t curMatch, uint32_t pos, const uint8_t *cur, lzma_lz_ref_t *son, uint32_t _cyclicBufferPos, uint32_t _cyclicBufferSize, uint32_t cutValue, uint32_t *distances, uint32_t maxLen)
 {
 	son[_cyclicBufferPos] = curMatch;
 
@@ -2632,10 +2691,10 @@ static uint32_t * Hc_GetMatchesSpec(uint32_t lenLimit, uint32_t curMatch, uint32
 }
 
 
-uint32_t * GetMatchesSpec1(uint32_t lenLimit, uint32_t curMatch, uint32_t pos, const uint8_t *cur, CLzRef *son, uint32_t _cyclicBufferPos, uint32_t _cyclicBufferSize, uint32_t cutValue, uint32_t *distances, uint32_t maxLen)
+uint32_t * GetMatchesSpec1(uint32_t lenLimit, uint32_t curMatch, uint32_t pos, const uint8_t *cur, lzma_lz_ref_t *son, uint32_t _cyclicBufferPos, uint32_t _cyclicBufferSize, uint32_t cutValue, uint32_t *distances, uint32_t maxLen)
 {
-	CLzRef *ptr0 = son + (_cyclicBufferPos << 1) + 1;
-	CLzRef *ptr1 = son + (_cyclicBufferPos << 1);
+	lzma_lz_ref_t *ptr0 = son + (_cyclicBufferPos << 1) + 1;
+	lzma_lz_ref_t *ptr1 = son + (_cyclicBufferPos << 1);
 	uint32_t len0 = 0, len1 = 0;
 
 	for (;;)
@@ -2648,7 +2707,7 @@ uint32_t * GetMatchesSpec1(uint32_t lenLimit, uint32_t curMatch, uint32_t pos, c
 		}
 
 		{
-			CLzRef *pair = son + ((_cyclicBufferPos - delta + ((delta > _cyclicBufferPos) ? _cyclicBufferSize : 0)) << 1);
+			lzma_lz_ref_t *pair = son + ((_cyclicBufferPos - delta + ((delta > _cyclicBufferPos) ? _cyclicBufferSize : 0)) << 1);
 			const uint8_t *pb = cur - delta;
 			uint32_t len = (len0 < len1 ? len0 : len1);
 
@@ -2693,10 +2752,10 @@ uint32_t * GetMatchesSpec1(uint32_t lenLimit, uint32_t curMatch, uint32_t pos, c
 }
 
 
-static void SkipMatchesSpec(uint32_t lenLimit, uint32_t curMatch, uint32_t pos, const uint8_t *cur, CLzRef *son, uint32_t _cyclicBufferPos, uint32_t _cyclicBufferSize, uint32_t cutValue)
+static void SkipMatchesSpec(uint32_t lenLimit, uint32_t curMatch, uint32_t pos, const uint8_t *cur, lzma_lz_ref_t *son, uint32_t _cyclicBufferPos, uint32_t _cyclicBufferSize, uint32_t cutValue)
 {
-	CLzRef *ptr0 = son + (_cyclicBufferPos << 1) + 1;
-	CLzRef *ptr1 = son + (_cyclicBufferPos << 1);
+	lzma_lz_ref_t *ptr0 = son + (_cyclicBufferPos << 1) + 1;
+	lzma_lz_ref_t *ptr1 = son + (_cyclicBufferPos << 1);
 	uint32_t len0 = 0, len1 = 0;
 
 	for (;;)
@@ -2710,7 +2769,7 @@ static void SkipMatchesSpec(uint32_t lenLimit, uint32_t curMatch, uint32_t pos, 
 		}
 
 		{
-			CLzRef *pair = son + ((_cyclicBufferPos - delta + ((delta > _cyclicBufferPos) ? _cyclicBufferSize : 0)) << 1);
+			lzma_lz_ref_t *pair = son + ((_cyclicBufferPos - delta + ((delta > _cyclicBufferPos) ? _cyclicBufferSize : 0)) << 1);
 			const uint8_t *pb = cur - delta;
 			uint32_t len = (len0 < len1 ? len0 : len1);
 
@@ -2753,7 +2812,7 @@ static void SkipMatchesSpec(uint32_t lenLimit, uint32_t curMatch, uint32_t pos, 
 
 
 
-static void MatchFinder_MovePos(lzma_match_finder_t *p) { ++p->cyclicBufferPos; p->buffer++; if (++p->position == p->posLimit) MatchFinder_CheckLimits(p); }
+static void MatchFinder_MovePos(lzma_match_finder_t* p) { ++p->cyclicBufferPos; p->buffer++; if (++p->position == p->posLimit) MatchFinder_CheckLimits(p); }
 
 
 
@@ -2765,7 +2824,7 @@ static void MatchFinder_MovePos(lzma_match_finder_t *p) { ++p->cyclicBufferPos; 
 
 
 
-static uint32_t Bt2_MatchFinder_GetMatches(lzma_match_finder_t *p, uint32_t *distances)
+static uint32_t Bt2_MatchFinder_GetMatches(lzma_match_finder_t* p, uint32_t *distances)
 {
 	uint32_t offset;
 
@@ -2780,7 +2839,7 @@ static uint32_t Bt2_MatchFinder_GetMatches(lzma_match_finder_t *p, uint32_t *dis
 }
 
 
-uint32_t Bt3Zip_MatchFinder_GetMatches(lzma_match_finder_t *p, uint32_t *distances)
+uint32_t Bt3Zip_MatchFinder_GetMatches(lzma_match_finder_t* p, uint32_t *distances)
 {
 	uint32_t offset;
 
@@ -2795,7 +2854,7 @@ uint32_t Bt3Zip_MatchFinder_GetMatches(lzma_match_finder_t *p, uint32_t *distanc
 	offset = (uint32_t)(GetMatchesSpec1(lenLimit, curMatch, p->position, p->buffer, p->son, p->cyclicBufferPos, p->cyclicBufferSize, p->cutValue, distances + offset, 2) - distances); ++p->cyclicBufferPos; p->buffer++; if (++p->position == p->posLimit) MatchFinder_CheckLimits(p); return offset;
 }
 
-static uint32_t Bt3_MatchFinder_GetMatches(lzma_match_finder_t *p, uint32_t *distances)
+static uint32_t Bt3_MatchFinder_GetMatches(lzma_match_finder_t* p, uint32_t *distances)
 {
 	uint32_t h2, d2, maxLen, offset, pos;
 	uint32_t *hash;
@@ -2836,7 +2895,7 @@ static uint32_t Bt3_MatchFinder_GetMatches(lzma_match_finder_t *p, uint32_t *dis
 }
 
 
-static uint32_t Bt4_MatchFinder_GetMatches(lzma_match_finder_t *p, uint32_t *distances)
+static uint32_t Bt4_MatchFinder_GetMatches(lzma_match_finder_t* p, uint32_t *distances)
 {
 	uint32_t h2, h3, d2, d3, maxLen, offset, pos;
 	uint32_t *hash;
@@ -2894,7 +2953,7 @@ static uint32_t Bt4_MatchFinder_GetMatches(lzma_match_finder_t *p, uint32_t *dis
 }
 
 
-static uint32_t Hc4_MatchFinder_GetMatches(lzma_match_finder_t *p, uint32_t *distances)
+static uint32_t Hc4_MatchFinder_GetMatches(lzma_match_finder_t* p, uint32_t *distances)
 {
 	uint32_t h2, h3, d2, d3, maxLen, offset, pos;
 	uint32_t *hash;
@@ -2953,7 +3012,7 @@ static uint32_t Hc4_MatchFinder_GetMatches(lzma_match_finder_t *p, uint32_t *dis
 }
 
 
-uint32_t Hc3Zip_MatchFinder_GetMatches(lzma_match_finder_t *p, uint32_t *distances)
+uint32_t Hc3Zip_MatchFinder_GetMatches(lzma_match_finder_t* p, uint32_t *distances)
 {
 	uint32_t offset;
 	uint32_t lenLimit; uint32_t hv; const uint8_t *cur; uint32_t curMatch; lenLimit = p->lenLimit; { if (lenLimit < 3) { MatchFinder_MovePos(p); return 0; } } cur = p->buffer;
@@ -2965,7 +3024,7 @@ uint32_t Hc3Zip_MatchFinder_GetMatches(lzma_match_finder_t *p, uint32_t *distanc
 }
 
 
-static void Bt2_MatchFinder_Skip(lzma_match_finder_t *p, uint32_t num)
+static void Bt2_MatchFinder_Skip(lzma_match_finder_t* p, uint32_t num)
 {
 	do
 	{
@@ -2978,7 +3037,7 @@ static void Bt2_MatchFinder_Skip(lzma_match_finder_t *p, uint32_t num)
 }
 
 
-void Bt3Zip_MatchFinder_Skip(lzma_match_finder_t *p, uint32_t num)
+void Bt3Zip_MatchFinder_Skip(lzma_match_finder_t* p, uint32_t num)
 {
 	do
 	{
@@ -2991,7 +3050,7 @@ void Bt3Zip_MatchFinder_Skip(lzma_match_finder_t *p, uint32_t num)
 }
 
 
-static void Bt3_MatchFinder_Skip(lzma_match_finder_t *p, uint32_t num)
+static void Bt3_MatchFinder_Skip(lzma_match_finder_t* p, uint32_t num)
 {
 	do
 	{
@@ -3007,7 +3066,7 @@ static void Bt3_MatchFinder_Skip(lzma_match_finder_t *p, uint32_t num)
 }
 
 
-static void Bt4_MatchFinder_Skip(lzma_match_finder_t *p, uint32_t num)
+static void Bt4_MatchFinder_Skip(lzma_match_finder_t* p, uint32_t num)
 {
 	do
 	{
@@ -3023,7 +3082,7 @@ static void Bt4_MatchFinder_Skip(lzma_match_finder_t *p, uint32_t num)
 }
 
 
-static void Hc4_MatchFinder_Skip(lzma_match_finder_t *p, uint32_t num)
+static void Hc4_MatchFinder_Skip(lzma_match_finder_t* p, uint32_t num)
 {
 	do
 	{
@@ -3040,7 +3099,7 @@ static void Hc4_MatchFinder_Skip(lzma_match_finder_t *p, uint32_t num)
 }
 
 
-void Hc3Zip_MatchFinder_Skip(lzma_match_finder_t *p, uint32_t num)
+void Hc3Zip_MatchFinder_Skip(lzma_match_finder_t* p, uint32_t num)
 {
 	do
 	{
@@ -3053,7 +3112,7 @@ void Hc3Zip_MatchFinder_Skip(lzma_match_finder_t *p, uint32_t num)
 	} while (--num != 0);
 }
 
-void MatchFinder_CreateVTable(lzma_match_finder_t *p, IMatchFinder *vTable)
+void MatchFinder_CreateVTable(lzma_match_finder_t* p, IMatchFinder *vTable)
 {
 	vTable->Init = (Mf_Init_Func)MatchFinder_Init;
 	vTable->GetNumAvailableBytes = (Mf_GetNumAvailableBytes_Func)MatchFinder_GetNumAvailableBytes;
@@ -3086,7 +3145,7 @@ void lzma_encoder_properties_init(lzma_encoder_properties_t *p)
 {
 	p->level = 5;
 	p->dictionary_size = p->mc = 0;
-	p->reduce_size = (uint64_t)(int64_t)-1;
+	p->reduce_size = (uint64_t)INT64_C(-1);
 	p->lc = p->lp = p->pb = p->algorithm = p->fb = p->mode_bt = p->hash_byte_count = p->thread_count = -1;
 	p->write_end_mark = 0;
 }
@@ -3104,8 +3163,8 @@ void lzma_encoder_properties_normalize(lzma_encoder_properties_t *p)
 		uint32_t reduce_size = (uint32_t)p->reduce_size;
 		for (i = 11; i <= 30; ++i)
 		{
-			if (reduce_size <= ((uint32_t)2 << i)) { p->dictionary_size = ((uint32_t)2 << i); break; }
-			if (reduce_size <= ((uint32_t)3 << i)) { p->dictionary_size = ((uint32_t)3 << i); break; }
+			if (reduce_size <= (UINT32_C(2) << i)) { p->dictionary_size = (UINT32_C(2) << i); break; }
+			if (reduce_size <= (UINT32_C(3) << i)) { p->dictionary_size = (UINT32_C(3) << i); break; }
 		}
 	}
 
@@ -3173,7 +3232,7 @@ static void LzmaEnc_FastPosInit(uint8_t *g_FastPos)
 	{
 		size_t k = ((size_t)1 << ((slot >> 1) - 1));
 		size_t j;
-		for (j = 0; j < k; j++)
+		for (j = 0; j < k; ++j)
 			g_FastPos[j] = (uint8_t)slot;
 		g_FastPos += k;
 	}
@@ -3410,7 +3469,7 @@ typedef struct
 
 void LzmaEnc_SaveState(lzma_encoder_handle_t pp)
 {
-	CLzmaEnc *p = (CLzmaEnc *)pp;
+	CLzmaEnc *p = (CLzmaEnc*)pp;
 	CSaveState *dest = &p->saveState;
 	int32_t i;
 
@@ -3434,12 +3493,12 @@ void LzmaEnc_SaveState(lzma_encoder_handle_t pp)
 	lzma_memcpy(dest->posEncoders, p->posEncoders, sizeof(p->posEncoders));
 	lzma_memcpy(dest->posAlignEncoder, p->posAlignEncoder, sizeof(p->posAlignEncoder));
 	lzma_memcpy(dest->reps, p->reps, sizeof(p->reps));
-	lzma_memcpy(dest->litProbs, p->litProbs, ((uint32_t)0x300 << p->lclp) * sizeof(uint16_t));
+	lzma_memcpy(dest->litProbs, p->litProbs, (UINT32_C(0x300) << p->lclp) * sizeof(uint16_t));
 }
 
 void LzmaEnc_RestoreState(lzma_encoder_handle_t pp)
 {
-	CLzmaEnc *dest = (CLzmaEnc *)pp;
+	CLzmaEnc *dest = (CLzmaEnc*)pp;
 	const CSaveState *p = &dest->saveState;
 	int32_t i;
 	dest->lenEnc = p->lenEnc;
@@ -3462,12 +3521,12 @@ void LzmaEnc_RestoreState(lzma_encoder_handle_t pp)
 	lzma_memcpy(dest->posEncoders, p->posEncoders, sizeof(p->posEncoders));
 	lzma_memcpy(dest->posAlignEncoder, p->posAlignEncoder, sizeof(p->posAlignEncoder));
 	lzma_memcpy(dest->reps, p->reps, sizeof(p->reps));
-	lzma_memcpy(dest->litProbs, p->litProbs, ((uint32_t)0x300 << dest->lclp) * sizeof(uint16_t));
+	lzma_memcpy(dest->litProbs, p->litProbs, (UINT32_C(0x300) << dest->lclp) * sizeof(uint16_t));
 }
 
 lzma_rc_t lzma_encoder_set_properties(lzma_encoder_handle_t pp, const lzma_encoder_properties_t *props2)
 {
-	CLzmaEnc *p = (CLzmaEnc *)pp;
+	CLzmaEnc *p = (CLzmaEnc*)pp;
 	lzma_encoder_properties_t properties = *props2;
 	lzma_encoder_properties_normalize(&properties);
 
@@ -3475,7 +3534,7 @@ lzma_rc_t lzma_encoder_set_properties(lzma_encoder_handle_t pp, const lzma_encod
 		|| properties.lp > 4
 		|| properties.pb > 4
 		|| properties.dictionary_size > ((uint64_t)1 << (((9 + sizeof(size_t) / 2) - 1) * 2 + 7))
-		|| properties.dictionary_size > ((uint32_t)3 << 29))
+		|| properties.dictionary_size > (UINT32_C(3) << 29))
 		return LZMA_RC_PARAMETER;
 
 	p->dictionary_size = properties.dictionary_size;
@@ -3522,7 +3581,7 @@ lzma_rc_t lzma_encoder_set_properties(lzma_encoder_handle_t pp, const lzma_encod
 
 void lzma_encoder_set_data_size(lzma_encoder_handle_t pp, uint64_t expected_data_size)
 {
-	CLzmaEnc *p = (CLzmaEnc *)pp;
+	CLzmaEnc *p = (CLzmaEnc*)pp;
 	p->matchFinderBase.expectedDataSize = expected_data_size;
 }
 
@@ -3540,8 +3599,8 @@ static const int32_t kShortRepNextStates[12] = { 9, 9, 9, 9, 9, 9, 9, 11, 11, 11
 
 static void RangeEnc_Construct(CRangeEnc *p)
 {
-	p->out_stream = ((void *)0);
-	p->bufBase = ((void *)0);
+	p->out_stream = NULL;
+	p->bufBase = NULL;
 }
 
 
@@ -3553,7 +3612,7 @@ static int32_t RangeEnc_Alloc(CRangeEnc *p, lzma_allocator_ptr_t allocator)
 {
 	if (!p->bufBase)
 	{
-		p->bufBase = (uint8_t *)(allocator)->allocate(allocator, (1 << 16));
+		p->bufBase = (uint8_t*)allocator->allocate(allocator, (1 << 16));
 
 		if (!p->bufBase)
 			return 0;
@@ -3567,7 +3626,7 @@ static int32_t RangeEnc_Alloc(CRangeEnc *p, lzma_allocator_ptr_t allocator)
 
 static void RangeEnc_Free(CRangeEnc *p, lzma_allocator_ptr_t allocator)
 {
-	(allocator)->release(allocator, p->bufBase);
+	allocator->release(allocator, p->bufBase);
 	p->bufBase = 0;
 }
 
@@ -3575,7 +3634,7 @@ static void RangeEnc_Free(CRangeEnc *p, lzma_allocator_ptr_t allocator)
 static void RangeEnc_Init(CRangeEnc *p)
 {
 	p->low = 0;
-	p->range = 0xFFFFFFFF;
+	p->range = UINT32_C(0xFFFFFFFF);
 	p->cacheSize = 1;
 	p->cache = 0;
 	p->buffer = p->bufBase;
@@ -3635,7 +3694,7 @@ static void RangeEnc_EncodeDirectBits(CRangeEnc *p, uint32_t value, uint32_t num
 	{
 		p->range >>= 1;
 		p->low += p->range & (0 - ((value >> --numBits) & 1));
-		if (p->range < ((uint32_t)1 << 24))
+		if (p->range < (UINT32_C(1) << 24))
 		{
 			p->range <<= 8;
 			RangeEnc_ShiftLow(p);
@@ -3663,7 +3722,7 @@ static void RangeEnc_EncodeBit(CRangeEnc *p, uint16_t *prob, uint32_t symbol)
 
 	*prob = (uint16_t)ttt;
 
-	if (p->range < ((uint32_t)1 << 24))
+	if (p->range < (UINT32_C(1) << 24))
 	{
 		p->range <<= 8;
 		RangeEnc_ShiftLow(p);
@@ -3708,11 +3767,11 @@ static void LzmaEnc_InitPriceTables(uint32_t *ProbPrices)
 		uint32_t bitCount = 0;
 		int32_t j;
 
-		for (j = 0; j < kCyclesBits; j++)
+		for (j = 0; j < kCyclesBits; ++j)
 		{
 			w = w * w;
 			bitCount <<= 1;
-			while (w >= ((uint32_t)1 << 16))
+			while (w >= (UINT32_C(1) << 16))
 			{
 				w >>= 1;
 				bitCount++;
@@ -4131,7 +4190,7 @@ static uint32_t GetOptimum(CLzmaEnc *p, uint32_t position, uint32_t *backRes)
 		pos_state = (position & p->pb_mask);
 
 		{
-			const uint16_t *probabilities = (p->litProbs + ((((position)& p->lp_mask) << p->lc) + ((*(data - 1)) >> (8 - p->lc))) * (uint32_t)0x300);
+			const uint16_t *probabilities = (p->litProbs + ((((position)& p->lp_mask) << p->lc) + ((*(data - 1)) >> (8 - p->lc))) * UINT32_C(0x300));
 			p->opt[1].price = p->ProbPrices[(p->isMatch[p->state][pos_state]) >> 4] +
 				(!((p->state) < 7) ?
 					LitEnc_GetPriceMatched(probabilities, curByte, match_byte, p->ProbPrices) :
@@ -4335,7 +4394,7 @@ static uint32_t GetOptimum(CLzmaEnc *p, uint32_t position, uint32_t *backRes)
 
 		curAnd1Price = curPrice + p->ProbPrices[(p->isMatch[state][pos_state]) >> 4];
 		{
-			const uint16_t *probabilities = (p->litProbs + ((((position)& p->lp_mask) << p->lc) + ((*(data - 1)) >> (8 - p->lc))) * (uint32_t)0x300);
+			const uint16_t *probabilities = (p->litProbs + ((((position)& p->lp_mask) << p->lc) + ((*(data - 1)) >> (8 - p->lc))) * UINT32_C(0x300));
 			curAnd1Price +=
 				(!((state) < 7) ?
 					LitEnc_GetPriceMatched(probabilities, curByte, match_byte, p->ProbPrices) :
@@ -4466,7 +4525,7 @@ static uint32_t GetOptimum(CLzmaEnc *p, uint32_t position, uint32_t *backRes)
 						uint32_t curAndLenCharPrice =
 							price + p->repLenEnc.prices[pos_state][(size_t)lenTest - 2] +
 							p->ProbPrices[(p->isMatch[state2][posStateNext]) >> 4] +
-							LitEnc_GetPriceMatched((p->litProbs + ((((position + lenTest) & p->lp_mask) << p->lc) + ((data[(size_t)lenTest - 1]) >> (8 - p->lc))) * (uint32_t)0x300),
+							LitEnc_GetPriceMatched((p->litProbs + ((((position + lenTest) & p->lp_mask) << p->lc) + ((data[(size_t)lenTest - 1]) >> (8 - p->lc))) * UINT32_C(0x300)),
 								data[lenTest], data2[lenTest], p->ProbPrices);
 						state2 = kLiteralNextStates[state2];
 						posStateNext = (position + lenTest + 1) & p->pb_mask;
@@ -4557,7 +4616,7 @@ static uint32_t GetOptimum(CLzmaEnc *p, uint32_t position, uint32_t *backRes)
 						uint32_t posStateNext = (position + lenTest) & p->pb_mask;
 						uint32_t curAndLenCharPrice = curAndLenPrice +
 							p->ProbPrices[(p->isMatch[state2][posStateNext]) >> 4] +
-							LitEnc_GetPriceMatched((p->litProbs + ((((position + lenTest) & p->lp_mask) << p->lc) + ((data[(size_t)lenTest - 1]) >> (8 - p->lc))) * (uint32_t)0x300),
+							LitEnc_GetPriceMatched((p->litProbs + ((((position + lenTest) & p->lp_mask) << p->lc) + ((data[(size_t)lenTest - 1]) >> (8 - p->lc))) * UINT32_C(0x300)),
 								data[lenTest], data2[lenTest], p->ProbPrices);
 						state2 = kLiteralNextStates[state2];
 						posStateNext = (posStateNext + 1) & p->pb_mask;
@@ -4718,7 +4777,7 @@ static void WriteEndMarker(CLzmaEnc *p, uint32_t pos_state)
 	len = 2;
 	LenEnc_Encode2(&p->lenEnc, &p->rc, len - 2, pos_state, !p->fastMode, p->ProbPrices);
 	RcTree_Encode(&p->rc, p->posSlotEncoder[(((len) < 4 + 1) ? (len)-2 : 4 - 1)], 6, (1 << 6) - 1);
-	RangeEnc_EncodeDirectBits(&p->rc, (((uint32_t)1 << 30) - 1) >> 4, 30 - 4);
+	RangeEnc_EncodeDirectBits(&p->rc, ((UINT32_C(1) << 30) - 1) >> 4, 30 - 4);
 	RcTree_ReverseEncode(&p->rc, p->posAlignEncoder, 4, ((1 << 4) - 1));
 }
 
@@ -4803,26 +4862,28 @@ void LzmaEnc_Construct(CLzmaEnc *p)
 
 
 	LzmaEnc_InitPriceTables(p->ProbPrices);
-	p->litProbs = ((void *)0);
-	p->saveState.litProbs = ((void *)0);
+	p->litProbs = NULL;
+	p->saveState.litProbs = NULL;
 }
 
 lzma_encoder_handle_t lzma_encoder_create(lzma_allocator_ptr_t allocator)
 {
-	void *p;
-	p = (allocator)->allocate(allocator, sizeof(CLzmaEnc));
-	if (p)
-		LzmaEnc_Construct((CLzmaEnc *)p);
+	void* p = allocator->allocate(allocator, sizeof(CLzmaEnc));
+
+	if (p) LzmaEnc_Construct((CLzmaEnc*)p);
+
 	return p;
 }
 
+
 void LzmaEnc_FreeLits(CLzmaEnc *p, lzma_allocator_ptr_t allocator)
 {
-	(allocator)->release(allocator, p->litProbs);
-	(allocator)->release(allocator, p->saveState.litProbs);
-	p->litProbs = ((void *)0);
-	p->saveState.litProbs = ((void *)0);
+	allocator->release(allocator, p->litProbs);
+	allocator->release(allocator, p->saveState.litProbs);
+	p->litProbs = NULL;
+	p->saveState.litProbs = NULL;
 }
+
 
 void LzmaEnc_Destruct(CLzmaEnc *p, lzma_allocator_ptr_t allocator, lzma_allocator_ptr_t allocator_large)
 {
@@ -4831,15 +4892,19 @@ void LzmaEnc_Destruct(CLzmaEnc *p, lzma_allocator_ptr_t allocator, lzma_allocato
 	RangeEnc_Free(&p->rc, allocator);
 }
 
+
 void lzma_encoder_destroy(lzma_encoder_handle_t p, lzma_allocator_ptr_t allocator, lzma_allocator_ptr_t allocator_large)
 {
-	LzmaEnc_Destruct((CLzmaEnc *)p, allocator, allocator_large);
-	(allocator)->release(allocator, p);
+	LzmaEnc_Destruct((CLzmaEnc*)p, allocator, allocator_large);
+	allocator->release(allocator, p);
 }
+
 
 static lzma_rc_t LzmaEnc_CodeOneBlock(CLzmaEnc *p, uint8_t useLimits, uint32_t maxPackSize, uint32_t maxUnpackSize)
 {
+	lzma_rc_t rc;
 	uint32_t nowPos32, startPos32;
+
 	if (p->needInit)
 	{
 		p->matchFinder.Init(p->matchFinderObj);
@@ -4848,7 +4913,10 @@ static lzma_rc_t LzmaEnc_CodeOneBlock(CLzmaEnc *p, uint8_t useLimits, uint32_t m
 
 	if (p->finished)
 		return p->result;
-	{ lzma_rc_t rc__ = (CheckErrors(p)); if (rc__ != 0) return rc__; };
+
+	rc = CheckErrors(p);
+	
+	if (rc) return rc;
 
 	nowPos32 = (uint32_t)p->nowPos64;
 	startPos32 = nowPos32;
@@ -4869,20 +4937,17 @@ static lzma_rc_t LzmaEnc_CodeOneBlock(CLzmaEnc *p, uint8_t useLimits, uint32_t m
 	}
 
 	if (p->matchFinder.GetNumAvailableBytes(p->matchFinderObj) != 0)
+	{
 		for (;;)
 		{
 			uint32_t pos, len, pos_state;
 
 			if (p->fastMode)
 				len = GetOptimumFast(p, &pos);
-			else
-				len = GetOptimum(p, nowPos32, &pos);
-
-
-
-
+			else len = GetOptimum(p, nowPos32, &pos);
 
 			pos_state = nowPos32 & p->pb_mask;
+
 			if (len == 1 && pos == (uint32_t)-1)
 			{
 				uint8_t curByte;
@@ -4892,7 +4957,7 @@ static lzma_rc_t LzmaEnc_CodeOneBlock(CLzmaEnc *p, uint8_t useLimits, uint32_t m
 				RangeEnc_EncodeBit(&p->rc, &p->isMatch[p->state][pos_state], 0);
 				data = p->matchFinder.GetPointerToCurrentPos(p->matchFinderObj) - p->additionalOffset;
 				curByte = *data;
-				probabilities = (p->litProbs + ((((nowPos32)& p->lp_mask) << p->lc) + ((*(data - 1)) >> (8 - p->lc))) * (uint32_t)0x300);
+				probabilities = (p->litProbs + ((((nowPos32)& p->lp_mask) << p->lc) + ((*(data - 1)) >> (8 - p->lc))) * UINT32_C(0x300));
 				if (((p->state) < 7))
 					LitEnc_Encode(&p->rc, probabilities, curByte);
 				else
@@ -4974,7 +5039,7 @@ static lzma_rc_t LzmaEnc_CodeOneBlock(CLzmaEnc *p, uint8_t useLimits, uint32_t m
 				uint32_t processed;
 				if (!p->fastMode)
 				{
-					if (p->matchPriceCount >= (1 << 7))
+					if (p->matchPriceCount >= 0x80)
 						FillDistancesPrices(p);
 					if (p->alignPriceCount >= (1 << 4))
 						FillAlignPrices(p);
@@ -4985,7 +5050,7 @@ static lzma_rc_t LzmaEnc_CodeOneBlock(CLzmaEnc *p, uint8_t useLimits, uint32_t m
 				if (useLimits)
 				{
 					if (processed + (1 << 12) + 300 >= maxUnpackSize ||
-						((&p->rc)->processed + ((&p->rc)->buffer - (&p->rc)->bufBase) + (&p->rc)->cacheSize) + (1 << 12) * 2 >= maxPackSize)
+						(p->rc.processed + (p->rc.buffer - p->rc.bufBase) + p->rc.cacheSize) + (1 << 12) * 2 >= maxPackSize)
 						break;
 				}
 				else if (processed >= (1 << 17))
@@ -4995,7 +5060,10 @@ static lzma_rc_t LzmaEnc_CodeOneBlock(CLzmaEnc *p, uint8_t useLimits, uint32_t m
 				}
 			}
 		}
+	}
+
 	p->nowPos64 += nowPos32 - startPos32;
+
 	return Flush(p, nowPos32);
 }
 
@@ -5014,8 +5082,8 @@ static lzma_rc_t LzmaEnc_Alloc(CLzmaEnc *p, uint32_t keepWindowSize, lzma_alloca
 		if (!p->litProbs || !p->saveState.litProbs || p->lclp != lclp)
 		{
 			LzmaEnc_FreeLits(p, allocator);
-			p->litProbs = (uint16_t *)(allocator)->allocate(allocator, ((uint32_t)0x300 << lclp) * sizeof(uint16_t));
-			p->saveState.litProbs = (uint16_t *)(allocator)->allocate(allocator, ((uint32_t)0x300 << lclp) * sizeof(uint16_t));
+			p->litProbs = (uint16_t*)allocator->allocate(allocator, (UINT32_C(0x300) << lclp) * sizeof(uint16_t));
+			p->saveState.litProbs = (uint16_t*)allocator->allocate(allocator, (UINT32_C(0x300) << lclp) * sizeof(uint16_t));
 
 			if (!p->litProbs || !p->saveState.litProbs)
 			{
@@ -5027,7 +5095,7 @@ static lzma_rc_t LzmaEnc_Alloc(CLzmaEnc *p, uint32_t keepWindowSize, lzma_alloca
 		}
 	}
 
-	p->matchFinderBase.bigHash = (uint8_t)(p->dictionary_size > ((uint32_t)1 << 24) ? 1 : 0);
+	p->matchFinderBase.bigHash = (uint8_t)(p->dictionary_size > (UINT32_C(1) << 24) ? 1 : 0);
 
 	if (beforeSize + p->dictionary_size < keepWindowSize)
 		beforeSize = keepWindowSize - p->dictionary_size;
@@ -5055,11 +5123,13 @@ void LzmaEnc_Init(CLzmaEnc *p)
 	for (i = 0; i < 12; ++i)
 	{
 		uint32_t j;
-		for (j = 0; j < (1 << 4); j++)
+
+		for (j = 0; j < (1 << 4); ++j)
 		{
 			p->isMatch[i][j] = ((1 << 11) >> 1);
 			p->isRep0Long[i][j] = ((1 << 11) >> 1);
 		}
+
 		p->isRep[i] = ((1 << 11) >> 1);
 		p->isRepG0[i] = ((1 << 11) >> 1);
 		p->isRepG1[i] = ((1 << 11) >> 1);
@@ -5067,25 +5137,24 @@ void LzmaEnc_Init(CLzmaEnc *p)
 	}
 
 	{
-		uint32_t num = (uint32_t)0x300 << (p->lp + p->lc);
-		uint16_t *probabilities = p->litProbs;
+		uint32_t num = UINT32_C(0x300) << (p->lp + p->lc);
+		uint16_t* probabilities = p->litProbs;
+
 		for (i = 0; i < num; ++i)
 			probabilities[i] = ((1 << 11) >> 1);
 	}
 
+	for (i = 0; i < 4; ++i)
 	{
-		for (i = 0; i < 4; ++i)
-		{
-			uint16_t *probabilities = p->posSlotEncoder[i];
-			uint32_t j;
-			for (j = 0; j < (1 << 6); j++)
-				probabilities[j] = ((1 << 11) >> 1);
-		}
+		uint16_t* probabilities = p->posSlotEncoder[i];
+		uint32_t j;
+
+		for (j = 0; j < (1 << 6); ++j)
+			probabilities[j] = ((1 << 11) >> 1);
 	}
-	{
-		for (i = 0; i < (1 << (14 >> 1)) - 14; ++i)
-			p->posEncoders[i] = ((1 << 11) >> 1);
-	}
+
+	for (i = 0; i < (1 << (14 >> 1)) - 14; ++i)
+		p->posEncoders[i] = ((1 << 11) >> 1);
 
 	LenEnc_Init(&p->lenEnc.p);
 	LenEnc_Init(&p->repLenEnc.p);
@@ -5109,61 +5178,73 @@ void LzmaEnc_InitPrices(CLzmaEnc *p)
 		FillAlignPrices(p);
 	}
 
-	p->lenEnc.tableSize =
-		p->repLenEnc.tableSize =
-		p->numFastBytes + 1 - 2;
+	p->lenEnc.tableSize = p->repLenEnc.tableSize = p->numFastBytes + 1 - 2;
+
 	LenPriceEnc_UpdateTables(&p->lenEnc, 1 << p->pb, p->ProbPrices);
 	LenPriceEnc_UpdateTables(&p->repLenEnc, 1 << p->pb, p->ProbPrices);
 }
 
+
 static lzma_rc_t LzmaEnc_AllocAndInit(CLzmaEnc *p, uint32_t keepWindowSize, lzma_allocator_ptr_t allocator, lzma_allocator_ptr_t allocator_large)
 {
 	uint32_t i;
-	for (i = 0; i < (uint32_t)(((9 + sizeof(size_t) / 2) - 1) * 2 + 7); ++i)
-		if (p->dictionary_size <= ((uint32_t)1 << i))
-			break;
-	p->distTableSize = i * 2;
+	lzma_rc_t rc;
 
+	for (i = 0; i < (uint32_t)(((9 + sizeof(size_t) / 2) - 1) * 2 + 7); ++i)
+		if (p->dictionary_size <= (UINT32_C(1) << i)) break;
+
+	p->distTableSize = i * 2;
 	p->finished = 0;
 	p->result = LZMA_RC_OK;
-	{ lzma_rc_t rc__ = (LzmaEnc_Alloc(p, keepWindowSize, allocator, allocator_large)); if (rc__ != 0) return rc__; };
+
+	rc = LzmaEnc_Alloc(p, keepWindowSize, allocator, allocator_large); 
+	
+	if (rc) return rc;
+
 	LzmaEnc_Init(p);
 	LzmaEnc_InitPrices(p);
+
 	p->nowPos64 = 0;
+
 	return LZMA_RC_OK;
 }
 
-static lzma_rc_t LzmaEnc_Prepare(lzma_encoder_handle_t pp, lzma_seq_out_stream_t *out_stream, lzma_seq_in_stream_t *in_stream,
-	lzma_allocator_ptr_t allocator, lzma_allocator_ptr_t allocator_large)
+
+static lzma_rc_t LzmaEnc_Prepare(lzma_encoder_handle_t pp, lzma_seq_out_stream_t *out_stream, lzma_seq_in_stream_t *in_stream, lzma_allocator_ptr_t allocator, lzma_allocator_ptr_t allocator_large)
 {
-	CLzmaEnc *p = (CLzmaEnc *)pp;
+	CLzmaEnc* p = (CLzmaEnc*)pp;
+
 	p->matchFinderBase.stream = in_stream;
 	p->needInit = 1;
 	p->rc.out_stream = out_stream;
+
 	return LzmaEnc_AllocAndInit(p, 0, allocator, allocator_large);
 }
 
-lzma_rc_t LzmaEnc_PrepareForLzma2(lzma_encoder_handle_t pp,
-	lzma_seq_in_stream_t *in_stream, uint32_t keepWindowSize,
-	lzma_allocator_ptr_t allocator, lzma_allocator_ptr_t allocator_large)
+
+lzma_rc_t LzmaEnc_PrepareForLzma2(lzma_encoder_handle_t pp, lzma_seq_in_stream_t *in_stream, uint32_t keepWindowSize, lzma_allocator_ptr_t allocator, lzma_allocator_ptr_t allocator_large)
 {
-	CLzmaEnc *p = (CLzmaEnc *)pp;
+	CLzmaEnc* p = (CLzmaEnc*)pp;
+
 	p->matchFinderBase.stream = in_stream;
 	p->needInit = 1;
+
 	return LzmaEnc_AllocAndInit(p, keepWindowSize, allocator, allocator_large);
 }
+
 
 static void LzmaEnc_SetInputBuf(CLzmaEnc *p, const uint8_t *src, size_t src_len)
 {
 	p->matchFinderBase.directInput = 1;
-	p->matchFinderBase.bufferBase = (uint8_t *)src;
+	p->matchFinderBase.bufferBase = (uint8_t*)src;
 	p->matchFinderBase.directInputRem = src_len;
 }
+
 
 lzma_rc_t LzmaEnc_MemPrepare(lzma_encoder_handle_t pp, const uint8_t *src, size_t src_len,
 	uint32_t keepWindowSize, lzma_allocator_ptr_t allocator, lzma_allocator_ptr_t allocator_large)
 {
-	CLzmaEnc *p = (CLzmaEnc *)pp;
+	CLzmaEnc *p = (CLzmaEnc*)pp;
 	LzmaEnc_SetInputBuf(p, src, src_len);
 	p->needInit = 1;
 
@@ -5207,14 +5288,14 @@ static size_t SeqOutStreamBuf_Write(const lzma_seq_out_stream_t *pp, const void 
 
 uint32_t LzmaEnc_GetNumAvailableBytes(lzma_encoder_handle_t pp)
 {
-	const CLzmaEnc *p = (CLzmaEnc *)pp;
+	const CLzmaEnc *p = (CLzmaEnc*)pp;
 	return p->matchFinder.GetNumAvailableBytes(p->matchFinderObj);
 }
 
 
 const uint8_t *LzmaEnc_GetCurBuf(lzma_encoder_handle_t pp)
 {
-	const CLzmaEnc *p = (CLzmaEnc *)pp;
+	const CLzmaEnc *p = (CLzmaEnc*)pp;
 	return p->matchFinder.GetPointerToCurrentPos(p->matchFinderObj) - p->additionalOffset;
 }
 
@@ -5222,7 +5303,7 @@ const uint8_t *LzmaEnc_GetCurBuf(lzma_encoder_handle_t pp)
 lzma_rc_t LzmaEnc_CodeOneMemBlock(lzma_encoder_handle_t pp, uint8_t reInit,
 	uint8_t *dest, size_t *dest_len, uint32_t desiredPackSize, uint32_t *unpacked_size)
 {
-	CLzmaEnc *p = (CLzmaEnc *)pp;
+	CLzmaEnc *p = (CLzmaEnc*)pp;
 	uint64_t nowPos64;
 	lzma_rc_t res;
 	CLzmaEnc_SeqOutStreamBuf out_stream;
@@ -5256,25 +5337,26 @@ lzma_rc_t LzmaEnc_CodeOneMemBlock(lzma_encoder_handle_t pp, uint8_t reInit,
 
 static lzma_rc_t LzmaEnc_Encode2(CLzmaEnc *p, lzma_compress_progress_t *progress)
 {
-	lzma_rc_t res = LZMA_RC_OK;
-
-
+	lzma_rc_t rc = LZMA_RC_OK;
 	uint8_t allocaDummy[0x300];
-	allocaDummy[0] = 0;
-	allocaDummy[1] = allocaDummy[0];
 
+	allocaDummy[0] = allocaDummy[1] = 0;
 
 	for (;;)
 	{
-		res = LzmaEnc_CodeOneBlock(p, 0, 0, 0);
-		if (res != LZMA_RC_OK || p->finished)
+		rc = LzmaEnc_CodeOneBlock(p, 0, 0, 0);
+
+		if (rc || p->finished)
 			break;
+
 		if (progress)
 		{
-			res = (progress)->progress(progress, p->nowPos64, ((&p->rc)->processed + ((&p->rc)->buffer - (&p->rc)->bufBase) + (&p->rc)->cacheSize));
-			if (res != LZMA_RC_OK)
+			rc = progress->progress(progress, p->nowPos64, (p->rc.processed + (p->rc.buffer - p->rc.bufBase) + p->rc.cacheSize));
+			
+			if (rc != LZMA_RC_OK)
 			{
-				res = LZMA_RC_PROGRESS;
+				rc = LZMA_RC_PROGRESS;
+
 				break;
 			}
 		}
@@ -5282,55 +5364,56 @@ static lzma_rc_t LzmaEnc_Encode2(CLzmaEnc *p, lzma_compress_progress_t *progress
 
 	LzmaEnc_Finish(p);
 
-
-
-
-
-
-
-	return res;
+	return rc;
 }
 
 
-lzma_rc_t lzma_encoder_encode(lzma_encoder_handle_t pp, lzma_seq_out_stream_t *out_stream, lzma_seq_in_stream_t *in_stream, lzma_compress_progress_t *progress,
-	lzma_allocator_ptr_t allocator, lzma_allocator_ptr_t allocator_large)
+lzma_rc_t lzma_encoder_encode(lzma_encoder_handle_t pp, lzma_seq_out_stream_t *out_stream, lzma_seq_in_stream_t *in_stream, lzma_compress_progress_t *progress, lzma_allocator_ptr_t allocator, lzma_allocator_ptr_t allocator_large)
 {
-	{ lzma_rc_t rc__ = (LzmaEnc_Prepare(pp, out_stream, in_stream, allocator, allocator_large)); if (rc__ != 0) return rc__; };
-	return LzmaEnc_Encode2((CLzmaEnc *)pp, progress);
+	lzma_rc_t rc;
+
+	rc = LzmaEnc_Prepare(pp, out_stream, in_stream, allocator, allocator_large); 
+	
+	if (rc) return rc;
+
+	return LzmaEnc_Encode2((CLzmaEnc*)pp, progress);
 }
 
 
 lzma_rc_t lzma_encoder_write_properties(lzma_encoder_handle_t pp, uint8_t *properties, size_t *size)
 {
-	CLzmaEnc *p = (CLzmaEnc *)pp;
+	CLzmaEnc *p = (CLzmaEnc*)pp;
 	uint32_t i;
 	uint32_t dictionary_size = p->dictionary_size;
+
 	if (*size < 5)
 		return LZMA_RC_PARAMETER;
+
 	*size = 5;
 	properties[0] = (uint8_t)((p->pb * 5 + p->lp) * 9 + p->lc);
 
-	if (dictionary_size >= ((uint32_t)1 << 22))
+	if (dictionary_size >= (UINT32_C(1) << 22))
 	{
-		uint32_t kDictMask = ((uint32_t)1 << 20) - 1;
+		uint32_t kDictMask = (UINT32_C(1) << 20) - 1;
 		if (dictionary_size < UINT32_C(0xFFFFFFFF) - kDictMask)
 			dictionary_size = (dictionary_size + kDictMask) & ~kDictMask;
 	}
 	else for (i = 11; i <= 30; ++i)
 	{
-		if (dictionary_size <= ((uint32_t)2 << i)) { dictionary_size = (2 << i); break; }
-		if (dictionary_size <= ((uint32_t)3 << i)) { dictionary_size = (3 << i); break; }
+		if (dictionary_size <= (UINT32_C(2) << i)) { dictionary_size = (2 << i); break; }
+		if (dictionary_size <= (UINT32_C(3) << i)) { dictionary_size = (3 << i); break; }
 	}
 
 	for (i = 0; i < 4; ++i)
 		properties[1 + i] = (uint8_t)(dictionary_size >> (8 * i));
+
 	return LZMA_RC_OK;
 }
 
 
 uint32_t lzma_encoder_is_write_end_mark(lzma_encoder_handle_t pp)
 {
-	return ((CLzmaEnc *)pp)->write_end_mark;
+	return ((CLzmaEnc*)pp)->write_end_mark;
 }
 
 
@@ -5338,7 +5421,7 @@ lzma_rc_t lzma_encoder_encode_in_memory(lzma_encoder_handle_t pp, uint8_t *dest,
 	int32_t write_end_mark, lzma_compress_progress_t *progress, lzma_allocator_ptr_t allocator, lzma_allocator_ptr_t allocator_large)
 {
 	lzma_rc_t res;
-	CLzmaEnc *p = (CLzmaEnc *)pp;
+	CLzmaEnc *p = (CLzmaEnc*)pp;
 
 	CLzmaEnc_SeqOutStreamBuf out_stream;
 
@@ -5371,7 +5454,7 @@ lzma_rc_t lzma_encoder_encode_in_memory(lzma_encoder_handle_t pp, uint8_t *dest,
 
 lzma_rc_t lzma_encode(uint8_t *dest, size_t *dest_len, const uint8_t *src, size_t src_len, const lzma_encoder_properties_t *properties, uint8_t *properties_encoded, size_t *properties_size, int32_t write_end_mark, lzma_compress_progress_t *progress, lzma_allocator_ptr_t allocator, lzma_allocator_ptr_t allocator_large)
 {
-	CLzmaEnc *p = (CLzmaEnc *)lzma_encoder_create(allocator);
+	CLzmaEnc *p = (CLzmaEnc*)lzma_encoder_create(allocator);
 	lzma_rc_t res;
 	if (!p)
 		return LZMA_RC_MEMORY;
@@ -5427,7 +5510,7 @@ typedef struct
 
 static void LimitedSeqInStream_Init(CLimitedSeqInStream *p)
 {
-	p->limit = (uint64_t)(int64_t)-1;
+	p->limit = (uint64_t)INT64_C(-1);
 	p->processed = 0;
 	p->finished = 0;
 }
@@ -5438,7 +5521,7 @@ static lzma_rc_t LimitedSeqInStream_Read(const lzma_seq_in_stream_t *pp, void *d
 	size_t size2 = *size;
 	lzma_rc_t res = LZMA_RC_OK;
 
-	if (p->limit != (uint64_t)(int64_t)-1)
+	if (p->limit != (uint64_t)INT64_C(-1))
 	{
 		uint64_t rem = p->limit - p->processed;
 		if (size2 > rem)
@@ -5472,13 +5555,22 @@ static lzma_rc_t Lzma2EncInt_InitStream(CLzma2EncInt *p, const lzma_2_encoder_pr
 {
 	if (!p->propsAreSet)
 	{
+		lzma_rc_t rc;
 		size_t properties_size = 5;
 		uint8_t properties_encoded[5];
-		{ lzma_rc_t rc__ = (lzma_encoder_set_properties(p->enc, &properties->lzmaProps)); if (rc__ != 0) return rc__; };
-		{ lzma_rc_t rc__ = (lzma_encoder_write_properties(p->enc, properties_encoded, &properties_size)); if (rc__ != 0) return rc__; };
+
+		rc = lzma_encoder_set_properties(p->enc, &properties->lzmaProps); 
+		
+		if (rc) return rc;
+
+		rc = lzma_encoder_write_properties(p->enc, properties_encoded, &properties_size); 
+		
+		if (rc) return rc;
+
 		p->propsByte = properties_encoded[0];
 		p->propsAreSet = 1;
 	}
+
 	return LZMA_RC_OK;
 }
 
@@ -5490,19 +5582,13 @@ static void Lzma2EncInt_InitBlock(CLzma2EncInt *p)
 }
 
 
-lzma_rc_t LzmaEnc_PrepareForLzma2(lzma_encoder_handle_t pp, lzma_seq_in_stream_t *in_stream, uint32_t keepWindowSize,
-	lzma_allocator_ptr_t allocator, lzma_allocator_ptr_t allocator_large);
-lzma_rc_t LzmaEnc_MemPrepare(lzma_encoder_handle_t pp, const uint8_t *src, size_t src_len,
-	uint32_t keepWindowSize, lzma_allocator_ptr_t allocator, lzma_allocator_ptr_t allocator_large);
-lzma_rc_t LzmaEnc_CodeOneMemBlock(lzma_encoder_handle_t pp, uint8_t reInit,
-	uint8_t *dest, size_t *dest_len, uint32_t desiredPackSize, uint32_t *unpacked_size);
+lzma_rc_t LzmaEnc_PrepareForLzma2(lzma_encoder_handle_t pp, lzma_seq_in_stream_t *in_stream, uint32_t keepWindowSize, lzma_allocator_ptr_t allocator, lzma_allocator_ptr_t allocator_large);
+lzma_rc_t LzmaEnc_MemPrepare(lzma_encoder_handle_t pp, const uint8_t *src, size_t src_len, uint32_t keepWindowSize, lzma_allocator_ptr_t allocator, lzma_allocator_ptr_t allocator_large);
+lzma_rc_t LzmaEnc_CodeOneMemBlock(lzma_encoder_handle_t pp, uint8_t reInit, uint8_t *dest, size_t *dest_len, uint32_t desiredPackSize, uint32_t *unpacked_size);
 const uint8_t *LzmaEnc_GetCurBuf(lzma_encoder_handle_t pp);
 void LzmaEnc_Finish(lzma_encoder_handle_t pp);
 void LzmaEnc_SaveState(lzma_encoder_handle_t pp);
 void LzmaEnc_RestoreState(lzma_encoder_handle_t pp);
-
-
-
 
 
 static lzma_rc_t Lzma2EncInt_EncodeSubblock(CLzma2EncInt *p, uint8_t *out_buffer,
@@ -5581,7 +5667,7 @@ static lzma_rc_t Lzma2EncInt_EncodeSubblock(CLzma2EncInt *p, uint8_t *out_buffer
 
 		;
 
-		out_buffer[destPos++] = (uint8_t)((1 << 7) | (mode << 5) | ((u >> 16) & 0x1F));
+		out_buffer[destPos++] = (uint8_t)(0x80 | (mode << 5) | ((u >> 16) & 0x1F));
 		out_buffer[destPos++] = (uint8_t)(u >> 8);
 		out_buffer[destPos++] = (uint8_t)u;
 		out_buffer[destPos++] = (uint8_t)(pm >> 8);
@@ -5665,9 +5751,9 @@ void lzma_2_encoder_properties_normalize(lzma_2_encoder_properties_t *p)
 
 	fileSize = p->lzmaProps.reduce_size;
 
-	if (p->block_size != ((uint64_t)(int64_t)-1)
+	if (p->block_size != ((uint64_t)INT64_C(-1))
 		&& p->block_size != 0
-		&& (p->block_size < fileSize || fileSize == (uint64_t)(int64_t)-1))
+		&& (p->block_size < fileSize || fileSize == (uint64_t)INT64_C(-1)))
 		p->lzmaProps.reduce_size = p->block_size;
 
 	lzma_encoder_properties_normalize(&p->lzmaProps);
@@ -5676,7 +5762,7 @@ void lzma_2_encoder_properties_normalize(lzma_2_encoder_properties_t *p)
 
 	t1 = p->lzmaProps.thread_count;
 
-	if (p->block_size == ((uint64_t)(int64_t)-1))
+	if (p->block_size == ((uint64_t)INT64_C(-1)))
 	{
 		t2r = t2 = 1;
 		t3 = t1;
@@ -5684,14 +5770,14 @@ void lzma_2_encoder_properties_normalize(lzma_2_encoder_properties_t *p)
 	else if (p->block_size == 0 && t2 <= 1)
 	{
 
-		p->block_size = ((uint64_t)(int64_t)-1);
+		p->block_size = ((uint64_t)INT64_C(-1));
 	}
 	else
 	{
 		if (p->block_size == 0)
 		{
-			const uint32_t kMinSize = (uint32_t)1 << 20;
-			const uint32_t kMaxSize = (uint32_t)1 << 28;
+			const uint32_t kMinSize = UINT32_C(1) << 20;
+			const uint32_t kMaxSize = UINT32_C(1) << 28;
 			const uint32_t dictionary_size = p->lzmaProps.dictionary_size;
 			uint64_t block_size = (uint64_t)dictionary_size << 2;
 			if (block_size < kMinSize) block_size = kMinSize;
@@ -5702,7 +5788,7 @@ void lzma_2_encoder_properties_normalize(lzma_2_encoder_properties_t *p)
 			p->block_size = block_size;
 		}
 
-		if (t2 > 1 && fileSize != (uint64_t)(int64_t)-1)
+		if (t2 > 1 && fileSize != (uint64_t)INT64_C(-1))
 		{
 			uint64_t numBlocks = fileSize / p->block_size;
 			if (numBlocks * p->block_size != fileSize)
@@ -5725,7 +5811,7 @@ void lzma_2_encoder_properties_normalize(lzma_2_encoder_properties_t *p)
 
 static lzma_rc_t progress(lzma_compress_progress_t *p, uint64_t in_size, uint64_t out_size)
 {
-	return (p && (p)->progress(p, in_size, out_size) != LZMA_RC_OK) ? LZMA_RC_PROGRESS : LZMA_RC_OK;
+	return (p && p->progress(p, in_size, out_size) != LZMA_RC_OK) ? LZMA_RC_PROGRESS : LZMA_RC_OK;
 }
 
 
@@ -5747,21 +5833,21 @@ CLzma2Enc;
 
 lzma_2_encoder_handle_t lzma_2_encoder_create(lzma_allocator_ptr_t allocator, lzma_allocator_ptr_t allocator_large)
 {
-	CLzma2Enc *p = (CLzma2Enc *)(allocator)->allocate(allocator, sizeof(CLzma2Enc));
+	CLzma2Enc *p = (CLzma2Enc *)allocator->allocate(allocator, sizeof(CLzma2Enc));
 
-	if (!p) return ((void *)0);
+	if (!p) return NULL;
 
 	lzma_2_encoder_properties_init(&p->properties);
 	lzma_2_encoder_properties_normalize(&p->properties);
-	p->expectedDataSize = (uint64_t)(int64_t)-1;
-	p->tempBufLzma = ((void *)0);
+	p->expectedDataSize = (uint64_t)INT64_C(-1);
+	p->tempBufLzma = NULL;
 	p->allocator = allocator;
 	p->allocator_large = allocator_large;
 
 	{
 		uint32_t i;
 		for (i = 0; i < 1; ++i)
-			p->coders[i].enc = ((void *)0);
+			p->coders[i].enc = NULL;
 	}
 
 	return p;
@@ -5779,12 +5865,12 @@ void lzma_2_encoder_destroy(lzma_2_encoder_handle_t pp)
 		if (t->enc)
 		{
 			lzma_encoder_destroy(t->enc, p->allocator, p->allocator_large);
-			t->enc = ((void *)0);
+			t->enc = NULL;
 		}
 	}
 
 	(p->allocator)->release(p->allocator, p->tempBufLzma);
-	p->tempBufLzma = ((void *)0);
+	p->tempBufLzma = NULL;
 
 	(p->allocator)->release(p->allocator, pp);
 }
@@ -5819,7 +5905,7 @@ uint8_t lzma_2_encoder_write_properties(lzma_2_encoder_handle_t pp)
 	uint32_t dictionary_size = lzma_encoder_properties_dictionary_size(&p->properties.lzmaProps);
 
 	for (i = 0; i < 40; ++i)
-		if (dictionary_size <= (((uint32_t)2 | ((i) & 1)) << ((i) / 2 + 11)))
+		if (dictionary_size <= ((UINT32_C(2) | ((i) & 1)) << ((i) / 2 + 11)))
 			break;
 
 	return (uint8_t)i;
@@ -5828,9 +5914,10 @@ uint8_t lzma_2_encoder_write_properties(lzma_2_encoder_handle_t pp)
 
 static lzma_rc_t Lzma2Enc_EncodeMt1(CLzma2Enc *me, CLzma2EncInt *p, lzma_seq_out_stream_t *out_stream, uint8_t *out_buffer, size_t *out_buffer_size, lzma_seq_in_stream_t *in_stream, const uint8_t *in_data, size_t in_data_size, int32_t finished, lzma_compress_progress_t *progress)
 {
-	uint64_t unpackTotal = 0;
-	uint64_t packTotal = 0;
+	lzma_rc_t rc;
 	size_t outLim = 0;
+	uint64_t packTotal = 0;
+	uint64_t unpackTotal = 0;
 	CLimitedSeqInStream limitedInStream;
 
 	if (out_buffer)
@@ -5858,19 +5945,22 @@ static lzma_rc_t Lzma2Enc_EncodeMt1(CLzma2Enc *me, CLzma2EncInt *p, lzma_seq_out
 
 		if (!me->tempBufLzma)
 		{
-			me->tempBufLzma = (uint8_t *)(me->allocator)->allocate(me->allocator, ((1 << 16) + 16));
+			me->tempBufLzma = (uint8_t*)(me->allocator)->allocate(me->allocator, ((1 << 16) + 16));
 
 			if (!me->tempBufLzma)
 				return LZMA_RC_MEMORY;
 		}
 	}
 
-	{ lzma_rc_t rc__ = (Lzma2EncInt_InitStream(p, &me->properties)); if (rc__ != 0) return rc__; };
+	rc = Lzma2EncInt_InitStream(p, &me->properties); 
+	
+	if (rc) return rc;
 
 	for (;;)
 	{
-		lzma_rc_t res = LZMA_RC_OK;
-		size_t inSizeCur = 0;
+		size_t in_size_cur = 0;
+
+		rc = LZMA_RC_OK;
 
 		Lzma2EncInt_InitBlock(p);
 
@@ -5879,29 +5969,26 @@ static lzma_rc_t Lzma2Enc_EncodeMt1(CLzma2Enc *me, CLzma2EncInt *p, lzma_seq_out
 
 		if (in_stream)
 		{
-			uint64_t expected = (uint64_t)(int64_t)-1;
+			uint64_t expected = (uint64_t)INT64_C(-1);
 
-			if (me->expectedDataSize != (uint64_t)(int64_t)-1
-				&& me->expectedDataSize >= unpackTotal)
+			if (me->expectedDataSize != (uint64_t)INT64_C(-1) && me->expectedDataSize >= unpackTotal)
 				expected = me->expectedDataSize - unpackTotal;
-			if (me->properties.block_size != ((uint64_t)(int64_t)-1)
-				&& expected > me->properties.block_size)
+
+			if (me->properties.block_size != ((uint64_t)INT64_C(-1)) && expected > me->properties.block_size)
 				expected = (size_t)me->properties.block_size;
 
 			lzma_encoder_set_data_size(p->enc, expected);
 
-			{ lzma_rc_t rc__ = (LzmaEnc_PrepareForLzma2(p->enc, &limitedInStream.vtable, (1 << 21), me->allocator, me->allocator_large)); if (rc__ != 0) return rc__; };
+			rc = LzmaEnc_PrepareForLzma2(p->enc, &limitedInStream.vtable, (1 << 21), me->allocator, me->allocator_large); if (rc) return rc;
 		}
 		else
 		{
-			inSizeCur = in_data_size - (size_t)unpackTotal;
-			if (me->properties.block_size != ((uint64_t)(int64_t)-1)
-				&& inSizeCur > me->properties.block_size)
-				inSizeCur = (size_t)me->properties.block_size;
+			in_size_cur = in_data_size - (size_t)unpackTotal;
 
+			if (me->properties.block_size != ((uint64_t)INT64_C(-1)) && in_size_cur > me->properties.block_size)
+				in_size_cur = (size_t)me->properties.block_size;
 
-
-			{ lzma_rc_t rc__ = (LzmaEnc_MemPrepare(p->enc, in_data + (size_t)unpackTotal, inSizeCur, (1 << 21), me->allocator, me->allocator_large)); if (rc__ != 0) return rc__; };
+			rc = LzmaEnc_MemPrepare(p->enc, in_data + (size_t)unpackTotal, in_size_cur, (1 << 21), me->allocator, me->allocator_large); if (rc) return rc;
 		}
 
 		for (;;)
@@ -5910,11 +5997,9 @@ static lzma_rc_t Lzma2Enc_EncodeMt1(CLzma2Enc *me, CLzma2EncInt *p, lzma_seq_out
 			if (out_buffer)
 				packed_size = outLim - (size_t)packTotal;
 
-			res = Lzma2EncInt_EncodeSubblock(p,
-				out_buffer ? out_buffer + (size_t)packTotal : me->tempBufLzma, &packed_size,
-				out_buffer ? ((void *)0) : out_stream);
+			rc = Lzma2EncInt_EncodeSubblock(p, out_buffer ? out_buffer + (size_t)packTotal : me->tempBufLzma, &packed_size, out_buffer ? NULL : out_stream);
 
-			if (res != LZMA_RC_OK)
+			if (rc != LZMA_RC_OK)
 				break;
 
 			packTotal += packed_size;
@@ -5922,22 +6007,20 @@ static lzma_rc_t Lzma2Enc_EncodeMt1(CLzma2Enc *me, CLzma2EncInt *p, lzma_seq_out
 			if (out_buffer)
 				*out_buffer_size = (size_t)packTotal;
 
-			res = progress->progress(progress, unpackTotal + p->srcPos, packTotal);
+			rc = progress->progress(progress, unpackTotal + p->srcPos, packTotal);
 
-			if (res != LZMA_RC_OK)
-				break;
+			if (rc) break;
 
-			if (packed_size == 0)
-				break;
+			if (packed_size == 0) break;
 		}
 
 		LzmaEnc_Finish(p->enc);
 
 		unpackTotal += p->srcPos;
 
-		{ lzma_rc_t rc__ = (res); if (rc__ != 0) return rc__; };
+		if (rc) return rc;
 
-		if (p->srcPos != (in_stream ? limitedInStream.processed : inSizeCur))
+		if (p->srcPos != (in_stream ? limitedInStream.processed : in_size_cur))
 			return LZMA_RC_FAILURE;
 
 		if (in_stream ? limitedInStream.finished : (unpackTotal == in_data_size))
@@ -5947,18 +6030,22 @@ static lzma_rc_t Lzma2Enc_EncodeMt1(CLzma2Enc *me, CLzma2EncInt *p, lzma_seq_out
 				if (out_buffer)
 				{
 					size_t destPos = *out_buffer_size;
+
 					if (destPos >= outLim)
 						return LZMA_RC_OUTPUT_EOF;
+
 					out_buffer[destPos] = 0;
 					*out_buffer_size = destPos + 1;
 				}
 				else
 				{
 					uint8_t b = 0;
+
 					if ((out_stream)->write(out_stream, &b, 1) != 1)
 						return LZMA_RC_WRITE;
 				}
 			}
+
 			return LZMA_RC_OK;
 		}
 	}
