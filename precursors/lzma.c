@@ -3387,7 +3387,7 @@ static void lzma_mf_bt_3_skip(lzma_match_finder_t* p, uint32_t num)
 		
 		length_limit = p->length_limit;
 		
-		if (length_limit < 3) 
+		if (length_limit < UINT32_C(3)) 
 		{ 
 			lzma_mf_move_position(p); 
 			
@@ -3397,33 +3397,71 @@ static void lzma_mf_bt_3_skip(lzma_match_finder_t* p, uint32_t num)
 		cur = p->buffer;
 
 		uint32_t temp = p->crc[cur[0]] ^ cur[1]; 
+
 		h2 = temp & UINT32_C(0x3FF); 
-		hv = (temp ^ ((uint32_t)cur[2] << 8)) & p->hash_mask; };
+		hv = (temp ^ ((uint32_t)cur[2] << 8)) & p->hash_mask;
 		hash = p->hash;
 		current_match = (hash + UINT32_C(0x400))[hv];
 		hash[h2] = (hash + UINT32_C(0x400))[hv] = p->position;
-		lzma_mf_skip_matches_spec(length_limit, current_match, p->position, p->buffer, p->child, p->cyclic_buffer_position, p->cyclic_buffer_size, p->cut_value); ++p->cyclic_buffer_position; p->buffer++; if (++p->position == p->position_limit) lzma_mf_check_limits(p);
-	} while (--num != 0);
+
+		lzma_mf_skip_matches_spec(length_limit, current_match, p->position, p->buffer, p->child, p->cyclic_buffer_position, p->cyclic_buffer_size, p->cut_value); 
+		
+		++p->cyclic_buffer_position; 
+		p->buffer++; 
+		
+		if (++p->position == p->position_limit) 
+			lzma_mf_check_limits(p);
+	}
+	while (--num);
 }
 
 
-static void Bt4_MatchFinder_Skip(lzma_match_finder_t* p, uint32_t num)
+static void lzma_mf_bt_4_skip(lzma_match_finder_t* p, uint32_t num)
 {
 	do
 	{
 		uint32_t h2, h3;
 		uint32_t* hash;
-		uint32_t length_limit; uint32_t hv; const uint8_t* cur; uint32_t current_match; length_limit = p->length_limit; { if (length_limit < 4) { lzma_mf_move_position(p); continue; } } cur = p->buffer;
-		{ uint32_t temp = p->crc[cur[0]] ^ cur[1]; h2 = temp & UINT32_C(0x3FF); temp ^= ((uint32_t)cur[2] << 8); h3 = temp & UINT32_C(0xFFFF); hv = (temp ^ (p->crc[cur[3]] << 5)) & p->hash_mask; };
+		uint32_t length_limit; 
+		uint32_t hv; 
+		const uint8_t* cur; 
+		uint32_t current_match; 
+		
+		length_limit = p->length_limit; 
+		
+		if (length_limit < 4) 
+		{ 
+			lzma_mf_move_position(p); 
+			
+			continue; 
+		}
+		
+		cur = p->buffer;
+
+		uint32_t temp = p->crc[cur[0]] ^ cur[1]; 
+		
+		h2 = temp & UINT32_C(0x3FF); 
+		temp ^= (((uint32_t)cur[2]) << 8); 
+		h3 = temp & UINT32_C(0xFFFF); 
+		hv = (temp ^ (p->crc[cur[3]] << 5)) & p->hash_mask;
 		hash = p->hash;
 		current_match = (hash + UINT32_C(0x10400))[hv];
 		hash[h2] = (hash + UINT32_C(0x400))[h3] = (hash + UINT32_C(0x10400))[hv] = p->position;
-		lzma_mf_skip_matches_spec(length_limit, current_match, p->position, p->buffer, p->child, p->cyclic_buffer_position, p->cyclic_buffer_size, p->cut_value); ++p->cyclic_buffer_position; p->buffer++; if (++p->position == p->position_limit) lzma_mf_check_limits(p);
-	} while (--num != 0);
+
+		lzma_mf_skip_matches_spec(length_limit, current_match, p->position, p->buffer, p->child, p->cyclic_buffer_position, p->cyclic_buffer_size, p->cut_value); 
+		
+		++p->cyclic_buffer_position; 
+		p->buffer++; 
+		
+		if (++p->position == p->position_limit) 
+			lzma_mf_check_limits(p);
+	} 
+	while (--num);
 }
 
 
-static void Hc4_MatchFinder_Skip(lzma_match_finder_t* p, uint32_t num)
+// HERE
+static void lzma_mf_hc_4_skip(lzma_match_finder_t* p, uint32_t num)
 {
 	do
 	{
@@ -3462,7 +3500,7 @@ void lzma_mf_create_vtable(lzma_match_finder_t* p, lzma_mf_t* vtable)
 	if (!p->mode_bt)
 	{
 		vtable->get_matches = (lzma_mf_get_matches_f)lzma_mf_hc_4_get_matches;
-		vtable->skip = (lzma_mf_skip_f)Hc4_MatchFinder_Skip;
+		vtable->skip = (lzma_mf_skip_f)lzma_mf_hc_4_skip;
 	}
 	else if (p->hash_byte_count == 2)
 	{
@@ -3477,7 +3515,7 @@ void lzma_mf_create_vtable(lzma_match_finder_t* p, lzma_mf_t* vtable)
 	else
 	{
 		vtable->get_matches = (lzma_mf_get_matches_f)lzma_mf_bt_4_get_matches;
-		vtable->skip = (lzma_mf_skip_f)Bt4_MatchFinder_Skip;
+		vtable->skip = (lzma_mf_skip_f)lzma_mf_bt_4_skip;
 	}
 }
 
