@@ -224,6 +224,10 @@ int main(int argc, char* argv[])
 	printf("MKC Code Generator for Secure Memory Library\n");
 	printf("Copyright (C) 2017-2018 by the Secure Memory Project, All rights Reserved\n");
 
+
+	uint32_t vvv = (((0 + 1) + 1) + (UINT32_C(0x10) << 3));
+	printf("%d\n", vvv);
+
 	srand(((uint32_t)time(NULL)) ^ ((uint32_t)getpid()));
 
 	uint64_t v0 = next_rand();

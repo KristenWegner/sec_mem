@@ -368,17 +368,17 @@ static int32_t  lzma_decoder_decode_real(lzma_decoder_t* p, size_t limit, const 
 	{
 		uint16_t* prob;
 		uint32_t bound;
-		uint32_t ttt;
+		uint32_t temp_a;
 		uint32_t pos_state = processed_position & pb_mask;
 
 		prob = probabilities + 0 + (state << 4) + pos_state;
 
-		ttt = *(prob); if (range < (UINT32_C(1) << 24)) { range <<= 8; code = (code << 8) | (*buffer++); }; bound = (range >> 11) * ttt; if (code < bound)
+		temp_a = *(prob); if (range < UINT32_C(0x1000000)) { range <<= 8; code = (code << 8) | (*buffer++); }; bound = (range >> 11) * temp_a; if (code < bound)
 		{
 			uint32_t symbol;
-			range = bound; *(prob) = (uint16_t)(ttt + (((1 << 11) - ttt) >> 5));
+			range = bound; *(prob) = (uint16_t)(temp_a + (((1 << 11) - temp_a) >> 5));
 
-			prob = probabilities + (((((((((((0 + (12 << 4)) + 12) + 12) + 12) + 12) + (12 << 4)) + (4 << 6)) + (1 << (14 >> 1)) - 14) + (1 << 4)) + (((((0 + 1) + 1) + ((1 << 4) << 3)) + ((1 << 4) << 3)) + (1 << 8))) + (((((0 + 1) + 1) + ((1 << 4) << 3)) + ((1 << 4) << 3)) + (1 << 8)));
+			prob = probabilities + UINT32_C(0x736);
 
 			if (processed_position != 0 || check_dictionary_size != 0) prob += (UINT32_C(0x300) * (((processed_position & lp_mask) << lc) +
 				(dictionary[(dictionary_position == 0 ? dictionary_buffer_size : dictionary_position) - 1] >> (8 - lc))));
@@ -392,27 +392,27 @@ static int32_t  lzma_decoder_decode_real(lzma_decoder_t* p, size_t limit, const 
 
 				do 
 				{ 
-					ttt = *(prob + symbol); 
+					temp_a = *(prob + symbol); 
 					
-					if (range < (UINT32_C(1) << 24)) 
+					if (range < UINT32_C(0x1000000)) 
 					{ 
 						range <<= 8; 
 						code = (code << 8) | (*buffer++); 
 					}
 
-					bound = (range >> 11) * ttt; 
+					bound = (range >> 11) * temp_a; 
 					
 					if (code < bound) 
 					{ 
 						range = bound; 
-						*(prob + symbol) = (uint16_t)(ttt + (((1 << 11) - ttt) >> 5));
+						*(prob + symbol) = (uint16_t)(temp_a + (((1 << 11) - temp_a) >> 5));
 						symbol = (symbol + symbol);
 					} 
 					else 
 					{ 
 						range -= bound; 
 						code -= bound; 
-						*(prob + symbol) = (uint16_t)(ttt - (ttt >> 5));
+						*(prob + symbol) = (uint16_t)(temp_a - (temp_a >> 5));
 						symbol = (symbol + symbol) + 1;
 					}
 				} 
@@ -433,19 +433,19 @@ static int32_t  lzma_decoder_decode_real(lzma_decoder_t* p, size_t limit, const 
 					match_byte <<= 1;
 					bit = (match_byte & offs);
 					prob_lit = prob + offs + bit + symbol;
-					ttt = *(prob_lit);
+					temp_a = *(prob_lit);
 
-					if (range < (UINT32_C(1) << 24))
+					if (range < UINT32_C(0x1000000))
 					{
 						range <<= 8;
 						code = (code << 8) | (*buffer++);
 					}
 
-					bound = (range >> 11) * ttt;
+					bound = (range >> 11) * temp_a;
 
 					if (code < bound)
 					{
-						range = bound; *(prob_lit) = (uint16_t)(ttt + (((1 << 11) - ttt) >> 5));
+						range = bound; *(prob_lit) = (uint16_t)(temp_a + (((1 << 11) - temp_a) >> 5));
 						symbol = (symbol + symbol);
 						offs &= ~bit;
 					}
@@ -453,7 +453,7 @@ static int32_t  lzma_decoder_decode_real(lzma_decoder_t* p, size_t limit, const 
 					{
 						range -= bound;
 						code -= bound;
-						*(prob_lit) = (uint16_t)(ttt - (ttt >> 5));
+						*(prob_lit) = (uint16_t)(temp_a - (temp_a >> 5));
 						symbol = (symbol + symbol) + 1;
 						offs &= bit;
 					}
@@ -469,64 +469,64 @@ static int32_t  lzma_decoder_decode_real(lzma_decoder_t* p, size_t limit, const 
 		{
 			range -= bound;
 			code -= bound; 
-			*(prob) = (uint16_t)(ttt - (ttt >> 5));
-			prob = probabilities + (0 + (12 << 4)) + state;
-			ttt = *(prob);
+			*(prob) = (uint16_t)(temp_a - (temp_a >> 5));
+			prob = probabilities + (0 + UINT32_C(0xC0)) + state;
+			temp_a = *(prob);
 
-			if (range < (UINT32_C(1) << 24))
+			if (range < UINT32_C(0x1000000))
 			{
 				range <<= 8;
 				code = (code << 8) | (*buffer++);
 			}
 
-			bound = (range >> 11) * ttt;
+			bound = (range >> 11) * temp_a;
 
 			if (code < bound)
 			{
-				range = bound; *(prob) = (uint16_t)(ttt + (((1 << 11) - ttt) >> 5));
+				range = bound; *(prob) = (uint16_t)(temp_a + (((1 << 11) - temp_a) >> 5));
 				state += 12;
-				prob = probabilities + (((((((((0 + (12 << 4)) + 12) + 12) + 12) + 12) + (12 << 4)) + (4 << 6)) + (1 << (14 >> 1)) - 14) + (1 << 4));
+				prob = probabilities + UINT32_C(0x342);
 			}
 			else
 			{
 				range -= bound; 
 				code -= bound; 
-				*(prob) = (uint16_t)(ttt - (ttt >> 5));
+				*(prob) = (uint16_t)(temp_a - (temp_a >> 5));
 
 				if (check_dictionary_size == 0 && processed_position == 0)
 					return LZMA_RC_DATA;
 
-				prob = probabilities + ((0 + (12 << 4)) + 12) + state;
+				prob = probabilities + ((0 + UINT32_C(0xC0)) + 12) + state;
 
-				ttt = *(prob); 
+				temp_a = *(prob); 
 				
-				if (range < (UINT32_C(1) << 24)) 
+				if (range < UINT32_C(0x1000000)) 
 				{
 					range <<= 8; 
 					code = (code << 8) | (*buffer++); 
 				}
 				
-				bound = (range >> 11) * ttt;
+				bound = (range >> 11) * temp_a;
 				
 				if (code < bound)
 				{
-					range = bound; *(prob) = (uint16_t)(ttt + (((1 << 11) - ttt) >> 5));
+					range = bound; *(prob) = (uint16_t)(temp_a + (((1 << 11) - temp_a) >> 5));
 
-					prob = probabilities + (((((0 + (12 << 4)) + 12) + 12) + 12) + 12) + (state << 4) + pos_state;
+					prob = probabilities + UINT32_C(0xF0) + (state << 4) + pos_state;
 
-					ttt = *(prob); 
+					temp_a = *(prob); 
 					
-					if (range < (UINT32_C(1) << 24)) 
+					if (range < UINT32_C(0x1000000)) 
 					{ 
 						range <<= 8; 
 						code = (code << 8) | (*buffer++);
 					}
 					
-					bound = (range >> 11) * ttt; 
+					bound = (range >> 11) * temp_a; 
 					
 					if (code < bound)
 					{
-						range = bound; *(prob) = (uint16_t)(ttt + (((1 << 11) - ttt) >> 5));
+						range = bound; *(prob) = (uint16_t)(temp_a + (((1 << 11) - temp_a) >> 5));
 
 						dictionary[dictionary_position] = dictionary[dictionary_position - rep_a + (dictionary_position < rep_a ? dictionary_buffer_size : 0)];
 						dictionary_position++;
@@ -538,50 +538,50 @@ static int32_t  lzma_decoder_decode_real(lzma_decoder_t* p, size_t limit, const 
 
 					range -= bound; 
 					code -= bound; 
-					*(prob) = (uint16_t)(ttt - (ttt >> 5));
+					*(prob) = (uint16_t)(temp_a - (temp_a >> 5));
 				}
 				else
 				{
 					uint32_t distance;
-					range -= bound; code -= bound; *(prob) = (uint16_t)(ttt - (ttt >> 5));
-					prob = probabilities + (((0 + (12 << 4)) + 12) + 12) + state;
-					ttt = *(prob); 
+					range -= bound; code -= bound; *(prob) = (uint16_t)(temp_a - (temp_a >> 5));
+					prob = probabilities + UINT32_C(0xD8) + state;
+					temp_a = *(prob); 
 					
-					if (range < (UINT32_C(1) << 24)) 
+					if (range < UINT32_C(0x1000000)) 
 					{ 
 						range <<= 8; 
 						code = (code << 8) | (*buffer++);
 					}
 					
-					bound = (range >> 11) * ttt; 
+					bound = (range >> 11) * temp_a; 
 					
 					if (code < bound)
 					{
-						range = bound; *(prob) = (uint16_t)(ttt + (((1 << 11) - ttt) >> 5));
+						range = bound; *(prob) = (uint16_t)(temp_a + (((1 << 11) - temp_a) >> 5));
 						distance = rep_b;
 					}
 					else
 					{
-						range -= bound; code -= bound; *(prob) = (uint16_t)(ttt - (ttt >> 5));
-						prob = probabilities + ((((0 + (12 << 4)) + 12) + 12) + 12) + state;
-						ttt = *(prob); 
+						range -= bound; code -= bound; *(prob) = (uint16_t)(temp_a - (temp_a >> 5));
+						prob = probabilities + (UINT32_C(0xD8) + 12) + state;
+						temp_a = *(prob); 
 						
-						if (range < (UINT32_C(1) << 24)) 
+						if (range < UINT32_C(0x1000000)) 
 						{ 
 							range <<= 8; 
 							code = (code << 8) | (*buffer++); 
 						}
 						
-						bound = (range >> 11) * ttt; 
+						bound = (range >> 11) * temp_a; 
 						
 						if (code < bound)
 						{
-							range = bound; *(prob) = (uint16_t)(ttt + (((1 << 11) - ttt) >> 5));
+							range = bound; *(prob) = (uint16_t)(temp_a + (((1 << 11) - temp_a) >> 5));
 							distance = rep_c;
 						}
 						else
 						{
-							range -= bound; code -= bound; *(prob) = (uint16_t)(ttt - (ttt >> 5));
+							range -= bound; code -= bound; *(prob) = (uint16_t)(temp_a - (temp_a >> 5));
 							distance = rep_d;
 							rep_d = rep_c;
 						}
@@ -594,7 +594,7 @@ static int32_t  lzma_decoder_decode_real(lzma_decoder_t* p, size_t limit, const 
 				}
 
 				state = state < 7 ? 8 : 11;
-				prob = probabilities + ((((((((((0 + (12 << 4)) + 12) + 12) + 12) + 12) + (12 << 4)) + (4 << 6)) + (1 << (14 >> 1)) - 14) + (1 << 4)) + (((((0 + 1) + 1) + ((1 << 4) << 3)) + ((1 << 4) << 3)) + (1 << 8)));
+				prob = probabilities + UINT32_C(0x544);
 			}
 
 
@@ -602,51 +602,51 @@ static int32_t  lzma_decoder_decode_real(lzma_decoder_t* p, size_t limit, const 
 				uint32_t lim, offset;
 				uint16_t* prob_len = prob + 0;
 
-				ttt = *(prob_len); 
+				temp_a = *(prob_len); 
 				
-				if (range < (UINT32_C(1) << 24)) 
+				if (range < UINT32_C(0x1000000)) 
 				{ 
 					range <<= 8; 
 					code = (code << 8) | (*buffer++); 
 				}
 				
-				bound = (range >> 11) * ttt; 
+				bound = (range >> 11) * temp_a; 
 				
 				if (code < bound)
 				{
-					range = bound; *(prob_len) = (uint16_t)(ttt + (((1 << 11) - ttt) >> 5));
+					range = bound; *(prob_len) = (uint16_t)(temp_a + (((1 << 11) - temp_a) >> 5));
 					prob_len = prob + ((0 + 1) + 1) + (pos_state << 3);
 					offset = 0;
-					lim = (1 << 3);
+					lim = UINT32_C(8);
 				}
 				else
 				{
-					range -= bound; code -= bound; *(prob_len) = (uint16_t)(ttt - (ttt >> 5));
+					range -= bound; code -= bound; *(prob_len) = (uint16_t)(temp_a - (temp_a >> 5));
 					prob_len = prob + 1;
-					ttt = *(prob_len); 
+					temp_a = *(prob_len); 
 					
-					if (range < (UINT32_C(1) << 24)) 
+					if (range < UINT32_C(0x1000000)) 
 					{ 
 						range <<= 8; 
 						code = (code << 8) | (*buffer++); 
 					}
 					
-					bound = (range >> 11) * ttt; 
+					bound = (range >> 11) * temp_a; 
 					
 					if (code < bound)
 					{
 						range = bound; 
-						*(prob_len) = (uint16_t)(ttt + (((1 << 11) - ttt) >> 5));
-						prob_len = prob + (((0 + 1) + 1) + ((1 << 4) << 3)) + (pos_state << 3);
-						offset = (1 << 3);
-						lim = (1 << 3);
+						*(prob_len) = (uint16_t)(temp_a + (((1 << 11) - temp_a) >> 5));
+						prob_len = prob + UINT32_C(0x82) + (pos_state << 3);
+						offset = UINT32_C(8);
+						lim = UINT32_C(8);
 					}
 					else
 					{
-						range -= bound; code -= bound; *(prob_len) = (uint16_t)(ttt - (ttt >> 5));
-						prob_len = prob + ((((0 + 1) + 1) + ((1 << 4) << 3)) + ((1 << 4) << 3));
-						offset = (1 << 3) + (1 << 3);
-						lim = (1 << 8);
+						range -= bound; code -= bound; *(prob_len) = (uint16_t)(temp_a - (temp_a >> 5));
+						prob_len = prob + UINT32_C(0x102);
+						offset = UINT32_C(0x10);
+						lim = (0x100);
 					}
 				}
 
@@ -656,27 +656,27 @@ static int32_t  lzma_decoder_decode_real(lzma_decoder_t* p, size_t limit, const 
 					do 
 					{ 
 						{ 
-							ttt = *((prob_len + len)); 
+							temp_a = *((prob_len + len)); 
 							
-							if (range < (UINT32_C(1) << 24)) 
+							if (range < UINT32_C(0x1000000)) 
 							{ 
 								range <<= 8; 
 								code = (code << 8) | (*buffer++); 
 							}
 							
-							bound = (range >> 11) * ttt; 
+							bound = (range >> 11) * temp_a; 
 							
 							if (code < bound) 
 							{ 
 								range = bound; 
-								*((prob_len + len)) = (uint16_t)(ttt + (((1 << 11) - ttt) >> 5)); 
+								*((prob_len + len)) = (uint16_t)(temp_a + (((1 << 11) - temp_a) >> 5)); 
 								len = (len + len);
 							} 
 							else 
 							{ 
 								range -= bound; 
 								code -= bound; 
-								*((prob_len + len)) = (uint16_t)(ttt - (ttt >> 5)); 
+								*((prob_len + len)) = (uint16_t)(temp_a - (temp_a >> 5)); 
 								len = (len + len) + 1;
 							}
 						}
@@ -692,7 +692,7 @@ static int32_t  lzma_decoder_decode_real(lzma_decoder_t* p, size_t limit, const 
 			if (state >= 12)
 			{
 				uint32_t distance;
-				prob = probabilities + ((((((0 + (12 << 4)) + 12) + 12) + 12) + 12) + (12 << 4)) + ((len < 4 ? len : 4 - 1) << 6);
+				prob = probabilities + UINT32_C(0x1B0) + ((len < 4 ? len : 4 - 1) << 6);
 
 				{ 
 					distance = 1;
@@ -700,34 +700,34 @@ static int32_t  lzma_decoder_decode_real(lzma_decoder_t* p, size_t limit, const 
 					do 
 					{ 
 						{ 
-							ttt = *((prob + distance)); 
+							temp_a = *((prob + distance)); 
 							
-							if (range < (UINT32_C(1) << 24)) 
+							if (range < UINT32_C(0x1000000)) 
 							{ 
 								range <<= 8; 
 								code = (code << 8) | (*buffer++); 
 							}
 							
-							bound = (range >> 11) * ttt; 
+							bound = (range >> 11) * temp_a; 
 							
 							if (code < bound) 
 							{ 
 								range = bound; 
-								*((prob + distance)) = (uint16_t)(ttt + (((1 << 11) - ttt) >> 5)); 
+								*((prob + distance)) = (uint16_t)(temp_a + (((1 << 11) - temp_a) >> 5)); 
 								distance = (distance + distance);
 							} 
 							else 
 							{ 
 								range -= bound; 
 								code -= bound; 
-								*((prob + distance)) = (uint16_t)(ttt - (ttt >> 5)); 
+								*((prob + distance)) = (uint16_t)(temp_a - (temp_a >> 5)); 
 								distance = (distance + distance) + 1;
 							}
 						}
 					} 
-					while (distance < (1 << 6)); 
+					while (distance < (0x40)); 
 					
-					distance -= (1 << 6); 
+					distance -= (0x40); 
 				}
 
 				if (distance >= 4)
@@ -740,7 +740,7 @@ static int32_t  lzma_decoder_decode_real(lzma_decoder_t* p, size_t limit, const 
 					if (pos_slot < 14)
 					{
 						distance <<= nr_direct_bits;
-						prob = probabilities + (((((((0 + (12 << 4)) + 12) + 12) + 12) + 12) + (12 << 4)) + (4 << 6)) + distance - pos_slot - 1;
+						prob = probabilities + UINT32_C(0x2B0) + distance - pos_slot - 1;
 
 						{
 							uint32_t mask = 1;
@@ -748,27 +748,27 @@ static int32_t  lzma_decoder_decode_real(lzma_decoder_t* p, size_t limit, const 
 
 							do
 							{
-								ttt = *(prob + i); 
+								temp_a = *(prob + i); 
 								
-								if (range < (UINT32_C(1) << 24)) 
+								if (range < UINT32_C(0x1000000)) 
 								{ 
 									range <<= 8;
 									code = (code << 8) | (*buffer++); 
 								}
 								
-								bound = (range >> 11) * ttt; 
+								bound = (range >> 11) * temp_a; 
 								
 								if (code < bound) 
 								{ 
 									range = bound; 
-									*(prob + i) = (uint16_t)(ttt + (((1 << 11) - ttt) >> 5)); 
+									*(prob + i) = (uint16_t)(temp_a + (((1 << 11) - temp_a) >> 5)); 
 									i = (i + i);
 								}
 								else 
 								{ 
 									range -= bound; 
 									code -= bound; 
-									*(prob + i) = (uint16_t)(ttt - (ttt >> 5)); 
+									*(prob + i) = (uint16_t)(temp_a - (temp_a >> 5)); 
 									i = (i + i) + 1; 
 									distance |= mask;
 								}
@@ -784,7 +784,7 @@ static int32_t  lzma_decoder_decode_real(lzma_decoder_t* p, size_t limit, const 
 
 						do
 						{
-							if (range < (UINT32_C(1) << 24)) 
+							if (range < UINT32_C(0x1000000)) 
 							{ 
 								range <<= 8; 
 								code = (code << 8) | (*buffer++); 
@@ -802,48 +802,48 @@ static int32_t  lzma_decoder_decode_real(lzma_decoder_t* p, size_t limit, const 
 						}  
 						while (--nr_direct_bits != 0);
 
-						prob = probabilities + ((((((((0 + (12 << 4)) + 12) + 12) + 12) + 12) + (12 << 4)) + (4 << 6)) + (1 << (14 >> 1)) - 14);
+						prob = probabilities + UINT32_C(0x322);
 						distance <<= 4;
 
 						{
 							uint32_t i = 1;
 
-							ttt = *(prob + i); 
+							temp_a = *(prob + i); 
 							
-							if (range < (UINT32_C(1) << 24)) { range <<= 8; code = (code << 8) | (*buffer++); }
-							bound = (range >> 11) * ttt; 
+							if (range < UINT32_C(0x1000000)) { range <<= 8; code = (code << 8) | (*buffer++); }
+							bound = (range >> 11) * temp_a; 
 							
-							if (code < bound) { range = bound; *(prob + i) = (uint16_t)(ttt + (((1 << 11) - ttt) >> 5)); i = (i + i); }
-							else { range -= bound; code -= bound; *(prob + i) = (uint16_t)(ttt - (ttt >> 5)); i = (i + i) + 1; distance |= 1; }
+							if (code < bound) { range = bound; *(prob + i) = (uint16_t)(temp_a + (((1 << 11) - temp_a) >> 5)); i = (i + i); }
+							else { range -= bound; code -= bound; *(prob + i) = (uint16_t)(temp_a - (temp_a >> 5)); i = (i + i) + 1; distance |= 1; }
 							
-							ttt = *(prob + i); 
+							temp_a = *(prob + i); 
 							
-							if (range < (UINT32_C(1) << 24)) { range <<= 8; code = (code << 8) | (*buffer++); }
-							bound = (range >> 11) * ttt; 
+							if (range < UINT32_C(0x1000000)) { range <<= 8; code = (code << 8) | (*buffer++); }
+							bound = (range >> 11) * temp_a; 
 							
-							if (code < bound) { range = bound; *(prob + i) = (uint16_t)(ttt + (((1 << 11) - ttt) >> 5)); i = (i + i); }
-							else { range -= bound; code -= bound; *(prob + i) = (uint16_t)(ttt - (ttt >> 5)); i = (i + i) + 1; distance |= 2; }
+							if (code < bound) { range = bound; *(prob + i) = (uint16_t)(temp_a + (((1 << 11) - temp_a) >> 5)); i = (i + i); }
+							else { range -= bound; code -= bound; *(prob + i) = (uint16_t)(temp_a - (temp_a >> 5)); i = (i + i) + 1; distance |= 2; }
 							
-							ttt = *(prob + i); 
+							temp_a = *(prob + i); 
 							
-							if (range < (UINT32_C(1) << 24)) { range <<= 8; code = (code << 8) | (*buffer++); }
-							bound = (range >> 11) * ttt; 
+							if (range < UINT32_C(0x1000000)) { range <<= 8; code = (code << 8) | (*buffer++); }
+							bound = (range >> 11) * temp_a; 
 							
-							if (code < bound) { range = bound; *(prob + i) = (uint16_t)(ttt + (((1 << 11) - ttt) >> 5)); i = (i + i); }
-							else { range -= bound; code -= bound; *(prob + i) = (uint16_t)(ttt - (ttt >> 5)); i = (i + i) + 1; distance |= 4; }
+							if (code < bound) { range = bound; *(prob + i) = (uint16_t)(temp_a + (((1 << 11) - temp_a) >> 5)); i = (i + i); }
+							else { range -= bound; code -= bound; *(prob + i) = (uint16_t)(temp_a - (temp_a >> 5)); i = (i + i) + 1; distance |= 4; }
 							
-							ttt = *(prob + i); 
+							temp_a = *(prob + i); 
 							
-							if (range < (UINT32_C(1) << 24)) { range <<= 8; code = (code << 8) | (*buffer++); }
-							bound = (range >> 11) * ttt; 
+							if (range < UINT32_C(0x1000000)) { range <<= 8; code = (code << 8) | (*buffer++); }
+							bound = (range >> 11) * temp_a; 
 							
-							if (code < bound) { range = bound; *(prob + i) = (uint16_t)(ttt + (((1 << 11) - ttt) >> 5)); i = (i + i); }
-							else { range -= bound; code -= bound; *(prob + i) = (uint16_t)(ttt - (ttt >> 5)); i = (i + i) + 1; distance |= 8; }
+							if (code < bound) { range = bound; *(prob + i) = (uint16_t)(temp_a + (((1 << 11) - temp_a) >> 5)); i = (i + i); }
+							else { range -= bound; code -= bound; *(prob + i) = (uint16_t)(temp_a - (temp_a >> 5)); i = (i + i) + 1; distance |= 8; }
 						}
 
 						if (distance == UINT32_C(0xFFFFFFFF))
 						{
-							len += (2 + (1 << 3) + (1 << 3) + (1 << 8));
+							len += UINT32_C(0x112);
 							state -= 12;
 							break;
 						}
@@ -871,7 +871,7 @@ static int32_t  lzma_decoder_decode_real(lzma_decoder_t* p, size_t limit, const 
 					return LZMA_RC_DATA;
 				}
 
-				state = (state < 12 + 7) ? 7 : 7 + 3;
+				state = (state < UINT32_C(19)) ? 7 : 10;
 			}
 
 			len += 2;
@@ -899,7 +899,7 @@ static int32_t  lzma_decoder_decode_real(lzma_decoder_t* p, size_t limit, const 
 				{
 					uint8_t* dest = dictionary + dictionary_position;
 					ptrdiff_t src = (ptrdiff_t)pos - (ptrdiff_t)dictionary_position;
-					const uint8_t *lim = dest + curr_len;
+					const uint8_t* lim = dest + curr_len;
 					dictionary_position += curr_len;
 
 					do *(dest) = (uint8_t)*(dest + src);
@@ -912,16 +912,16 @@ static int32_t  lzma_decoder_decode_real(lzma_decoder_t* p, size_t limit, const 
 						dictionary[dictionary_position++] = dictionary[pos];
 
 						if (++pos == dictionary_buffer_size)
-							pos = 0;
+							pos = UINT64_C(0);
 					} 
-					while (--curr_len != 0);
+					while (--curr_len);
 				}
 			}
 		}
 	} 
 	while (dictionary_position < limit && buffer < buffer_limit);
 
-	if (range < (UINT32_C(1) << 24)) { range <<= 8; code = (code << 8) | (*buffer++); }
+	if (range < UINT32_C(0x1000000)) { range <<= 8; code = (code << 8) | (*buffer++); }
 
 	p->buffer = buffer;
 	p->range = range;
@@ -941,7 +941,7 @@ static int32_t  lzma_decoder_decode_real(lzma_decoder_t* p, size_t limit, const 
 
 static void  lzma_decoder_write_rem(lzma_decoder_t* p, size_t limit)
 {
-	if (p->remaining_length != 0 && p->remaining_length < (2 + (1 << 3) + (1 << 3) + (1 << 8)))
+	if (p->remaining_length != UINT32_C(0) && p->remaining_length < UINT32_C(0x112))
 	{
 		uint8_t *dictionary = p->dictionary;
 		size_t dictionary_position = p->dictionary_position;
@@ -953,13 +953,13 @@ static void  lzma_decoder_write_rem(lzma_decoder_t* p, size_t limit)
 		if (rem < len)
 			len = (uint32_t)(rem);
 
-		if (p->check_dictionary_size == 0 && p->properties.dictionary_size - p->processed_position <= len)
+		if (!p->check_dictionary_size && p->properties.dictionary_size - p->processed_position <= len)
 			p->check_dictionary_size = p->properties.dictionary_size;
 
 		p->processed_position += len;
 		p->remaining_length -= len;
 
-		while (len != 0)
+		while (len)
 		{
 			len--;
 			dictionary[dictionary_position] = dictionary[dictionary_position - rep_a + (dictionary_position < rep_a ? dictionary_buffer_size : 0)];
@@ -971,7 +971,7 @@ static void  lzma_decoder_write_rem(lzma_decoder_t* p, size_t limit)
 }
 
 
-static int32_t lzma_decoder_decode_real_ex(lzma_decoder_t* p, size_t limit, const uint8_t *buffer_limit)
+static lzma_rc_t lzma_decoder_decode_real_ex(lzma_decoder_t* p, size_t limit, const uint8_t *buffer_limit)
 {
 	lzma_rc_t rc;
 
@@ -979,7 +979,7 @@ static int32_t lzma_decoder_decode_real_ex(lzma_decoder_t* p, size_t limit, cons
 	{
 		size_t limit_b = limit;
 
-		if (p->check_dictionary_size == 0)
+		if (!p->check_dictionary_size)
 		{
 			uint32_t rem = p->properties.dictionary_size - p->processed_position;
 
@@ -991,17 +991,17 @@ static int32_t lzma_decoder_decode_real_ex(lzma_decoder_t* p, size_t limit, cons
 		
 		if (rc) return rc;
 
-		if (p->check_dictionary_size == 0 && p->processed_position >= p->properties.dictionary_size)
+		if (!p->check_dictionary_size && p->processed_position >= p->properties.dictionary_size)
 			p->check_dictionary_size = p->properties.dictionary_size;
 
 		lzma_decoder_write_rem(p, limit);
 	} 
-	while (p->dictionary_position < limit && p->buffer < buffer_limit && p->remaining_length < (2 + (1 << 3) + (1 << 3) + (1 << 8)));
+	while (p->dictionary_position < limit && p->buffer < buffer_limit && p->remaining_length < UINT32_C(0x112));
 
-	if (p->remaining_length > (2 + (1 << 3) + (1 << 3) + (1 << 8)))
-		p->remaining_length = (2 + (1 << 3) + (1 << 3) + (1 << 8));
+	if (p->remaining_length > UINT32_C(0x112))
+		p->remaining_length = UINT32_C(0x112);
 
-	return 0;
+	return LZMA_RC_OK;
 }
 
 
@@ -1015,7 +1015,7 @@ typedef enum lzma_dummy_e
 lzma_dummy_t;
 
 
-static lzma_dummy_t lzma_decoder_try_dummy(const lzma_decoder_t *p, const uint8_t *buffer, size_t in_size)
+static lzma_dummy_t lzma_decoder_try_dummy(const lzma_decoder_t *p, const uint8_t* buffer, size_t in_size)
 {
 	uint32_t range = p->range;
 	uint32_t code = p->code;
@@ -1027,90 +1027,92 @@ static lzma_dummy_t lzma_decoder_try_dummy(const lzma_decoder_t *p, const uint8_
 	{
 		const uint16_t *prob;
 		uint32_t bound;
-		uint32_t ttt;
-		uint32_t pos_state = (p->processed_position) & ((1 << p->properties.pb) - 1);
+		uint32_t temp_a;
+		uint32_t pos_state = (p->processed_position) & ((UINT32_C(1) << p->properties.pb) - UINT32_C(1));
 
-		prob = probabilities + 0 + (state << 4) + pos_state;
+		prob = probabilities + (state << 4) + pos_state;
 
-		ttt = *(prob); 
-		
-		if (range < (UINT32_C(1) << 24)) 
-		{ 
-			if (buffer >= buffer_limit) return LZMA_DUMMY_ERROR; 
-			range <<= 8; 
-			code = (code << 8) | (*buffer++); 
+		temp_a = *(prob);
+
+		if (range < UINT32_C(0x1000000))
+		{
+			if (buffer >= buffer_limit) return LZMA_DUMMY_ERROR;
+			range <<= 8;
+			code = (code << 8) | (*buffer++);
 		}
-		
-		bound = (range >> 11) * ttt;
-		
+
+		bound = (range >> 11) * temp_a;
+
 		if (code < bound)
 		{
 			range = bound;
 
-			prob = probabilities + (((((((((((0 + (12 << 4)) + 12) + 12) + 12) + 12) + (12 << 4)) + (4 << 6)) + (1 << (14 >> 1)) - 14) + (1 << 4)) + (((((0 + 1) + 1) + ((1 << 4) << 3)) + ((1 << 4) << 3)) + (1 << 8))) + (((((0 + 1) + 1) + ((1 << 4) << 3)) + ((1 << 4) << 3)) + (1 << 8)));
+			prob = probabilities + UINT32_C(0x736);
 
-			if (p->check_dictionary_size != 0 || p->processed_position != 0)
+			if (p->check_dictionary_size || p->processed_position)
 				prob += (UINT32_C(0x300) * ((((p->processed_position) & ((1 << (p->properties.lp)) - 1)) << p->properties.lc) +
-				(p->dictionary[(p->dictionary_position == 0 ? p->dictionary_buffer_size : p->dictionary_position) - 1] >> (8 - p->properties.lc))));
+				(p->dictionary[((!p->dictionary_position) ? p->dictionary_buffer_size : p->dictionary_position) - UINT64_C(1)] >> (8 - p->properties.lc))));
 
-			if (state < 7)
+			if (state < UINT32_C(7))
 			{
-				uint32_t symbol = 1;
+				uint32_t symbol = UINT32_C(1);
 
-				do 
-				{ 
-					ttt = *(prob + symbol); 
-					
-					if (range < (UINT32_C(1) << 24)) 
-					{ 
-						if (buffer >= buffer_limit) return LZMA_DUMMY_ERROR; 
-						range <<= 8; 
-						code = (code << 8) | (*buffer++); 
+				do
+				{
+					temp_a = *(prob + symbol);
+
+					if (range < UINT32_C(0x1000000))
+					{
+						if (buffer >= buffer_limit) return LZMA_DUMMY_ERROR;
+						range <<= 8;
+						code = (code << 8) | (*buffer++);
 					}
-					
-					bound = (range >> 11) * ttt; 
-					
-					if (code < bound) 
-					{ 
-						range = bound; 
-						symbol = (symbol + symbol); 
-					} 
-					else 
-					{ 
-						range -= bound; 
-						code -= bound; 
-						symbol = (symbol + symbol) + 1; 
+
+					bound = (range >> 11) * temp_a;
+
+					if (code < bound)
+					{
+						range = bound;
+						symbol = (symbol + symbol);
 					}
-				} 
-				while (symbol < 0x100);
+					else
+					{
+						range -= bound;
+						code -= bound;
+						symbol = (symbol + symbol) + UINT32_C(1);
+					}
+				} while (symbol < 0x100);
 			}
 			else
 			{
-				uint32_t match_byte = p->dictionary[p->dictionary_position - p->reps[0] + (p->dictionary_position < p->reps[0] ? p->dictionary_buffer_size : 0)];
-				uint32_t offs = 0x100;
-				uint32_t symbol = 1;
+				uint32_t match_byte = p->dictionary[p->dictionary_position - p->reps[0] + ((p->dictionary_position < p->reps[0]) ? p->dictionary_buffer_size : UINT32_C(0))];
+				uint32_t offs = UINT32_C(0x100);
+				uint32_t symbol = UINT32_C(1);
 
 				do
 				{
 					uint32_t bit;
 					const uint16_t* prob_lit;
+
 					match_byte <<= 1;
 					bit = (match_byte & offs);
 					prob_lit = prob + offs + bit + symbol;
-					ttt = *(prob_lit); 
-					
-					if (range < (UINT32_C(1) << 24)) 
-					{ 
-						if (buffer >= buffer_limit) return LZMA_DUMMY_ERROR; 
-						range <<= 8; code = (code << 8) | (*buffer++); 
+					temp_a = *(prob_lit);
+
+					if (range < UINT32_C(0x1000000))
+					{
+						if (buffer >= buffer_limit)
+							return LZMA_DUMMY_ERROR;
+
+						range <<= 8;
+						code = (code << 8) | (*buffer++);
 					}
-					
-					bound = (range >> 11) * ttt; 
+
+					bound = (range >> 11) * temp_a;
 
 					if (code < bound) { range = bound; symbol = (symbol + symbol); offs &= ~bit; }
-					else { range -= bound; code -= bound; symbol = (symbol + symbol) + 1; offs &= bit; }
-				} 
-				while (symbol < 0x100);
+					else { range -= bound; code -= bound; symbol = (symbol + symbol) + UINT32_C(1); offs &= bit; }
+				} while (symbol < UINT32_C(0x100));
 			}
 
 			res = LZMA_DUMMY_LIT;
@@ -1121,238 +1123,340 @@ static lzma_dummy_t lzma_decoder_try_dummy(const lzma_decoder_t *p, const uint8_
 
 			range -= bound; code -= bound;
 
-			prob = probabilities + (0 + (12 << 4)) + state;
+			prob = probabilities + UINT32_C(0xC0) + state;
 
-			ttt = *(prob); 
-			
-			if (range < (UINT32_C(1) << 24)) { if (buffer >= buffer_limit) return LZMA_DUMMY_ERROR; range <<= 8; code = (code << 8) | (*buffer++); }
-			
-			bound = (range >> 11) * ttt; 
-			
+			temp_a = *(prob);
+
+			if (range < UINT32_C(0x1000000))
+			{
+				if (buffer >= buffer_limit)
+					return LZMA_DUMMY_ERROR;
+
+				range <<= 8;
+				code = (code << 8) | (*buffer++);
+			}
+
+			bound = (range >> 11) * temp_a;
+
 			if (code < bound)
 			{
 				range = bound;
-				state = 0;
-				prob = probabilities + (((((((((0 + (12 << 4)) + 12) + 12) + 12) + 12) + (12 << 4)) + (4 << 6)) + (1 << (14 >> 1)) - 14) + (1 << 4));
+				state = UINT32_C(0);
+				prob = probabilities + UINT32_C(0x342);
 				res = LZMA_DUMMY_MATCH;
 			}
 			else
 			{
 				range -= bound; code -= bound;
 				res = LZMA_DUMMY_REP;
-				prob = probabilities + ((0 + (12 << 4)) + 12) + state;
+				prob = probabilities + ((0 + UINT32_C(0xC0)) + 12) + state;
 
-				ttt = *(prob); 
-				
-				if (range < (UINT32_C(1) << 24)) { if (buffer >= buffer_limit) return LZMA_DUMMY_ERROR; range <<= 8; code = (code << 8) | (*buffer++); }
-				
-				bound = (range >> 11) * ttt; 
-				
+				temp_a = *(prob);
+
+				if (range < UINT32_C(0x1000000))
+				{
+					if (buffer >= buffer_limit)
+						return LZMA_DUMMY_ERROR;
+
+					range <<= 8;
+					code = (code << 8) | (*buffer++);
+				}
+
+				bound = (range >> 11) * temp_a;
+
 				if (code < bound)
 				{
 					range = bound;
-					prob = probabilities + (((((0 + (12 << 4)) + 12) + 12) + 12) + 12) + (state << 4) + pos_state;
+					prob = probabilities + UINT32_C(0xF0) + (state << 4) + pos_state;
 
-					ttt = *(prob); 
-					
-					if (range < (UINT32_C(1) << 24)) { if (buffer >= buffer_limit) return LZMA_DUMMY_ERROR; range <<= 8; code = (code << 8) | (*buffer++); }
-					
-					bound = (range >> 11) * ttt; 
-					
+					temp_a = *(prob);
+
+					if (range < UINT32_C(0x1000000))
+					{
+						if (buffer >= buffer_limit)
+							return LZMA_DUMMY_ERROR;
+
+						range <<= 8;
+						code = (code << 8) | (*buffer++);
+					}
+
+					bound = (range >> 11) * temp_a;
+
 					if (code < bound)
 					{
 						range = bound;
 
-						if (range < (UINT32_C(1) << 24)) { if (buffer >= buffer_limit) return LZMA_DUMMY_ERROR; range <<= 8; code = (code << 8) | (*buffer++); }
+						if (range < UINT32_C(0x1000000))
+						{
+							if (buffer >= buffer_limit)
+								return LZMA_DUMMY_ERROR;
+
+							range <<= 8;
+							code = (code << 8) | (*buffer++);
+						}
 
 						return LZMA_DUMMY_REP;
 					}
 					else
 					{
-						range -= bound; 
+						range -= bound;
 						code -= bound;
 					}
 				}
 				else
 				{
 					range -= bound; code -= bound;
-					prob = probabilities + (((0 + (12 << 4)) + 12) + 12) + state;
+					prob = probabilities + UINT32_C(0xD8) + state;
 
-					ttt = *(prob); 
-					
-					if (range < (UINT32_C(1) << 24)) { if (buffer >= buffer_limit) return LZMA_DUMMY_ERROR; range <<= 8; code = (code << 8) | (*buffer++); }
-					
-					bound = (range >> 11) * ttt; 
-					
-					if (code < bound)
+					temp_a = *(prob);
+
+					if (range < UINT32_C(0x1000000))
 					{
-						range = bound;
+						if (buffer >= buffer_limit)
+							return LZMA_DUMMY_ERROR;
+
+						range <<= 8;
+						code = (code << 8) | (*buffer++);
 					}
+
+					bound = (range >> 11) * temp_a;
+
+					if (code < bound)
+						range = bound;
 					else
 					{
 						range -= bound; code -= bound;
-						prob = probabilities + ((((0 + (12 << 4)) + 12) + 12) + 12) + state;
+						prob = probabilities + (UINT32_C(0xD8) + 12) + state;
 
-						ttt = *(prob); 
-						
-						if (range < (UINT32_C(1) << 24)) { if (buffer >= buffer_limit) return LZMA_DUMMY_ERROR; range <<= 8; code = (code << 8) | (*buffer++); }
-						
-						bound = (range >> 11) * ttt; 
-						
+						temp_a = *(prob);
+
+						if (range < UINT32_C(0x1000000))
+						{
+							if (buffer >= buffer_limit)
+								return LZMA_DUMMY_ERROR;
+
+							range <<= 8;
+							code = (code << 8) | (*buffer++);
+						}
+
+						bound = (range >> 11) * temp_a;
+
 						if (code < bound)
 							range = bound;
 						else
 						{
-							range -= bound; 
+							range -= bound;
 							code -= bound;
 						}
 					}
 				}
 
 				state = 12;
-				prob = probabilities + ((((((((((0 + (12 << 4)) + 12) + 12) + 12) + 12) + (12 << 4)) + (4 << 6)) + (1 << (14 >> 1)) - 14) + (1 << 4)) + (((((0 + 1) + 1) + ((1 << 4) << 3)) + ((1 << 4) << 3)) + (1 << 8)));
+				prob = probabilities + UINT32_C(0x544);
 			}
 
 			{
 				uint32_t limit, offset;
-				const uint16_t* prob_len = prob + 0;
+				const uint16_t* prob_len = prob;
 
-				ttt = *(prob_len); 
-				
-				if (range < (UINT32_C(1) << 24)) { if (buffer >= buffer_limit) return LZMA_DUMMY_ERROR; range <<= 8; code = (code << 8) | (*buffer++); }
-				
-				bound = (range >> 11) * ttt; 
-				
+				temp_a = *(prob_len);
+
+				if (range < UINT32_C(0x1000000))
+				{
+					if (buffer >= buffer_limit)
+						return LZMA_DUMMY_ERROR;
+
+					range <<= 8;
+					code = (code << 8) | (*buffer++);
+				}
+
+				bound = (range >> 11) * temp_a;
+
 				if (code < bound)
 				{
 					range = bound;
-					prob_len = prob + ((0 + 1) + 1) + (pos_state << 3);
+					prob_len = prob + UINT32_C(2) + (pos_state << 3);
 					offset = 0;
-					limit = 1 << 3;
+					limit = 8;
 				}
 				else
 				{
 					range -= bound; code -= bound;
-					prob_len = prob + (0 + 1);
+					prob_len = prob + UINT32_C(1);
 
-					ttt = *(prob_len); 
-					
-					if (range < (UINT32_C(1) << 24)) { if (buffer >= buffer_limit) return LZMA_DUMMY_ERROR; range <<= 8; code = (code << 8) | (*buffer++); }
-					
-					bound = (range >> 11) * ttt; 
-					
+					temp_a = *(prob_len);
+
+					if (range < UINT32_C(0x1000000))
+					{
+						if (buffer >= buffer_limit)
+							return LZMA_DUMMY_ERROR;
+
+						range <<= 8;
+						code = (code << 8) | (*buffer++);
+					}
+
+					bound = (range >> 11) * temp_a;
+
 					if (code < bound)
 					{
 						range = bound;
-						prob_len = prob + (((0 + 1) + 1) + ((1 << 4) << 3)) + (pos_state << 3);
-						offset = (1 << 3);
-						limit = 1 << 3;
+						prob_len = prob + UINT32_C(0x82) + (pos_state << 3);
+						offset = limit = UINT32_C(8);
 					}
 					else
 					{
 						range -= bound; code -= bound;
-						prob_len = prob + ((((0 + 1) + 1) + ((1 << 4) << 3)) + ((1 << 4) << 3));
-						offset = (1 << 3) + (1 << 3);
-						limit = 1 << 8;
+						prob_len = prob + UINT32_C(0x102);
+						offset = UINT32_C(0x10);
+						limit = UINT32_C(0x100);
 					}
 				}
 
-				{ 
-					len = 1; 
+				len = UINT32_C(1);
 
-					do 
-					{ 
-						ttt = *(prob_len + len); 
-						if (range < (UINT32_C(1) << 24)) 
-						{ 
-							if (buffer >= buffer_limit) return LZMA_DUMMY_ERROR; 
-							range <<= 8; code = (code << 8) | (*buffer++); 
-						}
-						
-						bound = (range >> 11) * ttt; 
-						
-						if (code < bound) { range = bound; len = (len + len); } 
-						else { range -= bound; code -= bound; len = (len + len) + 1; } 
-					} 
-					while (len < limit); len -= limit; 
-				}
+				do
+				{
+					temp_a = *(prob_len + len);
+
+					if (range < UINT32_C(0x1000000))
+					{
+						if (buffer >= buffer_limit)
+							return LZMA_DUMMY_ERROR;
+
+						range <<= 8;
+						code = (code << 8) | (*buffer++);
+					}
+
+					bound = (range >> 11) * temp_a;
+
+					if (code < bound)
+					{
+						range = bound;
+						len = (len + len);
+					}
+					else
+					{
+						range -= bound;
+						code -= bound;
+						len = (len + len) + UINT32_C(1);
+					}
+				} 
+				while (len < limit); len -= limit;
 
 				len += offset;
 			}
 
-			if (state < 4)
+			if (state < UINT32_C(4))
 			{
 				uint32_t pos_slot;
 
-				prob = probabilities + ((((((0 + (12 << 4)) + 12) + 12) + 12) + 12) + (12 << 4)) + ((len < 4 ? len : 4 - 1) << 6);
+				prob = probabilities + UINT32_C(0x1B0) + ((len < UINT32_C(4) ? len : UINT32_C(3)) << 6);
 
-				{ 
-					pos_slot = 1; 
-					
-					do 
-					{ 
-						ttt = *(prob + pos_slot); 
-						
-						if (range < (UINT32_C(1) << 24)) { if (buffer >= buffer_limit) return LZMA_DUMMY_ERROR; range <<= 8; code = (code << 8) | (*buffer++); }
-						
-						bound = (range >> 11) * ttt; 
-						
-						if (code < bound) { range = bound; pos_slot = (pos_slot + pos_slot); } 
-						else { range -= bound; code -= bound; pos_slot = (pos_slot + pos_slot) + 1; }
-					} 
-					while (pos_slot < 1 << 6); 
-					
-					pos_slot -= 1 << 6; 
-				}
+				pos_slot = UINT32_C(1);
 
-				if (pos_slot >= 4)
+				do
 				{
-					uint32_t nr_direct_bits = ((pos_slot >> 1) - 1);
+					temp_a = *(prob + pos_slot);
 
-					if (pos_slot < 14)
+					if (range < UINT32_C(0x1000000))
 					{
-						prob = probabilities + (((((((0 + (12 << 4)) + 12) + 12) + 12) + 12) + (12 << 4)) + (4 << 6)) + ((2 | (pos_slot & 1)) << nr_direct_bits) - pos_slot - 1;
+						if (buffer >= buffer_limit)
+							return LZMA_DUMMY_ERROR;
+
+						range <<= 8;
+						code = (code << 8) | (*buffer++);
+					}
+
+					bound = (range >> 11) * temp_a;
+
+					if (code < bound)
+					{
+						range = bound;
+						pos_slot = (pos_slot + pos_slot);
 					}
 					else
 					{
-						nr_direct_bits -= 4;
-						do
-						{
-							if (range < (UINT32_C(1) << 24)) { if (buffer >= buffer_limit) return LZMA_DUMMY_ERROR; range <<= 8; code = (code << 8) | (*buffer++); }
-							range >>= 1;
-							code -= range & (((code - range) >> 31) - 1);
-
-						} 
-						while (--nr_direct_bits != 0);
-
-						prob = probabilities + ((((((((0 + (12 << 4)) + 12) + 12) + 12) + 12) + (12 << 4)) + (4 << 6)) + (1 << (14 >> 1)) - 14);
-						nr_direct_bits = 4;
+						range -= bound;
+						code -= bound;
+						pos_slot = (pos_slot + pos_slot) + UINT32_C(1);
 					}
+				} 
+				while (pos_slot < UINT32_C(0x40));
 
+				pos_slot -= UINT32_C(0x40);
+
+				if (pos_slot >= UINT32_C(4))
+				{
+					uint32_t nr_direct_bits = ((pos_slot >> 1) - UINT32_C(1));
+
+					if (pos_slot < UINT32_C(14))
+						prob = probabilities + UINT32_C(0x2B0) + ((UINT32_C(2) | (pos_slot & UINT32_C(1))) << nr_direct_bits) - pos_slot - UINT32_C(1);
+					else
 					{
-						uint32_t i = 1;
+						nr_direct_bits -= UINT32_C(4);
+
 						do
 						{
-							ttt = *(prob + i); 
-							
-							if (range < (UINT32_C(1) << 24)) { if (buffer >= buffer_limit) return LZMA_DUMMY_ERROR; range <<= 8; code = (code << 8) | (*buffer++); }
-							
-							bound = (range >> 11) * ttt; 
-							
-							if (code < bound) { range = bound; i = (i + i); }
-							else { range -= bound; code -= bound; i = (i + i) + 1; }
-						} 
-						while (--nr_direct_bits != 0);
+							if (range < UINT32_C(0x1000000))
+							{
+								if (buffer >= buffer_limit)
+									return LZMA_DUMMY_ERROR;
+
+								range <<= 8;
+								code = (code << 8) | (*buffer++);
+							}
+
+							range >>= 1;
+							code -= range & (((code - range) >> 31) - UINT32_C(1));
+
+						} while (--nr_direct_bits);
+
+						prob = probabilities + UINT32_C(0x322);
+						nr_direct_bits = UINT32_C(4);
 					}
+
+					uint32_t i = UINT32_C(1);
+
+					do
+					{
+						temp_a = *(prob + i);
+
+						if (range < UINT32_C(0x1000000)) 
+						{ 
+							if (buffer >= buffer_limit) 
+								return LZMA_DUMMY_ERROR; 
+							
+							range <<= 8; 
+							code = (code << 8) | (*buffer++); 
+						}
+
+						bound = (range >> 11) * temp_a;
+
+						if (code < bound) 
+						{ 
+							range = bound; 
+							i = (i + i); 
+						}
+						else 
+						{ 
+							range -= bound; 
+							code -= bound; 
+							i = (i + i) + UINT32_C(1); 
+						}
+					} 
+					while (--nr_direct_bits);
 				}
 			}
 		}
 	}
 
-	if (range < (UINT32_C(1) << 24)) 
+	if (range < UINT32_C(0x1000000)) 
 	{ 
-		if (buffer >= buffer_limit) return LZMA_DUMMY_ERROR; 
-		range <<= 8; code = (code << 8) | (*buffer++); 
+		if (buffer >= buffer_limit) 
+			return LZMA_DUMMY_ERROR; 
+
+		range <<= 8; 
+		code = (code << 8) | (*buffer++); 
 	}
 
 	return res;
@@ -1362,13 +1466,11 @@ static lzma_dummy_t lzma_decoder_try_dummy(const lzma_decoder_t *p, const uint8_
 void lzma_decoder_init_dictionary_and_state(lzma_decoder_t* p, uint8_t init_dictionary, uint8_t init_state)
 {
 	p->need_to_flush = 1;
-	p->remaining_length = 0;
-	p->temp_buffer_size = 0;
+	p->remaining_length = p->temp_buffer_size = UINT32_C(0);
 
 	if (init_dictionary)
 	{
-		p->processed_position = 0;
-		p->check_dictionary_size = 0;
+		p->processed_position = p->check_dictionary_size = 0;
 		p->need_to_init_state = 1;
 	}
 
@@ -1379,66 +1481,66 @@ void lzma_decoder_init_dictionary_and_state(lzma_decoder_t* p, uint8_t init_dict
 
 void lzma_decoder_init(lzma_decoder_t* p)
 {
-	p->dictionary_position = 0;
+	p->dictionary_position = UINT64_C(0);
 	lzma_decoder_init_dictionary_and_state(p, 1, 1);
 }
 
 
 static void lzma_decoder_init_state_real(lzma_decoder_t* p)
 {
-	size_t i, probabilities_count = ((((((((((((0 + (12 << 4)) + 12) + 12) + 12) + 12) + (12 << 4)) + (4 << 6)) + (1 << (14 >> 1)) - 14) + (1 << 4)) + (((((0 + 1) + 1) + ((1 << 4) << 3)) + ((1 << 4) << 3)) + (1 << 8))) + (((((0 + 1) + 1) + ((1 << 4) << 3)) + ((1 << 4) << 3)) + (1 << 8))) + (UINT32_C(0x300) << ((&p->properties)->lc + (&p->properties)->lp)));
+	size_t i, probabilities_count = (UINT32_C(0xA36) << ((&p->properties)->lc + (&p->properties)->lp)));
 	uint16_t* probabilities = p->probabilities;
 
 	for (i = 0; i < probabilities_count; ++i)
-		probabilities[i] = (1 << 11) >> 1;
+		probabilities[i] = UINT16_C(0x400);
 
-	p->reps[0] = p->reps[1] = p->reps[2] = p->reps[3] = 1;
-	p->state = 0;
+	p->reps[0] = p->reps[1] = p->reps[2] = p->reps[3] = UINT32_C(1);
+	p->state = UINT32_C(0);
 	p->need_to_init_state = 0;
 }
 
 
-lzma_rc_t lzma_decoder_decode_to_dictionary(lzma_decoder_t* p, size_t dictionary_limit, const uint8_t *src, size_t *src_len, lzma_finish_mode_t finish_mode, lzma_status_t *status)
+lzma_rc_t lzma_decoder_decode_to_dictionary(lzma_decoder_t* p, size_t dictionary_limit, const uint8_t* src, size_t* src_len, lzma_finish_mode_t finish_mode, lzma_status_t* status)
 {
 	size_t in_size = *src_len;
 
-	(*src_len) = 0;
+	(*src_len) = UINT64_C(0);
 
 	lzma_decoder_write_rem(p, dictionary_limit);
 
 	*status = LZMA_STATUS_NOT_SPECIFIED;
 
-	while (p->remaining_length != (2 + (1 << 3) + (1 << 3) + (1 << 8)))
+	while (p->remaining_length != UINT32_C(0x112))
 	{
-		int32_t check_end_mark_now;
+		uint8_t check_end_mark_now;
 
 		if (p->need_to_flush)
 		{
-			for (; in_size > 0 && p->temp_buffer_size < 5; (*src_len)++, in_size--)
+			for (; in_size && p->temp_buffer_size < UINT32_C(5); (*src_len)++, --in_size)
 				p->temp_buffer[p->temp_buffer_size++] = *src++;
 
-			if (p->temp_buffer_size < 5)
+			if (p->temp_buffer_size < UINT32_C(5))
 			{
 				*status = LZMA_STATUS_NEEDS_MORE_INPUT;
 
 				return LZMA_RC_OK;
 			}
 
-			if (p->temp_buffer[0] != 0)
+			if (p->temp_buffer[0])
 				return LZMA_RC_DATA;
 
 			p->code = ((uint32_t)p->temp_buffer[1] << 24) | ((uint32_t)p->temp_buffer[2] << 16) | ((uint32_t)p->temp_buffer[3] << 8) | ((uint32_t)p->temp_buffer[4]);
 
 			p->range = UINT32_C(0xFFFFFFFF);
 			p->need_to_flush = 0;
-			p->temp_buffer_size = 0;
+			p->temp_buffer_size = UINT32_C(0);
 		}
 
 		check_end_mark_now = 0;
 
 		if (p->dictionary_position >= dictionary_limit)
 		{
-			if (p->remaining_length == 0 && p->code == 0)
+			if (!p->remaining_length && !p->code)
 			{
 				*status = LZMA_STATUS_MAYBE_FINISHED_WITHOUT_MARK;
 
@@ -1452,7 +1554,7 @@ lzma_rc_t lzma_decoder_decode_to_dictionary(lzma_decoder_t* p, size_t dictionary
 				return LZMA_RC_OK;
 			}
 
-			if (p->remaining_length != 0)
+			if (p->remaining_length)
 			{
 				*status = LZMA_STATUS_NOT_FINISHED;
 
@@ -1465,12 +1567,12 @@ lzma_rc_t lzma_decoder_decode_to_dictionary(lzma_decoder_t* p, size_t dictionary
 		if (p->need_to_init_state)
 			lzma_decoder_init_state_real(p);
 
-		if (p->temp_buffer_size == 0)
+		if (!p->temp_buffer_size)
 		{
 			size_t processed;
 			const uint8_t* buffer_limit;
 
-			if (in_size < 20 || check_end_mark_now)
+			if (in_size < UINT64_C(20) || check_end_mark_now)
 			{
 				lzma_dummy_t dummy_rc = lzma_decoder_try_dummy(p, src, in_size);
 
@@ -1494,11 +1596,11 @@ lzma_rc_t lzma_decoder_decode_to_dictionary(lzma_decoder_t* p, size_t dictionary
 
 				buffer_limit = src;
 			}
-			else buffer_limit = src + in_size - 20;
+			else buffer_limit = src + in_size - UINT64_C(20);
 
 			p->buffer = src;
 
-			if (lzma_decoder_decode_real_ex(p, dictionary_limit, buffer_limit) != 0)
+			if (lzma_decoder_decode_real_ex(p, dictionary_limit, buffer_limit))
 				return LZMA_RC_DATA;
 
 			processed = (size_t)(p->buffer - src);
@@ -1508,14 +1610,14 @@ lzma_rc_t lzma_decoder_decode_to_dictionary(lzma_decoder_t* p, size_t dictionary
 		}
 		else
 		{
-			uint32_t rem = p->temp_buffer_size, look_ahead = 0;
+			uint32_t rem = p->temp_buffer_size, look_ahead = UINT32_C(0);
 
-			while (rem < 20 && look_ahead < in_size)
+			while (rem < UINT32_C(20) && look_ahead < in_size)
 				p->temp_buffer[rem++] = src[look_ahead++];
 
 			p->temp_buffer_size = rem;
 
-			if (rem < 20 || check_end_mark_now)
+			if (rem < UINT32_C(20) || check_end_mark_now)
 			{
 				lzma_dummy_t dummy_rc = lzma_decoder_try_dummy(p, p->temp_buffer, rem);
 
@@ -1537,43 +1639,41 @@ lzma_rc_t lzma_decoder_decode_to_dictionary(lzma_decoder_t* p, size_t dictionary
 
 			p->buffer = p->temp_buffer;
 
-			if (lzma_decoder_decode_real_ex(p, dictionary_limit, p->buffer) != 0)
+			if (lzma_decoder_decode_real_ex(p, dictionary_limit, p->buffer))
 				return LZMA_RC_DATA;
 
-			{
-				uint32_t kkk = (uint32_t)(p->buffer - p->temp_buffer);
+			uint32_t temp_b = (uint32_t)(p->buffer - p->temp_buffer);
 
-				if (rem < kkk)
-					return LZMA_RC_FAILURE;
+			if (rem < temp_b)
+				return LZMA_RC_FAILURE;
 
-				rem -= kkk;
+			rem -= temp_b;
 
-				if (look_ahead < rem)
-					return LZMA_RC_FAILURE;
+			if (look_ahead < rem)
+				return LZMA_RC_FAILURE;
 
-				look_ahead -= rem;
-			}
+			look_ahead -= rem;
 
 			(*src_len) += look_ahead;
 			src += look_ahead;
 			in_size -= look_ahead;
-			p->temp_buffer_size = 0;
+			p->temp_buffer_size = UINT32_C(0);
 		}
 	}
 
-	if (p->code == 0)
+	if (!p->code)
 		*status = LZMA_STATUS_FINISHED_WITH_MARK;
 
-	return (p->code == 0) ? LZMA_RC_OK : LZMA_RC_DATA;
+	return (!p->code) ? LZMA_RC_OK : LZMA_RC_DATA;
 }
 
 
-lzma_rc_t lzma_decoder_decode_to_buffer(lzma_decoder_t* p, uint8_t *dest, size_t *dest_len, const uint8_t *src, size_t *src_len, lzma_finish_mode_t finish_mode, lzma_status_t *status)
+lzma_rc_t lzma_decoder_decode_to_buffer(lzma_decoder_t* p, uint8_t* dest, size_t* dest_len, const uint8_t* src, size_t* src_len, lzma_finish_mode_t finish_mode, lzma_status_t* status)
 {
 	size_t out_size = *dest_len;
 	size_t in_size = *src_len;
 
-	*src_len = *dest_len = 0;
+	*src_len = *dest_len = UINT64_C(0);
 
 	for (;;)
 	{
@@ -1582,7 +1682,7 @@ lzma_rc_t lzma_decoder_decode_to_buffer(lzma_decoder_t* p, uint8_t *dest, size_t
 		lzma_rc_t rc;
 
 		if (p->dictionary_position == p->dictionary_buffer_size)
-			p->dictionary_position = 0;
+			p->dictionary_position = UINT64_C(0);
 
 		dictionary_position = p->dictionary_position;
 
@@ -1644,11 +1744,12 @@ lzma_rc_t lzma_properties_decode(lzma_properties_t* p, const uint8_t* data, uint
 	uint32_t dictionary_size;
 	uint8_t d;
 
-	if (size < 5) return LZMA_RC_UNSUPPORTED;
+	if (size < UINT32_C(5)) 
+		return LZMA_RC_UNSUPPORTED;
 	else dictionary_size = data[1] | ((uint32_t)data[2] << 8) | ((uint32_t)data[3] << 16) | ((uint32_t)data[4] << 24);
 
-	if (dictionary_size < (1 << 12))
-		dictionary_size = (1 << 12);
+	if (dictionary_size < UINT32_C(0x1000))
+		dictionary_size = UINT32_C(0x1000);
 
 	p->dictionary_size = dictionary_size;
 
@@ -1657,10 +1758,10 @@ lzma_rc_t lzma_properties_decode(lzma_properties_t* p, const uint8_t* data, uint
 	if (d >= 225)
 		return LZMA_RC_UNSUPPORTED;
 
-	p->lc = d % 9;
-	d /= 9;
-	p->pb = d / 5;
-	p->lp = d % 5;
+	p->lc = d % UINT8_C(9);
+	d /= UINT8_C(9);
+	p->pb = d / UINT8_C(5);
+	p->lp = d % UINT8_C(5);
 
 	return LZMA_RC_OK;
 }
@@ -1668,7 +1769,7 @@ lzma_rc_t lzma_properties_decode(lzma_properties_t* p, const uint8_t* data, uint
 
 static lzma_rc_t lzma_decoder_allocate_probabilities_ex(lzma_decoder_t* p, const lzma_properties_t *new_prop, lzma_allocator_ptr_t allocator)
 {
-	uint32_t probabilities_count = ((((((((((((0 + (12 << 4)) + 12) + 12) + 12) + 12) + (12 << 4)) + (4 << 6)) + (1 << (14 >> 1)) - 14) + (1 << 4)) + (((((0 + 1) + 1) + ((1 << 4) << 3)) + ((1 << 4) << 3)) + (1 << 8))) + (((((0 + 1) + 1) + ((1 << 4) << 3)) + ((1 << 4) << 3)) + (1 << 8))) + (UINT32_C(0x300) << ((new_prop)->lc + (new_prop)->lp)));
+	uint32_t probabilities_count = (UINT32_C(0xA36) << ((new_prop)->lc + (new_prop)->lp)));
 
 	if (!p->probabilities || probabilities_count != p->probabilities_count)
 	{
@@ -1720,10 +1821,12 @@ lzma_rc_t lzma_decoder_allocate(lzma_decoder_t* p, const uint8_t *properties, ui
 
 	{
 		uint32_t dictionary_size = new_prop.dictionary_size;
-		size_t mask = (UINT32_C(1) << 12) - 1;
+		size_t mask = UINT64_C(0x3FFFFFFF);
 
-		if (dictionary_size >= (UINT32_C(1) << 30)) mask = (UINT32_C(1) << 22) - 1;
-		else if (dictionary_size >= (UINT32_C(1) << 22)) mask = (UINT32_C(1) << 20) - 1;
+		if (dictionary_size >= UINT32_C(0x40000000)) 
+			mask = UINT32_C(0x3FFFFF);
+		else if (dictionary_size >= UINT32_C(0x400000)) 
+			mask = UINT32_C(0xFFFFF);
 
 		dictionary_buffer_size = ((size_t)dictionary_size + mask) & ~mask;
 
@@ -1752,16 +1855,16 @@ lzma_rc_t lzma_decoder_allocate(lzma_decoder_t* p, const uint8_t *properties, ui
 }
 
 
-lzma_rc_t lzma_decode(uint8_t *dest, size_t *dest_len, const uint8_t *src, size_t *src_len, const uint8_t *properties_data, uint32_t properties_size, lzma_finish_mode_t finish_mode, lzma_status_t *status, lzma_allocator_ptr_t allocator)
+lzma_rc_t lzma_decode(uint8_t *dest, size_t* dest_len, const uint8_t* src, size_t* src_len, const uint8_t *properties_data, uint32_t properties_size, lzma_finish_mode_t finish_mode, lzma_status_t* status, lzma_allocator_ptr_t allocator)
 {
 	lzma_rc_t rc;
 	lzma_decoder_t p;
 	size_t out_size = *dest_len, in_size = *src_len;
 
-	*dest_len = *src_len = 0;
+	*dest_len = *src_len = UINT64_C(0);
 	*status = LZMA_STATUS_NOT_SPECIFIED;
 
-	if (in_size < 5)
+	if (in_size < UINT64_C(5))
 		return LZMA_RC_INPUT_EOF;
 
 	p.dictionary = 0; 
@@ -1795,10 +1898,10 @@ static lzma_rc_t lzma_2_decoder_get_old_properties(uint8_t properties, uint8_t* 
 {
 	uint32_t dictionary_size;
 
-	if (properties > 40)
+	if (properties > UINT8_C(40))
 		return LZMA_RC_UNSUPPORTED;
 
-	dictionary_size = (properties == 40) ? UINT32_C(0xFFFFFFFF) : ((UINT32_C(2) | (properties & 1)) << (properties / 13));
+	dictionary_size = (properties == UINT8_C(40)) ? UINT32_C(0xFFFFFFFF) : ((UINT32_C(2) | (properties & UINT8_C(1))) << (properties / UINT8_C(13)));
 
 	buffer[0] = UINT8_C(4);
 	buffer[1] = (uint8_t)(dictionary_size);
@@ -1810,7 +1913,7 @@ static lzma_rc_t lzma_2_decoder_get_old_properties(uint8_t properties, uint8_t* 
 }
 
 
-lzma_rc_t lzma_2_decoder_allocate_probabilities(lzma_2_decoder_t *p, uint8_t properties, lzma_allocator_ptr_t allocator)
+lzma_rc_t lzma_2_decoder_allocate_probabilities(lzma_2_decoder_t* p, uint8_t properties, lzma_allocator_ptr_t allocator)
 {
 	lzma_rc_t rc;
 	uint8_t buffer[5];
@@ -1819,11 +1922,11 @@ lzma_rc_t lzma_2_decoder_allocate_probabilities(lzma_2_decoder_t *p, uint8_t pro
 
 	if (rc) return rc;
 
-	return lzma_decoder_allocate_probabilities(&p->decoder, buffer, 5, allocator);
+	return lzma_decoder_allocate_probabilities(&p->decoder, buffer, UINT32_C(5), allocator);
 }
 
 
-lzma_rc_t lzma_2_decoder_allocate(lzma_2_decoder_t *p, uint8_t properties, lzma_allocator_ptr_t allocator)
+lzma_rc_t lzma_2_decoder_allocate(lzma_2_decoder_t* p, uint8_t properties, lzma_allocator_ptr_t allocator)
 {
 	lzma_rc_t rc;
 	uint8_t buffer[5];
@@ -1832,22 +1935,20 @@ lzma_rc_t lzma_2_decoder_allocate(lzma_2_decoder_t *p, uint8_t properties, lzma_
 	
 	if (rc) return rc;
 
-	return lzma_decoder_allocate(&p->decoder, buffer, 5, allocator);
+	return lzma_decoder_allocate(&p->decoder, buffer, UINT32_C(5), allocator);
 }
 
 
-void lzma_2_decoder_init(lzma_2_decoder_t *p)
+void lzma_2_decoder_init(lzma_2_decoder_t* p)
 {
 	p->state = LZMA_2_STATE_CONTROL;
-	p->need_to_init_dictionary = 1;
-	p->need_to_init_state = 1;
-	p->need_to_init_properties = 1;
+	p->need_to_init_dictionary = p->need_to_init_state = p->need_to_init_properties = 1;
 
 	lzma_decoder_init(&p->decoder);
 }
 
 
-static lzma_2_state_t lzma_2_decoder_update_state(lzma_2_decoder_t *p, uint8_t b)
+static lzma_2_state_t lzma_2_decoder_update_state(lzma_2_decoder_t* p, uint8_t b)
 {
 	switch (p->state)
 	{
@@ -1857,18 +1958,21 @@ static lzma_2_state_t lzma_2_decoder_update_state(lzma_2_decoder_t *p, uint8_t b
 
 		if (b == 0) return LZMA_2_STATE_FINISHED;
 
-		if (p->control & 0x80 == 0)
+		if (!(p->control & UINT8_C(0x80)))
 		{
-			if (b > 2) return LZMA_2_STATE_ERROR;
-			p->unpacked_size = 0;
+			if (b > 2) 
+				return LZMA_2_STATE_ERROR;
+
+			p->unpacked_size = UINT32_C(0);
 		}
-		else p->unpacked_size = (uint32_t)(b & 0x1F) << 16;
+		else p->unpacked_size = (uint32_t)(b & UINT8_C(0x1F)) << 16;
 
 		return LZMA_2_STATE_UNPACK_0;
 
 	case LZMA_2_STATE_UNPACK_0:
 
 		p->unpacked_size |= ((uint32_t)b) << 8;
+
 		return LZMA_2_STATE_UNPACK_1;
 
 	case LZMA_2_STATE_UNPACK_1:
@@ -1876,7 +1980,7 @@ static lzma_2_state_t lzma_2_decoder_update_state(lzma_2_decoder_t *p, uint8_t b
 		p->unpacked_size |= ((uint32_t)b);
 		p->unpacked_size++;
 
-		return (p->control & 0x80 == 0) ? LZMA_2_STATE_DATA : LZMA_2_STATE_PACK_0;
+		return (!(p->control & UINT8_C(0x80))) ? LZMA_2_STATE_DATA : LZMA_2_STATE_PACK_0;
 
 	case LZMA_2_STATE_PACK_0:
 
@@ -1888,20 +1992,21 @@ static lzma_2_state_t lzma_2_decoder_update_state(lzma_2_decoder_t *p, uint8_t b
 		p->packed_size |= ((uint32_t)b);
 		p->packed_size++;
 
-		return ((((p->control >> 5) & 3)) >= 2) ? LZMA_2_STATE_PROP : (p->need_to_init_properties ? LZMA_2_STATE_ERROR : LZMA_2_STATE_DATA);
+		return ((((p->control >> 5) & UINT8_C(3))) >= 2) ? LZMA_2_STATE_PROP : (p->need_to_init_properties ? LZMA_2_STATE_ERROR : LZMA_2_STATE_DATA);
 
 	case LZMA_2_STATE_PROP:
 	{
 		uint32_t lc, lp;
 
-		if (b >= 225) return LZMA_2_STATE_ERROR;
+		if (b >= UINT8_C(225)) return LZMA_2_STATE_ERROR;
 
-		lc = b % 9;
-		b /= 9;
-		p->decoder.properties.pb = b / 5;
-		lp = b % 5;
+		lc = (uint32_t)(b % UINT8_C(9));
+		b /= UINT8_C(9);
+		p->decoder.properties.pb = (uint32_t)(b / UINT8_C(5));
+		lp = (uint32_t)(b % UINT8_C(5));
 
-		if (lc + lp > 4) return LZMA_2_STATE_ERROR;
+		if (lc + lp > UINT32_C(4))
+			return LZMA_2_STATE_ERROR;
 
 		p->decoder.properties.lc = lc;
 		p->decoder.properties.lp = lp;
@@ -1915,13 +2020,13 @@ static lzma_2_state_t lzma_2_decoder_update_state(lzma_2_decoder_t *p, uint8_t b
 }
 
 
-static void lzma_decoder_update_with_uncompressed(lzma_decoder_t* p, const uint8_t *src, size_t size)
+static void lzma_decoder_update_with_uncompressed(lzma_decoder_t* p, const uint8_t* src, size_t size)
 {
 	lzma_memcpy(p->dictionary + p->dictionary_position, src, size);
 
 	p->dictionary_position += size;
 
-	if (p->check_dictionary_size == 0 && p->properties.dictionary_size - p->processed_position <= size)
+	if (!p->check_dictionary_size && p->properties.dictionary_size - p->processed_position <= size)
 		p->check_dictionary_size = p->properties.dictionary_size;
 
 	p->processed_position += (uint32_t)size;
@@ -1931,11 +2036,11 @@ static void lzma_decoder_update_with_uncompressed(lzma_decoder_t* p, const uint8
 void lzma_decoder_init_dictionary_and_state(lzma_decoder_t* p, uint8_t init_dictionary, uint8_t init_state);
 
 
-lzma_rc_t lzma_2_decoder_decode_to_dictionary(lzma_2_decoder_t *p, size_t dictionary_limit, const uint8_t *src, size_t *src_len, lzma_finish_mode_t finish_mode, lzma_status_t *status)
+lzma_rc_t lzma_2_decoder_decode_to_dictionary(lzma_2_decoder_t* p, size_t dictionary_limit, const uint8_t* src, size_t* src_len, lzma_finish_mode_t finish_mode, lzma_status_t* status)
 {
 	size_t in_size = *src_len;
 
-	*src_len = 0;
+	*src_len = UINT64_C(0);
 	*status = LZMA_STATUS_NOT_SPECIFIED;
 
 	while (p->state != LZMA_2_STATE_ERROR)
@@ -1988,9 +2093,9 @@ lzma_rc_t lzma_2_decoder_decode_to_dictionary(lzma_2_decoder_t *p, size_t dictio
 				cur_finish_mode = LZMA_FINISH_END;
 			}
 
-			if (p->control & 0x80 == 0)
+			if (!(p->control & UINT8_C(0x80)))
 			{
-				if (in_cur == 0)
+				if (!in_cur)
 				{
 					*status = LZMA_STATUS_NEEDS_MORE_INPUT;
 
@@ -1999,18 +2104,21 @@ lzma_rc_t lzma_2_decoder_decode_to_dictionary(lzma_2_decoder_t *p, size_t dictio
 
 				if (p->state == LZMA_2_STATE_DATA)
 				{
-					uint8_t init_dictionary = (p->control == 1);
+					uint8_t init_dictionary = (p->control == UINT8_C(1));
 
 					if (init_dictionary)
 						p->need_to_init_properties = p->need_to_init_state = 1;
-					else if (p->need_to_init_dictionary) break;
+					else if (p->need_to_init_dictionary) 
+						break;
 
 					p->need_to_init_dictionary = 0;
 
 					lzma_decoder_init_dictionary_and_state(&p->decoder, init_dictionary, 0);
 				}
 
-				if (in_cur > out_cur) in_cur = out_cur;
+				if (in_cur > out_cur) 
+					in_cur = out_cur;
+
 				if (!in_cur) break;
 
 				lzma_decoder_update_with_uncompressed(&p->decoder, src, in_cur);
@@ -2018,7 +2126,7 @@ lzma_rc_t lzma_2_decoder_decode_to_dictionary(lzma_2_decoder_t *p, size_t dictio
 				src += in_cur;
 				*src_len += in_cur;
 				p->unpacked_size -= (uint32_t)in_cur;
-				p->state = (p->unpacked_size == 0) ? LZMA_2_STATE_CONTROL : LZMA_2_STATE_DATA_CONT;
+				p->state = (!p->unpacked_size) ? LZMA_2_STATE_CONTROL : LZMA_2_STATE_DATA_CONT;
 			}
 			else
 			{
@@ -2026,17 +2134,16 @@ lzma_rc_t lzma_2_decoder_decode_to_dictionary(lzma_2_decoder_t *p, size_t dictio
 
 				if (p->state == LZMA_2_STATE_DATA)
 				{
-					uint32_t mode = ((p->control >> 5) & 3);
-					uint8_t init_dictionary = (mode == 3);
-					uint8_t init_state = (mode != 0);
+					uint32_t mode = (uint32_t)((p->control >> 5) & UINT8_C(3));
+					uint8_t init_dictionary = (mode == UINT32_C(3));
+					uint8_t init_state = (mode) ? 1 : 0;
 
 					if ((!init_dictionary && p->need_to_init_dictionary) || (!init_state && p->need_to_init_state))
 						break;
 
 					lzma_decoder_init_dictionary_and_state(&p->decoder, init_dictionary, init_state);
 
-					p->need_to_init_dictionary = 0;
-					p->need_to_init_state = 0;
+					p->need_to_init_dictionary = p->need_to_init_state = 0;
 					p->state = LZMA_2_STATE_DATA_CONT;
 				}
 
@@ -2080,10 +2187,10 @@ lzma_rc_t lzma_2_decoder_decode_to_dictionary(lzma_2_decoder_t *p, size_t dictio
 }
 
 
-lzma_rc_t lzma_2_decoder_decode_to_buffer(lzma_2_decoder_t *p, uint8_t *dest, size_t *dest_len, const uint8_t *src, size_t *src_len, lzma_finish_mode_t finish_mode, lzma_status_t *status)
+lzma_rc_t lzma_2_decoder_decode_to_buffer(lzma_2_decoder_t* p, uint8_t* dest, size_t* dest_len, const uint8_t* src, size_t* src_len, lzma_finish_mode_t finish_mode, lzma_status_t* status)
 {
 	size_t out_size = *dest_len, in_size = *src_len;
-	*src_len = *dest_len = 0;
+	*src_len = *dest_len = UINT64_C(0);
 
 	for (;;)
 	{
@@ -2092,7 +2199,7 @@ lzma_rc_t lzma_2_decoder_decode_to_buffer(lzma_2_decoder_t *p, uint8_t *dest, si
 		lzma_rc_t rc;
 
 		if (p->decoder.dictionary_position == p->decoder.dictionary_buffer_size)
-			p->decoder.dictionary_position = 0;
+			p->decoder.dictionary_position = UINT64_C(0);
 
 		dictionary_position = p->decoder.dictionary_position;
 		cur_finish_mode = LZMA_FINISH_ANY;
@@ -2125,17 +2232,17 @@ lzma_rc_t lzma_2_decoder_decode_to_buffer(lzma_2_decoder_t *p, uint8_t *dest, si
 }
 
 
-lzma_rc_t lzma_2_decode(uint8_t *dest, size_t *dest_len, const uint8_t *src, size_t *src_len, uint8_t properties, lzma_finish_mode_t finish_mode, lzma_status_t *status, lzma_allocator_ptr_t allocator)
+lzma_rc_t lzma_2_decode(uint8_t *dest, size_t* dest_len, const uint8_t* src, size_t* src_len, uint8_t properties, lzma_finish_mode_t finish_mode, lzma_status_t* status, lzma_allocator_ptr_t allocator)
 {
 	lzma_rc_t rc;
 	lzma_2_decoder_t p;
 	size_t out_size = *dest_len, in_size = *src_len;
 
-	*dest_len = *src_len = 0;
+	*dest_len = *src_len = UINT64_C(0);
 	*status = LZMA_STATUS_NOT_SPECIFIED;
 
-	p.decoder.dictionary = 0; 
-	p.decoder.probabilities = 0;
+	p.decoder.dictionary = NULL; 
+	p.decoder.probabilities = NULL;
 
 	rc = lzma_2_decoder_allocate_probabilities(&p, properties, allocator); 
 	
@@ -2152,7 +2259,7 @@ lzma_rc_t lzma_2_decode(uint8_t *dest, size_t *dest_len, const uint8_t *src, siz
 
 	*dest_len = p.decoder.dictionary_position;
 
-	if (rc == LZMA_RC_OK && *status == LZMA_STATUS_NEEDS_MORE_INPUT)
+	if (!rc && *status == LZMA_STATUS_NEEDS_MORE_INPUT)
 		rc = LZMA_RC_INPUT_EOF;
 
 	lzma_decoder_release_probabilities(&p.decoder, allocator);
@@ -2168,148 +2275,149 @@ typedef struct lzma_match_finder_s
 {
 	uint8_t* buffer;
 	uint32_t position;
-	uint32_t posLimit;
-	uint32_t streamPos;
-	uint32_t lenLimit;
-	uint32_t cyclicBufferPos;
-	uint32_t cyclicBufferSize;
-	uint8_t streamEndWasReached;
+	uint32_t position_limit;
+	uint32_t stream_position;
+	uint32_t length_limit;
+	uint32_t cyclic_buffer_position;
+	uint32_t cyclic_buffer_size;
+	uint8_t stream_end_was_reached;
 	uint8_t mode_bt;
-	uint8_t bigHash;
-	uint8_t directInput;
-	uint32_t matchMaxLen;
+	uint8_t big_hash;
+	uint8_t direct_input;
+	uint32_t match_max_length;
 	lzma_lz_ref_t* hash;
-	lzma_lz_ref_t* son;
-	uint32_t hashMask;
-	uint32_t cutValue;
-	uint8_t* bufferBase;
+	lzma_lz_ref_t* child;
+	uint32_t hash_mask;
+	uint32_t cut_value;
+	uint8_t* buffer_base;
 	lzma_seq_in_stream_t* stream;
 	uint32_t block_size;
-	uint32_t keepSizeBefore;
-	uint32_t keepSizeAfter;
+	uint32_t keep_size_before;
+	uint32_t keep_size_after;
 	uint32_t hash_byte_count;
-	size_t directInputRem;
-	uint32_t historySize;
-	uint32_t fixedHashSize;
-	uint32_t hashSizeSum;
+	size_t direct_input_remaining;
+	uint32_t history_size;
+	uint32_t fixed_hash_size;
+	uint32_t hash_size_sum;
 	lzma_rc_t result;
 	uint32_t crc[256];
-	size_t numRefs;
-	uint64_t expectedDataSize;
+	size_t references_count;
+	uint64_t expected_data_size;
 }
 lzma_match_finder_t;
 
 
-uint8_t MatchFinder_NeedMove(lzma_match_finder_t* p);
-uint8_t* MatchFinder_GetPointerToCurrentPos(lzma_match_finder_t* p);
-void MatchFinder_MoveBlock(lzma_match_finder_t* p);
-void MatchFinder_ReadIfRequired(lzma_match_finder_t* p);
-void MatchFinder_Construct(lzma_match_finder_t* p);
-uint8_t MatchFinder_Create(lzma_match_finder_t* p, uint32_t historySize, uint32_t keepAddBufferBefore, uint32_t matchMaxLen, uint32_t keepAddBufferAfter, lzma_allocator_ptr_t allocator);
-void MatchFinder_Free(lzma_match_finder_t* p, lzma_allocator_ptr_t allocator);
-void MatchFinder_Normalize3(uint32_t sub_value, lzma_lz_ref_t *items, size_t numItems);
-void MatchFinder_ReduceOffsets(lzma_match_finder_t* p, uint32_t sub_value);
-uint32_t* GetMatchesSpec1(uint32_t lenLimit, uint32_t curMatch, uint32_t pos, const uint8_t *buffer, lzma_lz_ref_t *son, uint32_t _cyclicBufferPos, uint32_t _cyclicBufferSize, uint32_t _cutValue, uint32_t *distances, uint32_t maxLen);
+uint8_t lzma_mf_need_move(lzma_match_finder_t* p);
+uint8_t* lzma_mf_get_ptr_to_current_position(lzma_match_finder_t* p);
+void lzma_mf_move_block(lzma_match_finder_t* p);
+void lzma_mf_read_if_required(lzma_match_finder_t* p);
+void lzma_mf_construct(lzma_match_finder_t* p);
+uint8_t lzma_mf_create(lzma_match_finder_t* p, uint32_t history_size, uint32_t keep_add_buffer_before, uint32_t match_max_length, uint32_t keep_add_buffer_after, lzma_allocator_ptr_t allocator);
+void lzma_mf_free(lzma_match_finder_t* p, lzma_allocator_ptr_t allocator);
+void lzma_mf_normalize_3(uint32_t sub_value, lzma_lz_ref_t* items, size_t items_count);
+void lzma_mf_reduce_offsets(lzma_match_finder_t* p, uint32_t sub_value);
+uint32_t* lzma_mf_get_matches_spec_a(uint32_t length_limit, uint32_t current_match, uint32_t pos, const uint8_t* buffer, lzma_lz_ref_t* child, uint32_t cyclic_buffer_position, uint32_t cyclic_buffer_size, uint32_t cut_value, uint32_t* distances, uint32_t max_length);
 
 
-typedef void (*Mf_Init_Func)(void* object);
-typedef uint32_t (*Mf_GetNumAvailableBytes_Func)(void* object);
-typedef const uint8_t* (*Mf_GetPointerToCurrentPos_Func)(void* object);
-typedef uint32_t (*Mf_GetMatches_Func)(void* object, uint32_t* distances);
-typedef void (*Mf_Skip_Func)(void* object, uint32_t);
+typedef void (*lzma_mf_init_f)(void*);
+typedef uint32_t (*lzma_mf_get_available_bytes_f)(void*);
+typedef const uint8_t* (*lzma_mf_get_ptr_to_current_pos_f)(void*);
+typedef uint32_t (*lzma_mf_get_matches_f)(void*, uint32_t*);
+typedef void (*lzma_mf_skip_f)(void*, uint32_t);
 
 
-typedef struct _IMatchFinder
+typedef struct lzma_mf_s
 {
-	Mf_Init_Func Init;
-	Mf_GetNumAvailableBytes_Func GetNumAvailableBytes;
-	Mf_GetPointerToCurrentPos_Func GetPointerToCurrentPos;
-	Mf_GetMatches_Func GetMatches;
-	Mf_Skip_Func skip;
+	lzma_mf_init_f initialize;
+	lzma_mf_get_available_bytes_f get_available_bytes;
+	lzma_mf_get_ptr_to_current_pos_f get_ptr_to_current_pos;
+	lzma_mf_get_matches_f get_matches;
+	lzma_mf_skip_f skip;
 }
-IMatchFinder;
+lzma_mf_t;
 
 
-void MatchFinder_CreateVTable(lzma_match_finder_t* p, IMatchFinder *vTable);
-void MatchFinder_Init_LowHash(lzma_match_finder_t* p);
-void MatchFinder_Init_HighHash(lzma_match_finder_t* p);
-void MatchFinder_Init_3(lzma_match_finder_t* p, int32_t readData);
-void MatchFinder_Init(lzma_match_finder_t* p);
-uint32_t Bt3Zip_MatchFinder_GetMatches(lzma_match_finder_t* p, uint32_t *distances);
-uint32_t Hc3Zip_MatchFinder_GetMatches(lzma_match_finder_t* p, uint32_t *distances);
-void Bt3Zip_MatchFinder_Skip(lzma_match_finder_t* p, uint32_t num);
-void Hc3Zip_MatchFinder_Skip(lzma_match_finder_t* p, uint32_t num);
+void lzma_mf_create_vtable(lzma_match_finder_t* p, lzma_mf_t* vtable);
+void lzma_mf_init_low_hash(lzma_match_finder_t* p);
+void lzma_mf_init_high_hash(lzma_match_finder_t* p);
+void lzma_mf_init_3(lzma_match_finder_t* p, uint8_t read_data);
+void lzma_mf_init(lzma_match_finder_t* p);
+uint32_t lzma_mf_bt_3_zip_get_matches(lzma_match_finder_t* p, uint32_t* distances);
+uint32_t lzma_mf_hc_3_zip_get_matches(lzma_match_finder_t* p, uint32_t* distances);
+void lzma_mf_bt_3_zip_skip(lzma_match_finder_t* p, uint32_t num);
+void lzma_mf_hc_3_zip_skip(lzma_match_finder_t* p, uint32_t num);
 
 
-static void LzInWindow_Free(lzma_match_finder_t* p, lzma_allocator_ptr_t allocator)
+static void lzma_lz_in_window_free(lzma_match_finder_t* p, lzma_allocator_ptr_t allocator)
 {
-	if (!p->directInput)
+	if (!p->direct_input)
 	{
-		allocator->release(allocator, p->bufferBase);
-		p->bufferBase = NULL;
+		allocator->release(allocator, p->buffer_base);
+		p->buffer_base = NULL;
 	}
 }
 
 
-static int32_t LzInWindow_Create(lzma_match_finder_t* p, uint32_t keepSizeReserv, lzma_allocator_ptr_t allocator)
+static uint8_t lzma_lz_in_window_create(lzma_match_finder_t* p, uint32_t keep_size_reserve, lzma_allocator_ptr_t allocator)
 {
-	uint32_t block_size = p->keepSizeBefore + p->keepSizeAfter + keepSizeReserv;
+	uint32_t block_size = p->keep_size_before + p->keep_size_after + keep_size_reserve;
 
-	if (p->directInput)
+	if (p->direct_input)
 	{
 		p->block_size = block_size;
+
 		return 1;
 	}
 
-	if (!p->bufferBase || p->block_size != block_size)
+	if (!p->buffer_base || p->block_size != block_size)
 	{
-		LzInWindow_Free(p, allocator);
+		lzma_lz_in_window_free(p, allocator);
 
 		p->block_size = block_size;
-		p->bufferBase = (uint8_t*)allocator->allocate(allocator, (size_t)block_size);
+		p->buffer_base = (uint8_t*)allocator->allocate(allocator, (size_t)block_size);
 	}
 
-	return (p->bufferBase != NULL);
+	return (p->buffer_base != NULL);
 }
 
 
-uint8_t* MatchFinder_GetPointerToCurrentPos(lzma_match_finder_t* p) { return p->buffer; }
-uint32_t MatchFinder_GetNumAvailableBytes(lzma_match_finder_t* p) { return p->streamPos - p->position; }
+uint8_t* lzma_mf_get_ptr_to_current_position(lzma_match_finder_t* p) { return p->buffer; }
+uint32_t lzma_mf_get_num_available_bytes(lzma_match_finder_t* p) { return p->stream_position - p->position; }
 
 
-void MatchFinder_ReduceOffsets(lzma_match_finder_t* p, uint32_t sub_value)
+void lzma_mf_reduce_offsets(lzma_match_finder_t* p, uint32_t sub_value)
 {
-	p->posLimit -= sub_value;
+	p->position_limit -= sub_value;
 	p->position -= sub_value;
-	p->streamPos -= sub_value;
+	p->stream_position -= sub_value;
 }
 
 
-static void MatchFinder_ReadBlock(lzma_match_finder_t* p)
+static void lzma_mf_read_block(lzma_match_finder_t* p)
 {
-	if (p->streamEndWasReached || p->result != LZMA_RC_OK)
+	if (p->stream_end_was_reached || p->result != LZMA_RC_OK)
 		return;
 
-	if (p->directInput)
+	if (p->direct_input)
 	{
-		uint32_t cur_size = UINT32_C(0xFFFFFFFF) - (p->streamPos - p->position);
+		uint32_t cur_size = UINT32_C(0xFFFFFFFF) - (p->stream_position - p->position);
 
-		if (cur_size > p->directInputRem)
-			cur_size = (uint32_t)p->directInputRem;
+		if (cur_size > p->direct_input_remaining)
+			cur_size = (uint32_t)p->direct_input_remaining;
 
-		p->directInputRem -= cur_size;
-		p->streamPos += cur_size;
+		p->direct_input_remaining -= cur_size;
+		p->stream_position += cur_size;
 
-		if (p->directInputRem == 0)
-			p->streamEndWasReached = 1;
+		if (!p->direct_input_remaining)
+			p->stream_end_was_reached = 1;
 
 		return;
 	}
 
 	for (;;)
 	{
-		uint8_t* dest = p->buffer + (p->streamPos - p->position);
-		size_t size = (p->bufferBase + p->block_size - dest);
+		uint8_t* dest = p->buffer + (p->stream_position - p->position);
+		size_t size = (size_t)(p->buffer_base + p->block_size - dest);
 
 		if (!size) return;
 
@@ -2320,153 +2428,151 @@ static void MatchFinder_ReadBlock(lzma_match_finder_t* p)
 
 		if (!size)
 		{
-			p->streamEndWasReached = 1;
+			p->stream_end_was_reached = 1;
 
 			return;
 		}
 
-		p->streamPos += (uint32_t)size;
+		p->stream_position += (uint32_t)size;
 
-		if (p->streamPos - p->position > p->keepSizeAfter)
+		if (p->stream_position - p->position > p->keep_size_after)
 			return;
 	}
 }
 
 
-void MatchFinder_MoveBlock(lzma_match_finder_t* p)
+void lzma_mf_move_block(lzma_match_finder_t* p)
 {
-	lzma_memmove(p->bufferBase, p->buffer - p->keepSizeBefore, (size_t)(p->streamPos - p->position) + p->keepSizeBefore);
+	lzma_memmove(p->buffer_base, p->buffer - p->keep_size_before, (size_t)(p->stream_position - p->position) + p->keep_size_before);
 
-	p->buffer = p->bufferBase + p->keepSizeBefore;
+	p->buffer = p->buffer_base + p->keep_size_before;
 }
 
 
-uint8_t MatchFinder_NeedMove(lzma_match_finder_t* p)
+uint8_t lzma_mf_need_move(lzma_match_finder_t* p)
 {
-	if (p->directInput) return 0;
+	if (p->direct_input) return 0;
 
-	return ((size_t)(p->bufferBase + p->block_size - p->buffer) <= p->keepSizeAfter);
+	return ((size_t)(p->buffer_base + p->block_size - p->buffer) <= p->keep_size_after);
 }
 
 
-void MatchFinder_ReadIfRequired(lzma_match_finder_t* p)
+void lzma_mf_read_if_required(lzma_match_finder_t* p)
 {
-	if (p->streamEndWasReached)
+	if (p->stream_end_was_reached)
 		return;
 
-	if (p->keepSizeAfter >= p->streamPos - p->position)
-		MatchFinder_ReadBlock(p);
+	if (p->keep_size_after >= p->stream_position - p->position)
+		lzma_mf_read_block(p);
 }
 
 
-static void MatchFinder_CheckAndMoveAndRead(lzma_match_finder_t* p)
+static void lzma_mf_check_move_and_read(lzma_match_finder_t* p)
 {
-	if (MatchFinder_NeedMove(p))
-		MatchFinder_MoveBlock(p);
+	if (lzma_mf_need_move(p))
+		lzma_mf_move_block(p);
 
-	MatchFinder_ReadBlock(p);
+	lzma_mf_read_block(p);
 }
 
 
-static void MatchFinder_SetDefaultSettings(lzma_match_finder_t* p)
+static void lzma_mf_set_defaults(lzma_match_finder_t* p)
 {
-	p->cutValue = 32;
+	p->cut_value = UINT32_C(32);
 	p->mode_bt = 1;
-	p->hash_byte_count = 4;
-	p->bigHash = 0;
+	p->hash_byte_count = UINT32_C(4);
+	p->big_hash = 0;
 }
 
 
-
-
-
-void MatchFinder_Construct(lzma_match_finder_t* p)
+void lzma_mf_construct(lzma_match_finder_t* p)
 {
 	uint32_t i;
 
-	p->bufferBase = NULL;
-	p->directInput = 0;
+	p->buffer_base = NULL;
+	p->direct_input = 0;
 	p->hash = NULL;
-	p->expectedDataSize = (uint64_t)INT64_C(-1);
-	MatchFinder_SetDefaultSettings(p);
+	p->expected_data_size = (uint64_t)INT64_C(-1);
+	lzma_mf_set_defaults(p);
 
-	for (i = 0; i < 256; ++i)
+	for (i = 0; i < UINT32_C(256); ++i)
 	{
-		uint32_t r = i;
-		uint32_t j;
+		uint32_t j, r = i;
 
 		for (j = 0; j < 8; ++j)
-			r = (r >> 1) ^ (0xEDB88320 & ((uint32_t)0 - (r & 1)));
+			r = (r >> 1) ^ (UINT32_C(0xEDB88320) & (UINT32_C(0) - (r & UINT32_C(1))));
 
 		p->crc[i] = r;
 	}
 }
 
 
-static void MatchFinder_FreeThisClassMemory(lzma_match_finder_t* p, lzma_allocator_ptr_t allocator)
+static void lzma_mf_free_object_memory(lzma_match_finder_t* p, lzma_allocator_ptr_t allocator)
 {
 	allocator->release(allocator, p->hash);
+
 	p->hash = NULL;
 }
 
 
-void MatchFinder_Free(lzma_match_finder_t* p, lzma_allocator_ptr_t allocator)
+void lzma_mf_free(lzma_match_finder_t* p, lzma_allocator_ptr_t allocator)
 {
-	MatchFinder_FreeThisClassMemory(p, allocator);
-	LzInWindow_Free(p, allocator);
+	lzma_mf_free_object_memory(p, allocator);
+	lzma_lz_in_window_free(p, allocator);
 }
 
 
-static lzma_lz_ref_t* AllocRefs(size_t num, lzma_allocator_ptr_t allocator)
+static lzma_lz_ref_t* lzma_mf_allocate_refs(size_t num, lzma_allocator_ptr_t allocator)
 {
-	size_t sizeInBytes = num * sizeof(lzma_lz_ref_t);
+	size_t size_in_bytes = num * sizeof(lzma_lz_ref_t);
 
-	if (sizeInBytes / sizeof(lzma_lz_ref_t) != num)
+	if (size_in_bytes / sizeof(lzma_lz_ref_t) != num)
 		return NULL;
 
-	return (lzma_lz_ref_t *)allocator->allocate(allocator, sizeInBytes);
+	return (lzma_lz_ref_t*)allocator->allocate(allocator, size_in_bytes);
 }
 
 
-uint8_t MatchFinder_Create(lzma_match_finder_t* p, uint32_t historySize, uint32_t keepAddBufferBefore, uint32_t matchMaxLen, uint32_t keepAddBufferAfter, lzma_allocator_ptr_t allocator)
+uint8_t lzma_mf_create(lzma_match_finder_t* p, uint32_t history_size, uint32_t keep_add_buffer_before, uint32_t match_max_length, uint32_t keep_add_buffer_after, lzma_allocator_ptr_t allocator)
 {
-	uint32_t sizeReserv;
+	uint32_t size_reserve;
 
-	if (historySize > UINT32_C(0xE0000000))
+	if (history_size > UINT32_C(0xE0000000))
 	{
-		MatchFinder_Free(p, allocator);
+		lzma_mf_free(p, allocator);
 
 		return 0;
 	}
 
-	sizeReserv = historySize >> 1;
+	size_reserve = history_size >> 1;
 
-	if (historySize >= UINT32_C(0xC0000000)) sizeReserv = historySize >> 3;
-	else if (historySize >= UINT32_C(0x80000000)) sizeReserv = historySize >> 2;
+	if (history_size >= UINT32_C(0xC0000000)) 
+		size_reserve = history_size >> 3;
+	else if (history_size >= UINT32_C(0x80000000)) 
+		size_reserve = history_size >> 2;
 
-	sizeReserv += (keepAddBufferBefore + matchMaxLen + keepAddBufferAfter) / UINT32_C(0x80002);
+	size_reserve += (keep_add_buffer_before + match_max_length + keep_add_buffer_after) / UINT32_C(0x80002);
 
-	p->keepSizeBefore = historySize + keepAddBufferBefore + UINT32_C(1);
-	p->keepSizeAfter = matchMaxLen + keepAddBufferAfter;
+	p->keep_size_before = history_size + keep_add_buffer_before + UINT32_C(1);
+	p->keep_size_after = match_max_length + keep_add_buffer_after;
 
-	if (LzInWindow_Create(p, sizeReserv, allocator))
+	if (lzma_lz_in_window_create(p, size_reserve, allocator))
 	{
-		uint32_t newCyclicBufferSize = historySize + UINT32_C(1);
-		uint32_t hs;
+		uint32_t hs, new_cyclic_buffer_size = history_size + UINT32_C(1);
 
-		p->matchMaxLen = matchMaxLen;
+		p->match_max_length = match_max_length;
 
 		{
-			p->fixedHashSize = UINT32_C(0);
+			p->fixed_hash_size = UINT32_C(0);
 
 			if (p->hash_byte_count == UINT32_C(2))
 				hs = UINT32_C(0xFFFF);
 			else
 			{
-				hs = historySize;
+				hs = history_size;
 
-				if (hs > p->expectedDataSize)
-					hs = (uint32_t)p->expectedDataSize;
+				if (hs > p->expected_data_size)
+					hs = (uint32_t)p->expected_data_size;
 
 				if (hs) hs--;
 
@@ -2487,144 +2593,144 @@ uint8_t MatchFinder_Create(lzma_match_finder_t* p, uint32_t historySize, uint32_
 				}
 			}
 
-			p->hashMask = hs;
+			p->hash_mask = hs;
 			hs++;
 
-			if (p->hash_byte_count > 2) p->fixedHashSize += UINT32_C(0x400);
-			if (p->hash_byte_count > 3) p->fixedHashSize += UINT32_C(0x10000);
-			if (p->hash_byte_count > 4) p->fixedHashSize += UINT32_C(0x100000);
+			if (p->hash_byte_count > 2) p->fixed_hash_size += UINT32_C(0x400);
+			if (p->hash_byte_count > 3) p->fixed_hash_size += UINT32_C(0x10000);
+			if (p->hash_byte_count > 4) p->fixed_hash_size += UINT32_C(0x100000);
 
-			hs += p->fixedHashSize;
+			hs += p->fixed_hash_size;
 		}
 
-		size_t newSize, numSons;
+		size_t new_size, child_count;
 
-		p->historySize = historySize;
-		p->hashSizeSum = hs;
-		p->cyclicBufferSize = newCyclicBufferSize;
+		p->history_size = history_size;
+		p->hash_size_sum = hs;
+		p->cyclic_buffer_size = new_cyclic_buffer_size;
 
-		numSons = newCyclicBufferSize;
+		child_count = new_cyclic_buffer_size;
 
 		if (p->mode_bt)
-			numSons <<= 1;
+			child_count <<= 1;
 
-		newSize = hs + numSons;
+		new_size = hs + child_count;
 
-		if (p->hash && p->numRefs == newSize)
+		if (p->hash && p->references_count == new_size)
 			return 1;
 
-		MatchFinder_FreeThisClassMemory(p, allocator);
-		p->numRefs = newSize;
-		p->hash = AllocRefs(newSize, allocator);
+		lzma_mf_free_object_memory(p, allocator);
+
+		p->references_count = new_size;
+
+		p->hash = lzma_mf_allocate_refs(new_size, allocator);
 
 		if (p->hash)
 		{
-			p->son = p->hash + p->hashSizeSum;
+			p->child = p->hash + p->hash_size_sum;
 
 			return 1;
 		}
 	}
 
-	MatchFinder_Free(p, allocator);
+	lzma_mf_free(p, allocator);
 
 	return 0;
 }
 
 
-static void MatchFinder_SetLimits(lzma_match_finder_t* p)
+static void lzma_mf_set_limits(lzma_match_finder_t* p)
 {
-	uint32_t limit = (UINT32_C(0xFFFFFFFF)) - p->position;
-	uint32_t limit_b = p->cyclicBufferSize - p->cyclicBufferPos;
+	uint32_t limit = UINT32_C(0xFFFFFFFF) - p->position;
+	uint32_t limit_b = p->cyclic_buffer_size - p->cyclic_buffer_position;
 
 	if (limit_b < limit)
 		limit = limit_b;
 
-	limit_b = p->streamPos - p->position;
+	limit_b = p->stream_position - p->position;
 
-	if (limit_b <= p->keepSizeAfter)
+	if (limit_b <= p->keep_size_after)
 	{
-		if (limit_b > 0)
-			limit_b = 1;
+		if (limit_b)
+			limit_b = UINT32_C(1);
 	}
-	else limit_b -= p->keepSizeAfter;
+	else limit_b -= p->keep_size_after;
 
 	if (limit_b < limit)
 		limit = limit_b;
 
-	{
-		uint32_t lenLimit = p->streamPos - p->position;
+	uint32_t length_limit = p->stream_position - p->position;
 
-		if (lenLimit > p->matchMaxLen)
-			lenLimit = p->matchMaxLen;
+	if (length_limit > p->match_max_length)
+		length_limit = p->match_max_length;
 
-		p->lenLimit = lenLimit;
-	}
+	p->length_limit = length_limit;
 
-	p->posLimit = p->position + limit;
+	p->position_limit = p->position + limit;
 }
 
 
-void MatchFinder_Init_LowHash(lzma_match_finder_t* p)
+void lzma_mf_init_low_hash(lzma_match_finder_t* p)
 {
 	size_t i;
-	lzma_lz_ref_t *items = p->hash;
-	size_t numItems = p->fixedHashSize;
-	for (i = 0; i < numItems; ++i)
-		items[i] = 0;
+	lzma_lz_ref_t* items = p->hash;
+	size_t items_count = p->fixed_hash_size;
+
+	for (i = UINT64_C(0); i < items_count; ++i)
+		items[i] = UINT32_C(0);
 }
 
 
-void MatchFinder_Init_HighHash(lzma_match_finder_t* p)
+void lzma_mf_init_high_hash(lzma_match_finder_t* p)
 {
 	size_t i;
-	lzma_lz_ref_t *items = p->hash + p->fixedHashSize;
-	size_t numItems = (size_t)p->hashMask + 1;
+	lzma_lz_ref_t* items = p->hash + p->fixed_hash_size;
+	size_t items_count = (size_t)p->hash_mask + UINT32_C(1);
 
-	for (i = 0; i < numItems; ++i)
-		items[i] = 0;
+	for (i = UINT64_C(0); i < items_count; ++i)
+		items[i] = UINT32_C(0);
 }
 
 
-void MatchFinder_Init_3(lzma_match_finder_t* p, int32_t readData)
+void lzma_mf_init_3(lzma_match_finder_t* p, uint8_t read_data)
 {
-	p->cyclicBufferPos = 0;
-	p->buffer = p->bufferBase;
-	p->position =
-		p->streamPos = p->cyclicBufferSize;
+	p->cyclic_buffer_position = UINT32_C(0);
+	p->buffer = p->buffer_base;
+	p->position = p->stream_position = p->cyclic_buffer_size;
 	p->result = LZMA_RC_OK;
-	p->streamEndWasReached = 0;
+	p->stream_end_was_reached = 0;
 
-	if (readData)
-		MatchFinder_ReadBlock(p);
+	if (read_data)
+		lzma_mf_read_block(p);
 
-	MatchFinder_SetLimits(p);
+	lzma_mf_set_limits(p);
 }
 
 
-void MatchFinder_Init(lzma_match_finder_t* p)
+void lzma_mf_init(lzma_match_finder_t* p)
 {
-	MatchFinder_Init_HighHash(p);
-	MatchFinder_Init_LowHash(p);
-	MatchFinder_Init_3(p, 1);
+	lzma_mf_init_high_hash(p);
+	lzma_mf_init_low_hash(p);
+	lzma_mf_init_3(p, 1);
 }
 
 
-static uint32_t MatchFinder_GetSubValue(lzma_match_finder_t* p)
+static uint32_t lzma_mf_get_sub_value(lzma_match_finder_t* p)
 {
-	return (p->position - p->historySize - 1) & (~(uint32_t)((1 << 10) - 1));
+	return (p->position - p->history_size - UINT32_C(1)) & ~UINT32_C(0x3FF);
 }
 
 
-void MatchFinder_Normalize3(uint32_t sub_value, lzma_lz_ref_t *items, size_t numItems)
+void lzma_mf_normalize_3(uint32_t sub_value, lzma_lz_ref_t* items, size_t items_count)
 {
 	size_t i;
 
-	for (i = 0; i < numItems; ++i)
+	for (i = UINT64_C(0); i < items_count; ++i)
 	{
 		uint32_t value = items[i];
 
 		if (value <= sub_value)
-			value = 0;
+			value = UINT32_C(0);
 		else value -= sub_value;
 
 		items[i] = value;
@@ -2632,436 +2738,671 @@ void MatchFinder_Normalize3(uint32_t sub_value, lzma_lz_ref_t *items, size_t num
 }
 
 
-static void MatchFinder_Normalize(lzma_match_finder_t* p)
+static void lzma_mf_normalize(lzma_match_finder_t* p)
 {
-	uint32_t sub_value = MatchFinder_GetSubValue(p);
-	MatchFinder_Normalize3(sub_value, p->hash, p->numRefs);
-	MatchFinder_ReduceOffsets(p, sub_value);
+	uint32_t sub_value = lzma_mf_get_sub_value(p);
+	lzma_mf_normalize_3(sub_value, p->hash, p->references_count);
+	lzma_mf_reduce_offsets(p, sub_value);
 }
 
 
-static void MatchFinder_CheckLimits(lzma_match_finder_t* p)
+static void lzma_mf_check_limits(lzma_match_finder_t* p)
 {
 	if (p->position == (UINT32_C(0xFFFFFFFF)))
-		MatchFinder_Normalize(p);
+		lzma_mf_normalize(p);
 
-	if (!p->streamEndWasReached && p->keepSizeAfter == p->streamPos - p->position)
-		MatchFinder_CheckAndMoveAndRead(p);
+	if (!p->stream_end_was_reached && p->keep_size_after == p->stream_position - p->position)
+		lzma_mf_check_move_and_read(p);
 
-	if (p->cyclicBufferPos == p->cyclicBufferSize)
-		p->cyclicBufferPos = 0;
+	if (p->cyclic_buffer_position == p->cyclic_buffer_size)
+		p->cyclic_buffer_position = UINT32_C(0);
 
-	MatchFinder_SetLimits(p);
+	lzma_mf_set_limits(p);
 }
 
 
-static uint32_t * Hc_GetMatchesSpec(uint32_t lenLimit, uint32_t curMatch, uint32_t pos, const uint8_t *cur, lzma_lz_ref_t *son, uint32_t _cyclicBufferPos, uint32_t _cyclicBufferSize, uint32_t cutValue, uint32_t *distances, uint32_t maxLen)
+static uint32_t* lzma_mf_hc_get_matches_spec(uint32_t length_limit, uint32_t current_match, uint32_t pos, const uint8_t *cur, lzma_lz_ref_t* child, uint32_t cyclic_buffer_position, uint32_t cyclic_buffer_size, uint32_t cut_value, uint32_t* distances, uint32_t max_length)
 {
-	son[_cyclicBufferPos] = curMatch;
+	child[cyclic_buffer_position] = current_match;
 
 	for (;;)
 	{
-		uint32_t delta = pos - curMatch;
+		uint32_t delta = pos - current_match;
 
-		if (cutValue-- == 0 || delta >= _cyclicBufferSize)
+		if (cut_value-- == UINT32_C(0) || delta >= cyclic_buffer_size)
 			return distances;
 
-		{
-			const uint8_t *pb = cur - delta;
-			curMatch = son[_cyclicBufferPos - delta + ((delta > _cyclicBufferPos) ? _cyclicBufferSize : 0)];
+		const uint8_t* pb = cur - delta;
+		current_match = child[cyclic_buffer_position - delta + ((delta > cyclic_buffer_position) ? cyclic_buffer_size : UINT32_C(0))];
 
-			if (pb[maxLen] == cur[maxLen] && *pb == *cur)
+		if (pb[max_length] == cur[max_length] && *pb == *cur)
+		{
+			uint32_t len = UINT32_C(0);
+
+			while (++len != length_limit)
+				if (pb[len] != cur[len])
+					break;
+
+			if (max_length < len)
 			{
-				uint32_t len = 0;
-				while (++len != lenLimit)
+				*distances++ = max_length = len;
+				*distances++ = delta - UINT32_C(1);
+
+				if (len == length_limit)
+					return distances;
+			}
+		}
+	}
+}
+
+
+uint32_t* lzma_mf_get_matches_spec_a(uint32_t length_limit, uint32_t current_match, uint32_t pos, const uint8_t *cur, lzma_lz_ref_t* child, uint32_t cyclic_buffer_position, uint32_t cyclic_buffer_size, uint32_t cut_value, uint32_t* distances, uint32_t max_length)
+{
+	lzma_lz_ref_t* ptr_a = child + (cyclic_buffer_position << 1) + UINT32_C(1);
+	lzma_lz_ref_t* ptr_b = child + (cyclic_buffer_position << 1);
+	uint32_t len_a = UINT32_C(0), len_b = UINT32_C(0);
+
+	for (;;)
+	{
+		uint32_t delta = pos - current_match;
+
+		if (cut_value-- == UINT32_C(0) || delta >= cyclic_buffer_size)
+		{
+			*ptr_a = *ptr_b = UINT32_C(0);
+
+			return distances;
+		}
+
+		lzma_lz_ref_t* pair = child + ((cyclic_buffer_position - delta + ((delta > cyclic_buffer_position) ? cyclic_buffer_size : UINT32_C(0))) << 1);
+		const uint8_t* pb = cur - delta;
+		uint32_t len = (len_a < len_b) ? len_a : len_b;
+
+		if (pb[len] == cur[len])
+		{
+			if (++len != length_limit && pb[len] == cur[len])
+				while (++len != length_limit)
 					if (pb[len] != cur[len])
 						break;
 
-				if (maxLen < len)
-				{
-					*distances++ = maxLen = len;
-					*distances++ = delta - 1;
+			if (max_length < len)
+			{
+				*distances++ = max_length = len;
+				*distances++ = delta - UINT32_C(1);
 
-					if (len == lenLimit)
-						return distances;
+				if (len == length_limit)
+				{
+					*ptr_b = pair[0];
+					*ptr_a = pair[1];
+
+					return distances;
 				}
 			}
+		}
+
+		if (pb[len] < cur[len])
+		{
+			*ptr_b = current_match;
+			ptr_b = pair + UINT32_C(1);
+			current_match = *ptr_b;
+			len_b = len;
+		}
+		else
+		{
+			*ptr_a = current_match;
+			ptr_a = pair;
+			current_match = *ptr_a;
+			len_a = len;
 		}
 	}
 }
 
 
-uint32_t * GetMatchesSpec1(uint32_t lenLimit, uint32_t curMatch, uint32_t pos, const uint8_t *cur, lzma_lz_ref_t *son, uint32_t _cyclicBufferPos, uint32_t _cyclicBufferSize, uint32_t cutValue, uint32_t *distances, uint32_t maxLen)
+static void lzma_mf_skip_matches_spec(uint32_t length_limit, uint32_t current_match, uint32_t pos, const uint8_t *cur, lzma_lz_ref_t* child, uint32_t cyclic_buffer_position, uint32_t cyclic_buffer_size, uint32_t cut_value)
 {
-	lzma_lz_ref_t *ptr0 = son + (_cyclicBufferPos << 1) + 1;
-	lzma_lz_ref_t *ptr1 = son + (_cyclicBufferPos << 1);
-	uint32_t len0 = 0, len1 = 0;
+	lzma_lz_ref_t *ptr_a = child + (cyclic_buffer_position << 1) + UINT32_C(1);
+	lzma_lz_ref_t *ptr_b = child + (cyclic_buffer_position << 1);
+	uint32_t len_a = UINT32_C(0), len_b = UINT32_C(0);
 
 	for (;;)
 	{
-		uint32_t delta = pos - curMatch;
-		if (cutValue-- == 0 || delta >= _cyclicBufferSize)
+		uint32_t delta = pos - current_match;
+
+		if (cut_value-- == UINT32_C(0) || delta >= cyclic_buffer_size)
 		{
-			*ptr0 = *ptr1 = 0;
-			return distances;
-		}
-
-		{
-			lzma_lz_ref_t *pair = son + ((_cyclicBufferPos - delta + ((delta > _cyclicBufferPos) ? _cyclicBufferSize : 0)) << 1);
-			const uint8_t *pb = cur - delta;
-			uint32_t len = (len0 < len1 ? len0 : len1);
-
-			if (pb[len] == cur[len])
-			{
-				if (++len != lenLimit && pb[len] == cur[len])
-					while (++len != lenLimit)
-						if (pb[len] != cur[len])
-							break;
-
-				if (maxLen < len)
-				{
-					*distances++ = maxLen = len;
-					*distances++ = delta - 1;
-
-					if (len == lenLimit)
-					{
-						*ptr1 = pair[0];
-						*ptr0 = pair[1];
-
-						return distances;
-					}
-				}
-			}
-
-			if (pb[len] < cur[len])
-			{
-				*ptr1 = curMatch;
-				ptr1 = pair + 1;
-				curMatch = *ptr1;
-				len1 = len;
-			}
-			else
-			{
-				*ptr0 = curMatch;
-				ptr0 = pair;
-				curMatch = *ptr0;
-				len0 = len;
-			}
-		}
-	}
-}
-
-
-static void SkipMatchesSpec(uint32_t lenLimit, uint32_t curMatch, uint32_t pos, const uint8_t *cur, lzma_lz_ref_t *son, uint32_t _cyclicBufferPos, uint32_t _cyclicBufferSize, uint32_t cutValue)
-{
-	lzma_lz_ref_t *ptr0 = son + (_cyclicBufferPos << 1) + 1;
-	lzma_lz_ref_t *ptr1 = son + (_cyclicBufferPos << 1);
-	uint32_t len0 = 0, len1 = 0;
-
-	for (;;)
-	{
-		uint32_t delta = pos - curMatch;
-
-		if (cutValue-- == 0 || delta >= _cyclicBufferSize)
-		{
-			*ptr0 = *ptr1 = 0;
+			*ptr_a = *ptr_b = UINT32_C(0);
 			return;
 		}
 
+		lzma_lz_ref_t* pair = child + ((cyclic_buffer_position - delta + ((delta > cyclic_buffer_position) ? cyclic_buffer_size : UINT32_C(0))) << 1);
+		const uint8_t* pb = cur - delta;
+		uint32_t len = (len_a < len_b ? len_a : len_b);
+
+		if (pb[len] == cur[len])
 		{
-			lzma_lz_ref_t *pair = son + ((_cyclicBufferPos - delta + ((delta > _cyclicBufferPos) ? _cyclicBufferSize : 0)) << 1);
-			const uint8_t *pb = cur - delta;
-			uint32_t len = (len0 < len1 ? len0 : len1);
+			while (++len != length_limit)
+				if (pb[len] != cur[len])
+					break;
 
-			if (pb[len] == cur[len])
 			{
-				while (++len != lenLimit)
-					if (pb[len] != cur[len])
-						break;
-
+				if (len == length_limit)
 				{
-					if (len == lenLimit)
-					{
-						*ptr1 = pair[0];
-						*ptr0 = pair[1];
-						return;
-					}
+					*ptr_b = pair[0];
+					*ptr_a = pair[1];
+
+					return;
 				}
 			}
-
-			if (pb[len] < cur[len])
-			{
-				*ptr1 = curMatch;
-				ptr1 = pair + 1;
-				curMatch = *ptr1;
-				len1 = len;
-			}
-			else
-			{
-				*ptr0 = curMatch;
-				ptr0 = pair;
-				curMatch = *ptr0;
-				len0 = len;
-			}
 		}
-	}
-}
 
-
-
-
-
-
-static void MatchFinder_MovePos(lzma_match_finder_t* p) { ++p->cyclicBufferPos; p->buffer++; if (++p->position == p->posLimit) MatchFinder_CheckLimits(p); }
-
-
-
-
-
-
-
-
-
-
-
-static uint32_t Bt2_MatchFinder_GetMatches(lzma_match_finder_t* p, uint32_t *distances)
-{
-	uint32_t offset;
-
-	uint32_t lenLimit; uint32_t hv; const uint8_t *cur; uint32_t curMatch; lenLimit = p->lenLimit; { if (lenLimit < 2) { MatchFinder_MovePos(p); return 0; } } cur = p->buffer;
-
-	hv = cur[0] | ((uint32_t)cur[1] << 8);
-
-	curMatch = p->hash[hv];
-	p->hash[hv] = p->position;
-	offset = 0;
-	offset = (uint32_t)(GetMatchesSpec1(lenLimit, curMatch, p->position, p->buffer, p->son, p->cyclicBufferPos, p->cyclicBufferSize, p->cutValue, distances + offset, 1) - distances); ++p->cyclicBufferPos; p->buffer++; if (++p->position == p->posLimit) MatchFinder_CheckLimits(p); return offset;
-}
-
-
-uint32_t Bt3Zip_MatchFinder_GetMatches(lzma_match_finder_t* p, uint32_t *distances)
-{
-	uint32_t offset;
-
-	uint32_t lenLimit; uint32_t hv; const uint8_t *cur; uint32_t curMatch; lenLimit = p->lenLimit; { if (lenLimit < 3) { MatchFinder_MovePos(p); return 0; } } cur = p->buffer;
-
-	hv = ((cur[2] | ((uint32_t)cur[0] << 8)) ^ p->crc[cur[1]]) & 0xFFFF;
-
-	curMatch = p->hash[hv];
-	p->hash[hv] = p->position;
-	offset = 0;
-
-	offset = (uint32_t)(GetMatchesSpec1(lenLimit, curMatch, p->position, p->buffer, p->son, p->cyclicBufferPos, p->cyclicBufferSize, p->cutValue, distances + offset, 2) - distances); ++p->cyclicBufferPos; p->buffer++; if (++p->position == p->posLimit) MatchFinder_CheckLimits(p); return offset;
-}
-
-static uint32_t Bt3_MatchFinder_GetMatches(lzma_match_finder_t* p, uint32_t *distances)
-{
-	uint32_t h2, d2, maxLen, offset, pos;
-	uint32_t *hash;
-
-	uint32_t lenLimit; uint32_t hv; const uint8_t *cur; uint32_t curMatch; lenLimit = p->lenLimit; { if (lenLimit < 3) { MatchFinder_MovePos(p); return 0; } } cur = p->buffer;
-
-	{ uint32_t temp = p->crc[cur[0]] ^ cur[1]; h2 = temp & ((1 << 10) - 1); hv = (temp ^ ((uint32_t)cur[2] << 8)) & p->hashMask; };
-
-	hash = p->hash;
-	pos = p->position;
-
-	d2 = pos - hash[h2];
-
-	curMatch = (hash + ((1 << 10)))[hv];
-
-	hash[h2] = pos;
-	(hash + ((1 << 10)))[hv] = pos;
-
-	maxLen = 2;
-	offset = 0;
-
-	if (d2 < p->cyclicBufferSize && *(cur - d2) == *cur)
-	{
-		{ ptrdiff_t diff = (ptrdiff_t)0 - d2; const uint8_t *c = cur + maxLen; const uint8_t *lim = cur + lenLimit; for (; c != lim; c++) if (*(c + diff) != *c) break; maxLen = (uint32_t)(c - cur); };
-
-		distances[0] = maxLen;
-		distances[1] = d2 - 1;
-		offset = 2;
-
-		if (maxLen == lenLimit)
+		if (pb[len] < cur[len])
 		{
-			SkipMatchesSpec(lenLimit, curMatch, p->position, p->buffer, p->son, p->cyclicBufferPos, p->cyclicBufferSize, p->cutValue);
-			++p->cyclicBufferPos; p->buffer++; if (++p->position == p->posLimit) MatchFinder_CheckLimits(p); return offset;
+			*ptr_b = current_match;
+			ptr_b = pair + UINT32_C(1);
+			current_match = *ptr_b;
+			len_b = len;
+		}
+		else
+		{
+			*ptr_a = current_match;
+			ptr_a = pair;
+			current_match = *ptr_a;
+			len_a = len;
 		}
 	}
-
-	offset = (uint32_t)(GetMatchesSpec1(lenLimit, curMatch, p->position, p->buffer, p->son, p->cyclicBufferPos, p->cyclicBufferSize, p->cutValue, distances + offset, maxLen) - distances); ++p->cyclicBufferPos; p->buffer++; if (++p->position == p->posLimit) MatchFinder_CheckLimits(p); return offset;
 }
 
 
-static uint32_t Bt4_MatchFinder_GetMatches(lzma_match_finder_t* p, uint32_t *distances)
+static void lzma_mf_move_position(lzma_match_finder_t* p) 
+{ 
+	++p->cyclic_buffer_position; 
+	p->buffer++; 
+
+	if (++p->position == p->position_limit) 
+		lzma_mf_check_limits(p); 
+}
+
+
+static uint32_t lzma_mf_bt_2_get_matches(lzma_match_finder_t* p, uint32_t* distances)
 {
-	uint32_t h2, h3, d2, d3, maxLen, offset, pos;
-	uint32_t *hash;
+	uint32_t offset;
 
-	uint32_t lenLimit; uint32_t hv; const uint8_t *cur; uint32_t curMatch; lenLimit = p->lenLimit; { if (lenLimit < 4) { MatchFinder_MovePos(p); return 0; } } cur = p->buffer;
+	uint32_t hv, length_limit, current_match;
+	const uint8_t* cur; 
 
-	{ uint32_t temp = p->crc[cur[0]] ^ cur[1]; h2 = temp & ((1 << 10) - 1); temp ^= ((uint32_t)cur[2] << 8); h3 = temp & ((1 << 16) - 1); hv = (temp ^ (p->crc[cur[3]] << 5)) & p->hashMask; };
+	length_limit = p->length_limit; 
+	
+	if (length_limit < 2) 
+	{ 
+		lzma_mf_move_position(p); 
+		
+		return UINT32_C(0);
+	}
+	
+	cur = p->buffer;
+
+	hv = cur[0] | (((uint32_t)cur[1]) << 8);
+
+	current_match = p->hash[hv];
+	p->hash[hv] = p->position;
+	offset = UINT32_C(0);
+
+	offset = lzma_mf_get_matches_spec_a(length_limit, current_match, p->position, p->buffer, p->child, p->cyclic_buffer_position, p->cyclic_buffer_size, p->cut_value, distances + offset, UINT32_C(1)) - distances; 
+	
+	++p->cyclic_buffer_position;
+	p->buffer++; 
+	
+	if (++p->position == p->position_limit) 
+		lzma_mf_check_limits(p); 
+	
+	return offset;
+}
+
+
+uint32_t lzma_mf_bt_3_zip_get_matches(lzma_match_finder_t* p, uint32_t* distances)
+{
+	uint32_t offset;
+
+	uint32_t length_limit; 
+	uint32_t hv; 
+	const uint8_t* cur; 
+	uint32_t current_match; 
+	
+	length_limit = p->length_limit; 
+	
+	if (length_limit < UINT32_C(3))
+	{ 
+		lzma_mf_move_position(p); 
+		
+		return UINT32_C(0);
+	}
+	
+	cur = p->buffer;
+
+	hv = ((cur[2] | ((uint32_t)cur[0] << 8)) ^ p->crc[cur[1]]) & UINT32_C(0xFFFF);
+
+	current_match = p->hash[hv];
+	p->hash[hv] = p->position;
+	offset = UINT32_C(0);
+
+	offset = (uint32_t)(lzma_mf_get_matches_spec_a(length_limit, current_match, p->position, p->buffer, p->child, p->cyclic_buffer_position, p->cyclic_buffer_size, p->cut_value, distances + offset, 2) - distances); 
+	
+	++p->cyclic_buffer_position; 
+	p->buffer++; 
+	
+	if (++p->position == p->position_limit) 
+		lzma_mf_check_limits(p); 
+	
+	return offset;
+}
+
+
+static uint32_t lzma_mf_bt_3_get_matches(lzma_match_finder_t* p, uint32_t* distances)
+{
+	uint32_t h2, d2, max_length, offset, pos;
+	uint32_t* hash;
+
+	uint32_t length_limit; 
+	uint32_t hv; 
+	const uint8_t* cur; 
+	uint32_t current_match; 
+	
+	length_limit = p->length_limit; 
+	
+	if (length_limit < UINT32_C(3))
+	{ 
+		lzma_mf_move_position(p); 
+
+		return UINT32_C(0);
+	}
+	
+	cur = p->buffer;
+
+	uint32_t temp = p->crc[cur[0]] ^ cur[1]; 
+	
+	h2 = temp & UINT32_C(0x3FF); 
+	hv = (temp ^ ((uint32_t)cur[2] << 8)) & p->hash_mask;
 
 	hash = p->hash;
 	pos = p->position;
 
 	d2 = pos - hash[h2];
-	d3 = pos - (hash + ((1 << 10)))[h3];
 
-	curMatch = (hash + ((1 << 10) + (1 << 16)))[hv];
+	current_match = (hash + UINT32_C(0x400))[hv];
 
 	hash[h2] = pos;
-	(hash + ((1 << 10)))[h3] = pos;
-	(hash + ((1 << 10) + (1 << 16)))[hv] = pos;
 
-	maxLen = 0;
-	offset = 0;
+	(hash + UINT32_C(0x400))[hv] = pos;
 
-	if (d2 < p->cyclicBufferSize && *(cur - d2) == *cur)
+	max_length = UINT32_C(2);
+	offset = UINT32_C(0);
+
+	if (d2 < p->cyclic_buffer_size && *(cur - d2) == *cur)
 	{
-		distances[0] = maxLen = 2;
-		distances[1] = d2 - 1;
+		ptrdiff_t diff = (ptrdiff_t)0 - d2; 
+		const uint8_t* c = cur + max_length; 
+		const uint8_t* lim = cur + length_limit; 
+		
+		for (; c != lim; ++c) 
+			if (*(c + diff) != *c) 
+				break; 
+		
+		max_length = (uint32_t)(c - cur);
+
+		distances[0] = max_length;
+		distances[1] = d2 - UINT32_C(1);
+		offset = UINT32_C(2);
+
+		if (max_length == length_limit)
+		{
+			lzma_mf_skip_matches_spec(length_limit, current_match, p->position, p->buffer, p->child, p->cyclic_buffer_position, p->cyclic_buffer_size, p->cut_value);
+			
+			++p->cyclic_buffer_position; 
+			p->buffer++; 
+			
+			if (++p->position == p->position_limit) 
+				lzma_mf_check_limits(p); 
+			
+			return offset;
+		}
+	}
+
+	offset = (uint32_t)(lzma_mf_get_matches_spec_a(length_limit, current_match, p->position, p->buffer, p->child, p->cyclic_buffer_position, p->cyclic_buffer_size, p->cut_value, distances + offset, max_length) - distances); 
+	
+	++p->cyclic_buffer_position; 
+	p->buffer++; 
+	
+	if (++p->position == p->position_limit) 
+		lzma_mf_check_limits(p); 
+	
+	return offset;
+}
+
+
+static uint32_t lzma_mf_bt_4_get_matches(lzma_match_finder_t* p, uint32_t* distances)
+{
+	uint32_t h2, h3, d2, d3, max_length, offset, pos;
+	uint32_t* hash;
+	uint32_t length_limit; 
+	uint32_t hv; 
+	const uint8_t* cur; 
+	uint32_t current_match; 
+	
+	length_limit = p->length_limit;
+	
+	if (length_limit < 4) 
+	{ 
+		lzma_mf_move_position(p); 
+		
+		return 0; 
+	}
+	
+	cur = p->buffer;
+
+	uint32_t temp = p->crc[cur[0]] ^ cur[1]; 
+	h2 = temp & UINT32_C(0x3FF); 
+	temp ^= ((uint32_t)cur[2] << 8); 
+	h3 = temp & UINT32_C(0xFFFF); 
+	hv = (temp ^ (p->crc[cur[3]] << 5)) & p->hash_mask;
+
+	hash = p->hash;
+	pos = p->position;
+
+	d2 = pos - hash[h2];
+	d3 = pos - (hash + UINT32_C(0x400))[h3];
+
+	current_match = (hash + UINT32_C(0x10400))[hv];
+
+	hash[h2] = pos;
+	(hash + UINT32_C(0x400))[h3] = pos;
+	(hash + UINT32_C(0x10400))[hv] = pos;
+
+	max_length = offset = UINT32_C(0);
+
+	if (d2 < p->cyclic_buffer_size && *(cur - d2) == *cur)
+	{
+		distances[0] = max_length = UINT32_C(2);
+		distances[1] = d2 - UINT32_C(1);
 		offset = 2;
 	}
 
-	if (d2 != d3 && d3 < p->cyclicBufferSize && *(cur - d3) == *cur)
+	if (d2 != d3 && d3 < p->cyclic_buffer_size && *(cur - d3) == *cur)
 	{
-		maxLen = 3;
-		distances[(size_t)offset + 1] = d3 - 1;
-		offset += 2;
+		max_length = UINT32_C(3);
+		distances[(size_t)(offset + UINT32_C(1))] = d3 - UINT32_C(1);
+		offset += UINT32_C(2);
 		d2 = d3;
 	}
 
-	if (offset != 0)
+	if (offset)
 	{
-		{ ptrdiff_t diff = (ptrdiff_t)0 - d2; const uint8_t *c = cur + maxLen; const uint8_t *lim = cur + lenLimit; for (; c != lim; c++) if (*(c + diff) != *c) break; maxLen = (uint32_t)(c - cur); };
-		distances[(size_t)offset - 2] = maxLen;
+		ptrdiff_t diff = (ptrdiff_t)(INT64_C(0) - (int64_t)d2); 
+		const uint8_t* c = cur + max_length; 
+		const uint8_t* lim = cur + length_limit; 
+		
+		for (; c != lim; ++c) 
+			if (*(c + diff) != *c) 
+				break; 
+		
+		max_length = (uint32_t)(c - cur);
 
-		if (maxLen == lenLimit)
+		distances[(size_t)(offset - UINT32_C(2))] = max_length;
+
+		if (max_length == length_limit)
 		{
-			SkipMatchesSpec(lenLimit, curMatch, p->position, p->buffer, p->son, p->cyclicBufferPos, p->cyclicBufferSize, p->cutValue);
-			++p->cyclicBufferPos; p->buffer++; if (++p->position == p->posLimit) MatchFinder_CheckLimits(p); return offset;
+			lzma_mf_skip_matches_spec(length_limit, current_match, p->position, p->buffer, p->child, p->cyclic_buffer_position, p->cyclic_buffer_size, p->cut_value);
+			
+			++p->cyclic_buffer_position; 
+			p->buffer++; 
+			
+			if (++p->position == p->position_limit) 
+				lzma_mf_check_limits(p); 
+			
+			return offset;
 		}
 	}
 
-	if (maxLen < 3)
-		maxLen = 3;
+	if (max_length < UINT32_C(3))
+		max_length = UINT32_C(3);
 
-	offset = (uint32_t)(GetMatchesSpec1(lenLimit, curMatch, p->position, p->buffer, p->son, p->cyclicBufferPos, p->cyclicBufferSize, p->cutValue, distances + offset, maxLen) - distances); ++p->cyclicBufferPos; p->buffer++; if (++p->position == p->posLimit) MatchFinder_CheckLimits(p); return offset;
+	offset = (uint32_t)(lzma_mf_get_matches_spec_a(length_limit, current_match, p->position, p->buffer, p->child, p->cyclic_buffer_position, p->cyclic_buffer_size, p->cut_value, distances + offset, max_length) - distances); 
+	
+	++p->cyclic_buffer_position; 
+	p->buffer++; 
+	
+	if (++p->position == p->position_limit) 
+		lzma_mf_check_limits(p); 
+	
+	return offset;
 }
 
 
-static uint32_t Hc4_MatchFinder_GetMatches(lzma_match_finder_t* p, uint32_t *distances)
+static uint32_t lzma_mf_hc_4_get_matches(lzma_match_finder_t* p, uint32_t* distances)
 {
-	uint32_t h2, h3, d2, d3, maxLen, offset, pos;
-	uint32_t *hash;
+	uint32_t h2, h3, d2, d3, max_length, offset, pos;
+	uint32_t* hash;
+	uint32_t hv, length_limit; 
+	const uint8_t* cur; 
+	uint32_t current_match; 
+	
+	length_limit = p->length_limit;
+	
+	if (length_limit < UINT32_C(4))
+	{ 
+		lzma_mf_move_position(p); 
+		
+		return UINT32_C(0);
+	}
+	
+	cur = p->buffer;
 
-	uint32_t lenLimit; uint32_t hv; const uint8_t *cur; uint32_t curMatch; lenLimit = p->lenLimit; { if (lenLimit < 4) { MatchFinder_MovePos(p); return 0; } } cur = p->buffer;
-
-	{ uint32_t temp = p->crc[cur[0]] ^ cur[1]; h2 = temp & ((1 << 10) - 1); temp ^= ((uint32_t)cur[2] << 8); h3 = temp & ((1 << 16) - 1); hv = (temp ^ (p->crc[cur[3]] << 5)) & p->hashMask; };
+	uint32_t temp = p->crc[cur[0]] ^ cur[1]; 
+	h2 = temp & UINT32_C(0x3FF); 
+	temp ^= (((uint32_t)cur[2]) << 8); 
+	h3 = temp & UINT32_C(0xFFFF); 
+	hv = (temp ^ (p->crc[cur[3]] << 5)) & p->hash_mask;
 
 	hash = p->hash;
 	pos = p->position;
 
 	d2 = pos - hash[h2];
-	d3 = pos - (hash + ((1 << 10)))[h3];
+	d3 = pos - (hash + UINT32_C(0x400))[h3];
 
-	curMatch = (hash + ((1 << 10) + (1 << 16)))[hv];
+	current_match = (hash + UINT32_C(0x10400))[hv];
 
 	hash[h2] = pos;
-	(hash + ((1 << 10)))[h3] = pos;
-	(hash + ((1 << 10) + (1 << 16)))[hv] = pos;
+	(hash + UINT32_C(0x400))[h3] = pos;
+	(hash + UINT32_C(0x10400))[hv] = pos;
 
-	maxLen = 0;
-	offset = 0;
+	max_length = offset = UINT32_C(0);
 
-	if (d2 < p->cyclicBufferSize && *(cur - d2) == *cur)
+	if (d2 < p->cyclic_buffer_size && *(cur - d2) == *cur)
 	{
-		distances[0] = maxLen = 2;
-		distances[1] = d2 - 1;
-		offset = 2;
+		distances[0] = max_length = UINT32_C(2);
+		distances[1] = d2 - UINT32_C(1);
+		offset = UINT32_C(2);
 	}
 
-	if (d2 != d3 && d3 < p->cyclicBufferSize && *(cur - d3) == *cur)
+	if (d2 != d3 && d3 < p->cyclic_buffer_size && *(cur - d3) == *cur)
 	{
-		maxLen = 3;
-		distances[(size_t)offset + 1] = d3 - 1;
-		offset += 2;
+		max_length = UINT32_C(3);
+		distances[(size_t)(offset + UINT32_C(1))] = d3 - UINT32_C(1);
+		offset += UINT32_C(2);
 		d2 = d3;
 	}
 
-	if (offset != 0)
+	if (offset)
 	{
-		{ ptrdiff_t diff = (ptrdiff_t)0 - d2; const uint8_t *c = cur + maxLen; const uint8_t *lim = cur + lenLimit; for (; c != lim; c++) if (*(c + diff) != *c) break; maxLen = (uint32_t)(c - cur); };
-		distances[(size_t)offset - 2] = maxLen;
+		ptrdiff_t diff = (ptrdiff_t)(INT64_C(0) - (int64_t)d2); 
+		const uint8_t* c = cur + max_length; 
+		const uint8_t* lim = cur + length_limit; 
+		
+		for (; c != lim; ++c) 
+			if (*(c + diff) != *c) 
+				break; 
+		
+		max_length = (uint32_t)(c - cur);
+		distances[(size_t)offset - 2] = max_length;
 
-		if (maxLen == lenLimit)
+		if (max_length == length_limit)
 		{
-			p->son[p->cyclicBufferPos] = curMatch;
-			++p->cyclicBufferPos; p->buffer++; if (++p->position == p->posLimit) MatchFinder_CheckLimits(p); return offset;
+			p->child[p->cyclic_buffer_position] = current_match;
+			++p->cyclic_buffer_position; 
+			p->buffer++; 
+			
+			if (++p->position == p->position_limit) 
+				lzma_mf_check_limits(p); 
+			
+			return offset;
 		}
 	}
 
-	if (maxLen < 3) maxLen = 3;
+	if (max_length < UINT32_C(3)) max_length = UINT32_C(3);
 
-	offset = (uint32_t)(Hc_GetMatchesSpec(lenLimit, curMatch, p->position, p->buffer, p->son, p->cyclicBufferPos, p->cyclicBufferSize, p->cutValue, distances + offset, maxLen) - (distances));
+	offset = (uint32_t)(lzma_mf_hc_get_matches_spec(length_limit, current_match, p->position, p->buffer, p->child, p->cyclic_buffer_position, p->cyclic_buffer_size, p->cut_value, distances + offset, max_length) - (distances));
 
-	++p->cyclicBufferPos; p->buffer++; if (++p->position == p->posLimit) MatchFinder_CheckLimits(p); return offset;
+	++p->cyclic_buffer_position; 
+	p->buffer++; 
+	
+	if (++p->position == p->position_limit) 
+		lzma_mf_check_limits(p); 
+	
+	return offset;
 }
 
 
-uint32_t Hc3Zip_MatchFinder_GetMatches(lzma_match_finder_t* p, uint32_t *distances)
+uint32_t lzma_mf_hc_3_zip_get_matches(lzma_match_finder_t* p, uint32_t* distances)
 {
 	uint32_t offset;
-	uint32_t lenLimit; uint32_t hv; const uint8_t *cur; uint32_t curMatch; lenLimit = p->lenLimit; { if (lenLimit < 3) { MatchFinder_MovePos(p); return 0; } } cur = p->buffer;
-	hv = ((cur[2] | ((uint32_t)cur[0] << 8)) ^ p->crc[cur[1]]) & 0xFFFF;
-	curMatch = p->hash[hv];
+	uint32_t length_limit; 
+	uint32_t hv; 
+	const uint8_t* cur; 
+	uint32_t current_match; 
+	
+	length_limit = p->length_limit;
+	
+	if (length_limit < UINT32_C(3)) 
+	{ 
+		lzma_mf_move_position(p); 
+		
+		return UINT32_C(0);
+	}
+	
+	cur = p->buffer;
+	hv = ((cur[2] | ((uint32_t)cur[0] << 8)) ^ p->crc[cur[1]]) & UINT32_C(0xFFFF);
+	current_match = p->hash[hv];
 	p->hash[hv] = p->position;
-	offset = (uint32_t)(Hc_GetMatchesSpec(lenLimit, curMatch, p->position, p->buffer, p->son, p->cyclicBufferPos, p->cyclicBufferSize, p->cutValue, distances, 2) - (distances));
-	++p->cyclicBufferPos; p->buffer++; if (++p->position == p->posLimit) MatchFinder_CheckLimits(p); return offset;
+
+	offset = (uint32_t)(lzma_mf_hc_get_matches_spec(length_limit, current_match, p->position, p->buffer, p->child, p->cyclic_buffer_position, p->cyclic_buffer_size, p->cut_value, distances, 2) - (distances));
+	
+	++p->cyclic_buffer_position; 
+	p->buffer++; 
+	
+	if (++p->position == p->position_limit) 
+		lzma_mf_check_limits(p); 
+	
+	return offset;
 }
 
 
-static void Bt2_MatchFinder_Skip(lzma_match_finder_t* p, uint32_t num)
+static void lzma_mf_bt_2_skip(lzma_match_finder_t* p, uint32_t num)
 {
 	do
 	{
-		uint32_t lenLimit; uint32_t hv; const uint8_t *cur; uint32_t curMatch; lenLimit = p->lenLimit; { if (lenLimit < 2) { MatchFinder_MovePos(p); continue; } } cur = p->buffer;
+		uint32_t length_limit; 
+		uint32_t hv; 
+		const uint8_t* cur; 
+		uint32_t current_match; 
+		
+		length_limit = p->length_limit;
+		
+		if (length_limit < 2) 
+		{ 
+			lzma_mf_move_position(p); 
+			
+			continue; 
+		}
+		
+		cur = p->buffer;
 		hv = cur[0] | ((uint32_t)cur[1] << 8);
-		curMatch = p->hash[hv];
+		current_match = p->hash[hv];
 		p->hash[hv] = p->position;
-		SkipMatchesSpec(lenLimit, curMatch, p->position, p->buffer, p->son, p->cyclicBufferPos, p->cyclicBufferSize, p->cutValue); ++p->cyclicBufferPos; p->buffer++; if (++p->position == p->posLimit) MatchFinder_CheckLimits(p);
-	} while (--num != 0);
+
+		lzma_mf_skip_matches_spec(length_limit, current_match, p->position, p->buffer, p->child, p->cyclic_buffer_position, p->cyclic_buffer_size, p->cut_value); 
+		
+		++p->cyclic_buffer_position; 
+		p->buffer++; 
+		
+		if (++p->position == p->position_limit) 
+			lzma_mf_check_limits(p);
+	} 
+	while (--num);
 }
 
 
-void Bt3Zip_MatchFinder_Skip(lzma_match_finder_t* p, uint32_t num)
+void lzma_mf_bt_3_zip_skip(lzma_match_finder_t* p, uint32_t num)
 {
 	do
 	{
-		uint32_t lenLimit; uint32_t hv; const uint8_t *cur; uint32_t curMatch; lenLimit = p->lenLimit; { if (lenLimit < 3) { MatchFinder_MovePos(p); continue; } } cur = p->buffer;
-		hv = ((cur[2] | ((uint32_t)cur[0] << 8)) ^ p->crc[cur[1]]) & 0xFFFF;
-		curMatch = p->hash[hv];
+		uint32_t length_limit; 
+		uint32_t hv; 
+		const uint8_t* cur; 
+		uint32_t current_match; 
+		
+		length_limit = p->length_limit;
+		
+		if (length_limit < UINT32_C(3)) 
+		{ 
+			lzma_mf_move_position(p); 
+			
+			continue; 
+		}
+		
+		cur = p->buffer;
+		hv = ((cur[2] | ((uint32_t)cur[0] << 8)) ^ p->crc[cur[1]]) & UINT32_C(0xFFFF);
+		current_match = p->hash[hv];
 		p->hash[hv] = p->position;
-		SkipMatchesSpec(lenLimit, curMatch, p->position, p->buffer, p->son, p->cyclicBufferPos, p->cyclicBufferSize, p->cutValue); ++p->cyclicBufferPos; p->buffer++; if (++p->position == p->posLimit) MatchFinder_CheckLimits(p);
-	} while (--num != 0);
+
+		lzma_mf_skip_matches_spec(length_limit, current_match, p->position, p->buffer, p->child, p->cyclic_buffer_position, p->cyclic_buffer_size, p->cut_value); 
+		
+		++p->cyclic_buffer_position; 
+		p->buffer++; 
+		
+		if (++p->position == p->position_limit) 
+			lzma_mf_check_limits(p);
+	} 
+	while (--num);
 }
 
 
-static void Bt3_MatchFinder_Skip(lzma_match_finder_t* p, uint32_t num)
+static void lzma_mf_bt_3_skip(lzma_match_finder_t* p, uint32_t num)
 {
 	do
 	{
 		uint32_t h2;
-		uint32_t *hash;
-		uint32_t lenLimit; uint32_t hv; const uint8_t *cur; uint32_t curMatch; lenLimit = p->lenLimit; { if (lenLimit < 3) { MatchFinder_MovePos(p); continue; } } cur = p->buffer;
-		{ uint32_t temp = p->crc[cur[0]] ^ cur[1]; h2 = temp & ((1 << 10) - 1); hv = (temp ^ ((uint32_t)cur[2] << 8)) & p->hashMask; };
+		uint32_t* hash;
+		uint32_t length_limit; 
+		uint32_t hv; 
+		const uint8_t* cur; 
+		uint32_t current_match; 
+		
+		length_limit = p->length_limit;
+		
+		if (length_limit < 3) 
+		{ 
+			lzma_mf_move_position(p); 
+			
+			continue; 
+		}
+		
+		cur = p->buffer;
+
+		uint32_t temp = p->crc[cur[0]] ^ cur[1]; 
+		h2 = temp & UINT32_C(0x3FF); 
+		hv = (temp ^ ((uint32_t)cur[2] << 8)) & p->hash_mask; };
 		hash = p->hash;
-		curMatch = (hash + ((1 << 10)))[hv];
-		hash[h2] = (hash + ((1 << 10)))[hv] = p->position;
-		SkipMatchesSpec(lenLimit, curMatch, p->position, p->buffer, p->son, p->cyclicBufferPos, p->cyclicBufferSize, p->cutValue); ++p->cyclicBufferPos; p->buffer++; if (++p->position == p->posLimit) MatchFinder_CheckLimits(p);
+		current_match = (hash + UINT32_C(0x400))[hv];
+		hash[h2] = (hash + UINT32_C(0x400))[hv] = p->position;
+		lzma_mf_skip_matches_spec(length_limit, current_match, p->position, p->buffer, p->child, p->cyclic_buffer_position, p->cyclic_buffer_size, p->cut_value); ++p->cyclic_buffer_position; p->buffer++; if (++p->position == p->position_limit) lzma_mf_check_limits(p);
 	} while (--num != 0);
 }
 
@@ -3071,13 +3412,13 @@ static void Bt4_MatchFinder_Skip(lzma_match_finder_t* p, uint32_t num)
 	do
 	{
 		uint32_t h2, h3;
-		uint32_t *hash;
-		uint32_t lenLimit; uint32_t hv; const uint8_t *cur; uint32_t curMatch; lenLimit = p->lenLimit; { if (lenLimit < 4) { MatchFinder_MovePos(p); continue; } } cur = p->buffer;
-		{ uint32_t temp = p->crc[cur[0]] ^ cur[1]; h2 = temp & ((1 << 10) - 1); temp ^= ((uint32_t)cur[2] << 8); h3 = temp & ((1 << 16) - 1); hv = (temp ^ (p->crc[cur[3]] << 5)) & p->hashMask; };
+		uint32_t* hash;
+		uint32_t length_limit; uint32_t hv; const uint8_t* cur; uint32_t current_match; length_limit = p->length_limit; { if (length_limit < 4) { lzma_mf_move_position(p); continue; } } cur = p->buffer;
+		{ uint32_t temp = p->crc[cur[0]] ^ cur[1]; h2 = temp & UINT32_C(0x3FF); temp ^= ((uint32_t)cur[2] << 8); h3 = temp & UINT32_C(0xFFFF); hv = (temp ^ (p->crc[cur[3]] << 5)) & p->hash_mask; };
 		hash = p->hash;
-		curMatch = (hash + ((1 << 10) + (1 << 16)))[hv];
-		hash[h2] = (hash + ((1 << 10)))[h3] = (hash + ((1 << 10) + (1 << 16)))[hv] = p->position;
-		SkipMatchesSpec(lenLimit, curMatch, p->position, p->buffer, p->son, p->cyclicBufferPos, p->cyclicBufferSize, p->cutValue); ++p->cyclicBufferPos; p->buffer++; if (++p->position == p->posLimit) MatchFinder_CheckLimits(p);
+		current_match = (hash + UINT32_C(0x10400))[hv];
+		hash[h2] = (hash + UINT32_C(0x400))[h3] = (hash + UINT32_C(0x10400))[hv] = p->position;
+		lzma_mf_skip_matches_spec(length_limit, current_match, p->position, p->buffer, p->child, p->cyclic_buffer_position, p->cyclic_buffer_size, p->cut_value); ++p->cyclic_buffer_position; p->buffer++; if (++p->position == p->position_limit) lzma_mf_check_limits(p);
 	} while (--num != 0);
 }
 
@@ -3087,56 +3428,56 @@ static void Hc4_MatchFinder_Skip(lzma_match_finder_t* p, uint32_t num)
 	do
 	{
 		uint32_t h2, h3;
-		uint32_t *hash;
-		uint32_t lenLimit; uint32_t hv; const uint8_t *cur; uint32_t curMatch; lenLimit = p->lenLimit; { if (lenLimit < 4) { MatchFinder_MovePos(p); continue; } } cur = p->buffer;
-		{ uint32_t temp = p->crc[cur[0]] ^ cur[1]; h2 = temp & ((1 << 10) - 1); temp ^= ((uint32_t)cur[2] << 8); h3 = temp & ((1 << 16) - 1); hv = (temp ^ (p->crc[cur[3]] << 5)) & p->hashMask; };
+		uint32_t* hash;
+		uint32_t length_limit; uint32_t hv; const uint8_t* cur; uint32_t current_match; length_limit = p->length_limit; { if (length_limit < 4) { lzma_mf_move_position(p); continue; } } cur = p->buffer;
+		{ uint32_t temp = p->crc[cur[0]] ^ cur[1]; h2 = temp & UINT32_C(0x3FF); temp ^= ((uint32_t)cur[2] << 8); h3 = temp & UINT32_C(0xFFFF); hv = (temp ^ (p->crc[cur[3]] << 5)) & p->hash_mask; };
 		hash = p->hash;
-		curMatch = (hash + ((1 << 10) + (1 << 16)))[hv];
-		hash[h2] = (hash + ((1 << 10)))[h3] = (hash + ((1 << 10) + (1 << 16)))[hv] = p->position;
-		p->son[p->cyclicBufferPos] = curMatch;
-		++p->cyclicBufferPos; p->buffer++; if (++p->position == p->posLimit) MatchFinder_CheckLimits(p);
+		current_match = (hash + UINT32_C(0x10400))[hv];
+		hash[h2] = (hash + UINT32_C(0x400))[h3] = (hash + UINT32_C(0x10400))[hv] = p->position;
+		p->child[p->cyclic_buffer_position] = current_match;
+		++p->cyclic_buffer_position; p->buffer++; if (++p->position == p->position_limit) lzma_mf_check_limits(p);
 	} while (--num != 0);
 }
 
 
-void Hc3Zip_MatchFinder_Skip(lzma_match_finder_t* p, uint32_t num)
+void lzma_mf_hc_3_zip_skip(lzma_match_finder_t* p, uint32_t num)
 {
 	do
 	{
-		uint32_t lenLimit; uint32_t hv; const uint8_t *cur; uint32_t curMatch; lenLimit = p->lenLimit; { if (lenLimit < 3) { MatchFinder_MovePos(p); continue; } } cur = p->buffer;
+		uint32_t length_limit; uint32_t hv; const uint8_t* cur; uint32_t current_match; length_limit = p->length_limit; { if (length_limit < 3) { lzma_mf_move_position(p); continue; } } cur = p->buffer;
 		hv = ((cur[2] | ((uint32_t)cur[0] << 8)) ^ p->crc[cur[1]]) & 0xFFFF;
-		curMatch = p->hash[hv];
+		current_match = p->hash[hv];
 		p->hash[hv] = p->position;
-		p->son[p->cyclicBufferPos] = curMatch;
-		++p->cyclicBufferPos; p->buffer++; if (++p->position == p->posLimit) MatchFinder_CheckLimits(p);
+		p->child[p->cyclic_buffer_position] = current_match;
+		++p->cyclic_buffer_position; p->buffer++; if (++p->position == p->position_limit) lzma_mf_check_limits(p);
 	} while (--num != 0);
 }
 
-void MatchFinder_CreateVTable(lzma_match_finder_t* p, IMatchFinder *vTable)
+void lzma_mf_create_vtable(lzma_match_finder_t* p, lzma_mf_t* vtable)
 {
-	vTable->Init = (Mf_Init_Func)MatchFinder_Init;
-	vTable->GetNumAvailableBytes = (Mf_GetNumAvailableBytes_Func)MatchFinder_GetNumAvailableBytes;
-	vTable->GetPointerToCurrentPos = (Mf_GetPointerToCurrentPos_Func)MatchFinder_GetPointerToCurrentPos;
+	vtable->initialize = (lzma_mf_init_f)lzma_mf_init;
+	vtable->get_available_bytes = (lzma_mf_get_available_bytes_f)lzma_mf_get_num_available_bytes;
+	vtable->get_ptr_to_current_pos = (lzma_mf_get_ptr_to_current_pos_f)lzma_mf_get_ptr_to_current_position;
 
 	if (!p->mode_bt)
 	{
-		vTable->GetMatches = (Mf_GetMatches_Func)Hc4_MatchFinder_GetMatches;
-		vTable->skip = (Mf_Skip_Func)Hc4_MatchFinder_Skip;
+		vtable->get_matches = (lzma_mf_get_matches_f)lzma_mf_hc_4_get_matches;
+		vtable->skip = (lzma_mf_skip_f)Hc4_MatchFinder_Skip;
 	}
 	else if (p->hash_byte_count == 2)
 	{
-		vTable->GetMatches = (Mf_GetMatches_Func)Bt2_MatchFinder_GetMatches;
-		vTable->skip = (Mf_Skip_Func)Bt2_MatchFinder_Skip;
+		vtable->get_matches = (lzma_mf_get_matches_f)lzma_mf_bt_2_get_matches;
+		vtable->skip = (lzma_mf_skip_f)lzma_mf_bt_2_skip;
 	}
 	else if (p->hash_byte_count == 3)
 	{
-		vTable->GetMatches = (Mf_GetMatches_Func)Bt3_MatchFinder_GetMatches;
-		vTable->skip = (Mf_Skip_Func)Bt3_MatchFinder_Skip;
+		vtable->get_matches = (lzma_mf_get_matches_f)lzma_mf_bt_3_get_matches;
+		vtable->skip = (lzma_mf_skip_f)lzma_mf_bt_3_skip;
 	}
 	else
 	{
-		vTable->GetMatches = (Mf_GetMatches_Func)Bt4_MatchFinder_GetMatches;
-		vTable->skip = (Mf_Skip_Func)Bt4_MatchFinder_Skip;
+		vtable->get_matches = (lzma_mf_get_matches_f)lzma_mf_bt_4_get_matches;
+		vtable->skip = (lzma_mf_skip_f)Bt4_MatchFinder_Skip;
 	}
 }
 
@@ -3338,9 +3679,9 @@ typedef struct
 {
 	uint16_t choice;
 	uint16_t choice2;
-	uint16_t low[(1 << 4) << 3];
-	uint16_t mid[(1 << 4) << 3];
-	uint16_t high[(1 << 8)];
+	uint16_t low[UINT32_C(0x10) << 3];
+	uint16_t mid[UINT32_C(0x10) << 3];
+	uint16_t high[(0x100)];
 } CLenEnc;
 
 
@@ -3348,8 +3689,8 @@ typedef struct
 {
 	CLenEnc p;
 	uint32_t tableSize;
-	uint32_t prices[(1 << 4)][((1 << 3) + (1 << 3) + (1 << 8))];
-	uint32_t counters[(1 << 4)];
+	uint32_t prices[UINT32_C(0x10)][(UINT32_C(0x10) + (0x100))];
+	uint32_t counters[UINT32_C(0x10)];
 } CLenPriceEnc;
 
 
@@ -3375,14 +3716,14 @@ typedef struct
 	uint32_t state;
 	uint32_t reps[4];
 
-	uint16_t isMatch[12][(1 << 4)];
+	uint16_t isMatch[12][UINT32_C(0x10)];
 	uint16_t isRep[12];
 	uint16_t isRepG0[12];
 	uint16_t isRepG1[12];
 	uint16_t isRepG2[12];
-	uint16_t isRep0Long[12][(1 << 4)];
+	uint16_t isRep0Long[12][UINT32_C(0x10)];
 
-	uint16_t posSlotEncoder[4][1 << 6];
+	uint16_t posSlotEncoder[4][0x40];
 	uint16_t posEncoders[(1 << (14 >> 1)) - 14];
 	uint16_t posAlignEncoder[1 << 4];
 
@@ -3394,7 +3735,7 @@ typedef struct
 typedef struct
 {
 	void *matchFinderObj;
-	IMatchFinder matchFinder;
+	lzma_mf_t matchFinder;
 
 	uint32_t optimumEndIndex;
 	uint32_t optimumCurrentIndex;
@@ -3432,27 +3773,27 @@ typedef struct
 
 	CRangeEnc rc;
 	lzma_match_finder_t matchFinderBase;
-	COptimal opt[(1 << 12)];
+	COptimal opt[UINT32_C(0x1000)];
 
 
 	uint8_t g_FastPos[1 << (9 + sizeof(size_t) / 2)];
 
 
 	uint32_t ProbPrices[(1 << 11) >> 4];
-	uint32_t matches[(2 + ((1 << 3) + (1 << 3) + (1 << 8)) - 1) * 2 + 2 + 1];
+	uint32_t matches[(2 + (UINT32_C(0x10) + (0x100)) - 1) * 2 + 2 + 1];
 
 	uint32_t posSlotPrices[4][(32 * 2)];
 	uint32_t distancesPrices[4][(1 << (14 >> 1))];
-	uint32_t alignPrices[(1 << 4)];
+	uint32_t alignPrices[UINT32_C(0x10)];
 
-	uint16_t isMatch[12][(1 << 4)];
+	uint16_t isMatch[12][UINT32_C(0x10)];
 	uint16_t isRep[12];
 	uint16_t isRepG0[12];
 	uint16_t isRepG1[12];
 	uint16_t isRepG2[12];
-	uint16_t isRep0Long[12][(1 << 4)];
+	uint16_t isRep0Long[12][UINT32_C(0x10)];
 
-	uint16_t posSlotEncoder[4][1 << 6];
+	uint16_t posSlotEncoder[4][0x40];
 	uint16_t posEncoders[(1 << (14 >> 1)) - 14];
 	uint16_t posAlignEncoder[1 << 4];
 
@@ -3545,8 +3886,8 @@ lzma_rc_t lzma_encoder_set_properties(lzma_encoder_handle_t pp, const lzma_encod
 		if (fb < 5)
 			fb = 5;
 
-		if (fb > (2 + ((1 << 3) + (1 << 3) + (1 << 8)) - 1))
-			fb = (2 + ((1 << 3) + (1 << 3) + (1 << 8)) - 1);
+		if (fb > (2 + (UINT32_C(0x10) + (0x100)) - 1))
+			fb = (2 + (UINT32_C(0x10) + (0x100)) - 1);
 
 		p->numFastBytes = fb;
 	}
@@ -3571,7 +3912,7 @@ lzma_rc_t lzma_encoder_set_properties(lzma_encoder_handle_t pp, const lzma_encod
 		p->matchFinderBase.hash_byte_count = hash_byte_count;
 	}
 
-	p->matchFinderBase.cutValue = properties.mc;
+	p->matchFinderBase.cut_value = properties.mc;
 
 	p->write_end_mark = properties.write_end_mark;
 
@@ -3582,7 +3923,7 @@ lzma_rc_t lzma_encoder_set_properties(lzma_encoder_handle_t pp, const lzma_encod
 void lzma_encoder_set_data_size(lzma_encoder_handle_t pp, uint64_t expected_data_size)
 {
 	CLzmaEnc *p = (CLzmaEnc*)pp;
-	p->matchFinderBase.expectedDataSize = expected_data_size;
+	p->matchFinderBase.expected_data_size = expected_data_size;
 }
 
 
@@ -3612,12 +3953,12 @@ static int32_t RangeEnc_Alloc(CRangeEnc *p, lzma_allocator_ptr_t allocator)
 {
 	if (!p->bufBase)
 	{
-		p->bufBase = (uint8_t*)allocator->allocate(allocator, (1 << 16));
+		p->bufBase = (uint8_t*)allocator->allocate(allocator, UINT32_C(0x10000));
 
 		if (!p->bufBase)
 			return 0;
 
-		p->bufLim = p->bufBase + (1 << 16);
+		p->bufLim = p->bufBase + UINT32_C(0x10000);
 	}
 
 	return 1;
@@ -3694,7 +4035,7 @@ static void RangeEnc_EncodeDirectBits(CRangeEnc *p, uint32_t value, uint32_t num
 	{
 		p->range >>= 1;
 		p->low += p->range & (0 - ((value >> --numBits) & 1));
-		if (p->range < (UINT32_C(1) << 24))
+		if (p->range < UINT32_C(0x1000000))
 		{
 			p->range <<= 8;
 			RangeEnc_ShiftLow(p);
@@ -3705,24 +4046,24 @@ static void RangeEnc_EncodeDirectBits(CRangeEnc *p, uint32_t value, uint32_t num
 
 static void RangeEnc_EncodeBit(CRangeEnc *p, uint16_t *prob, uint32_t symbol)
 {
-	uint32_t ttt = *prob;
-	uint32_t newBound = (p->range >> 11) * ttt;
+	uint32_t temp_a = *prob;
+	uint32_t newBound = (p->range >> 11) * temp_a;
 
 	if (symbol == 0)
 	{
 		p->range = newBound;
-		ttt += ((1 << 11) - ttt) >> 5;
+		temp_a += ((1 << 11) - temp_a) >> 5;
 	}
 	else
 	{
 		p->low += newBound;
 		p->range -= newBound;
-		ttt -= ttt >> 5;
+		temp_a -= temp_a >> 5;
 	}
 
-	*prob = (uint16_t)ttt;
+	*prob = (uint16_t)temp_a;
 
-	if (p->range < (UINT32_C(1) << 24))
+	if (p->range < UINT32_C(0x1000000))
 	{
 		p->range <<= 8;
 		RangeEnc_ShiftLow(p);
@@ -3760,7 +4101,7 @@ static void LzmaEnc_InitPriceTables(uint32_t *ProbPrices)
 {
 	uint32_t i;
 
-	for (i = (1 << 4) / 2; i < (1 << 11); i += (1 << 4))
+	for (i = UINT32_C(0x10) / 2; i < (1 << 11); i += UINT32_C(0x10))
 	{
 		const int32_t kCyclesBits = 4;
 		uint32_t w = i;
@@ -3890,21 +4231,21 @@ static void LenEnc_Init(CLenEnc *p)
 {
 	uint32_t i;
 
-	p->choice = p->choice2 = ((1 << 11) >> 1);
+	p->choice = p->choice2 = (0x400);
 
-	for (i = 0; i < ((1 << 4) << 3); ++i)
-		p->low[i] = ((1 << 11) >> 1);
+	for (i = 0; i < UINT32_C(0x80); ++i)
+		p->low[i] = (0x400);
 
-	for (i = 0; i < ((1 << 4) << 3); ++i)
-		p->mid[i] = ((1 << 11) >> 1);
+	for (i = 0; i < UINT32_C(0x80); ++i)
+		p->mid[i] = (0x400);
 
-	for (i = 0; i < (1 << 8); ++i)
-		p->high[i] = ((1 << 11) >> 1);
+	for (i = 0; i < (0x100); ++i)
+		p->high[i] = (0x400);
 }
 
 static void LenEnc_Encode(CLenEnc *p, CRangeEnc *rc, uint32_t symbol, uint32_t pos_state)
 {
-	if (symbol < (1 << 3))
+	if (symbol < UINT32_C(8))
 	{
 		RangeEnc_EncodeBit(rc, &p->choice, 0);
 		RcTree_Encode(rc, p->low + (pos_state << 3), 3, symbol);
@@ -3912,15 +4253,15 @@ static void LenEnc_Encode(CLenEnc *p, CRangeEnc *rc, uint32_t symbol, uint32_t p
 	else
 	{
 		RangeEnc_EncodeBit(rc, &p->choice, 1);
-		if (symbol < (1 << 3) + (1 << 3))
+		if (symbol < UINT32_C(0x10))
 		{
 			RangeEnc_EncodeBit(rc, &p->choice2, 0);
-			RcTree_Encode(rc, p->mid + (pos_state << 3), 3, symbol - (1 << 3));
+			RcTree_Encode(rc, p->mid + (pos_state << 3), 3, symbol - UINT32_C(8));
 		}
 		else
 		{
 			RangeEnc_EncodeBit(rc, &p->choice2, 1);
-			RcTree_Encode(rc, p->high, 8, symbol - (1 << 3) - (1 << 3));
+			RcTree_Encode(rc, p->high, 8, symbol - UINT32_C(8) - UINT32_C(8));
 		}
 	}
 }
@@ -3932,20 +4273,20 @@ static void LenEnc_SetPrices(CLenEnc *p, uint32_t pos_state, uint32_t numSymbols
 	uint32_t b0 = a1 + ProbPrices[(p->choice2) >> 4];
 	uint32_t b1 = a1 + ProbPrices[((p->choice2) ^ ((1 << 11) - 1)) >> 4];
 	uint32_t i = 0;
-	for (i = 0; i < (1 << 3); ++i)
+	for (i = 0; i < UINT32_C(8); ++i)
 	{
 		if (i >= numSymbols)
 			return;
 		prices[i] = a0 + RcTree_GetPrice(p->low + (pos_state << 3), 3, i, ProbPrices);
 	}
-	for (; i < (1 << 3) + (1 << 3); ++i)
+	for (; i < UINT32_C(0x10); ++i)
 	{
 		if (i >= numSymbols)
 			return;
-		prices[i] = b0 + RcTree_GetPrice(p->mid + (pos_state << 3), 3, i - (1 << 3), ProbPrices);
+		prices[i] = b0 + RcTree_GetPrice(p->mid + (pos_state << 3), 3, i - UINT32_C(8), ProbPrices);
 	}
 	for (; i < numSymbols; ++i)
-		prices[i] = b1 + RcTree_GetPrice(p->high, 8, i - (1 << 3) - (1 << 3), ProbPrices);
+		prices[i] = b1 + RcTree_GetPrice(p->high, 8, i - UINT32_C(8) - UINT32_C(8), ProbPrices);
 }
 
 static void  LenPriceEnc_UpdateTable(CLenPriceEnc *p, uint32_t pos_state, const uint32_t *ProbPrices)
@@ -3989,8 +4330,8 @@ static void MovePos(CLzmaEnc *p, uint32_t num)
 static uint32_t ReadMatchDistances(CLzmaEnc *p, uint32_t *numDistancePairsRes)
 {
 	uint32_t lenRes = 0, numPairs;
-	p->numAvail = p->matchFinder.GetNumAvailableBytes(p->matchFinderObj);
-	numPairs = p->matchFinder.GetMatches(p->matchFinderObj, p->matches);
+	p->numAvail = p->matchFinder.get_available_bytes(p->matchFinderObj);
+	numPairs = p->matchFinder.get_matches(p->matchFinderObj, p->matches);
 
 
 
@@ -4008,10 +4349,10 @@ static uint32_t ReadMatchDistances(CLzmaEnc *p, uint32_t *numDistancePairsRes)
 		if (lenRes == p->numFastBytes)
 		{
 			uint32_t numAvail = p->numAvail;
-			if (numAvail > (2 + ((1 << 3) + (1 << 3) + (1 << 8)) - 1))
-				numAvail = (2 + ((1 << 3) + (1 << 3) + (1 << 8)) - 1);
+			if (numAvail > (2 + (UINT32_C(0x10) + (0x100)) - 1))
+				numAvail = (2 + (UINT32_C(0x10) + (0x100)) - 1);
 			{
-				const uint8_t *pbyCur = p->matchFinder.GetPointerToCurrentPos(p->matchFinderObj) - 1;
+				const uint8_t *pbyCur = p->matchFinder.get_ptr_to_current_pos(p->matchFinderObj) - 1;
 				const uint8_t *pby = pbyCur + lenRes;
 				ptrdiff_t dif = (ptrdiff_t)-1 - p->matches[(size_t)numPairs - 1];
 				const uint8_t *pbyLim = pbyCur + numAvail;
@@ -4139,10 +4480,10 @@ static uint32_t GetOptimum(CLzmaEnc *p, uint32_t position, uint32_t *backRes)
 			*backRes = (uint32_t)(-1);
 			return 1;
 		}
-		if (numAvail > (2 + ((1 << 3) + (1 << 3) + (1 << 8)) - 1))
-			numAvail = (2 + ((1 << 3) + (1 << 3) + (1 << 8)) - 1);
+		if (numAvail > (2 + (UINT32_C(0x10) + (0x100)) - 1))
+			numAvail = (2 + (UINT32_C(0x10) + (0x100)) - 1);
 
-		data = p->matchFinder.GetPointerToCurrentPos(p->matchFinderObj) - 1;
+		data = p->matchFinder.get_ptr_to_current_pos(p->matchFinderObj) - 1;
 		repMaxIndex = 0;
 		for (i = 0; i < 4; ++i)
 		{
@@ -4270,7 +4611,7 @@ static uint32_t GetOptimum(CLzmaEnc *p, uint32_t position, uint32_t *backRes)
 				{
 					uint32_t slot;
 					{ { uint32_t zz = (distance < (1 << ((9 + sizeof(size_t) / 2) + 6))) ? 6 : 6 + (9 + sizeof(size_t) / 2) - 1; slot = p->g_FastPos[distance >> zz] + (zz * 2); }; };
-					curAndLenPrice += p->alignPrices[distance & ((1 << 4) - 1)] + p->posSlotPrices[lenToPosState][slot];
+					curAndLenPrice += p->alignPrices[distance & (UINT32_C(0x10) - 1)] + p->posSlotPrices[lenToPosState][slot];
 				}
 				opt = &p->opt[len];
 				if (curAndLenPrice < opt->price)
@@ -4386,7 +4727,7 @@ static uint32_t GetOptimum(CLzmaEnc *p, uint32_t position, uint32_t *backRes)
 
 		curPrice = curOpt->price;
 		nextIsChar = 0;
-		data = p->matchFinder.GetPointerToCurrentPos(p->matchFinderObj) - 1;
+		data = p->matchFinder.get_ptr_to_current_pos(p->matchFinderObj) - 1;
 		curByte = *data;
 		match_byte = *(data - (reps[0] + 1));
 
@@ -4427,7 +4768,7 @@ static uint32_t GetOptimum(CLzmaEnc *p, uint32_t position, uint32_t *backRes)
 		}
 		numAvailFull = p->numAvail;
 		{
-			uint32_t temp = (1 << 12) - 1 - cur;
+			uint32_t temp = UINT32_C(0x1000) - 1 - cur;
 			if (temp < numAvailFull)
 				numAvailFull = temp;
 		}
@@ -4587,7 +4928,7 @@ static uint32_t GetOptimum(CLzmaEnc *p, uint32_t position, uint32_t *backRes)
 					if (curBack < (1 << (14 >> 1)))
 						curAndLenPrice += p->distancesPrices[lenToPosState][curBack];
 					else
-						curAndLenPrice += p->posSlotPrices[lenToPosState][pos_slot] + p->alignPrices[curBack & ((1 << 4) - 1)];
+						curAndLenPrice += p->posSlotPrices[lenToPosState][pos_slot] + p->alignPrices[curBack & (UINT32_C(0x10) - 1)];
 
 					opt = &p->opt[cur + lenTest];
 					if (curAndLenPrice < opt->price)
@@ -4678,9 +5019,9 @@ static uint32_t GetOptimumFast(CLzmaEnc *p, uint32_t *backRes)
 	*backRes = (uint32_t)-1;
 	if (numAvail < 2)
 		return 1;
-	if (numAvail > (2 + ((1 << 3) + (1 << 3) + (1 << 8)) - 1))
-		numAvail = (2 + ((1 << 3) + (1 << 3) + (1 << 8)) - 1);
-	data = p->matchFinder.GetPointerToCurrentPos(p->matchFinderObj) - 1;
+	if (numAvail > (2 + (UINT32_C(0x10) + (0x100)) - 1))
+		numAvail = (2 + (UINT32_C(0x10) + (0x100)) - 1);
+	data = p->matchFinder.get_ptr_to_current_pos(p->matchFinderObj) - 1;
 
 	repLen = repIndex = 0;
 	for (i = 0; i < 4; ++i)
@@ -4751,7 +5092,7 @@ static uint32_t GetOptimumFast(CLzmaEnc *p, uint32_t *backRes)
 			return 1;
 	}
 
-	data = p->matchFinder.GetPointerToCurrentPos(p->matchFinderObj) - 1;
+	data = p->matchFinder.get_ptr_to_current_pos(p->matchFinderObj) - 1;
 	for (i = 0; i < 4; ++i)
 	{
 		uint32_t len, limit;
@@ -4776,9 +5117,9 @@ static void WriteEndMarker(CLzmaEnc *p, uint32_t pos_state)
 	p->state = kMatchNextStates[p->state];
 	len = 2;
 	LenEnc_Encode2(&p->lenEnc, &p->rc, len - 2, pos_state, !p->fastMode, p->ProbPrices);
-	RcTree_Encode(&p->rc, p->posSlotEncoder[(((len) < 4 + 1) ? (len)-2 : 4 - 1)], 6, (1 << 6) - 1);
-	RangeEnc_EncodeDirectBits(&p->rc, ((UINT32_C(1) << 30) - 1) >> 4, 30 - 4);
-	RcTree_ReverseEncode(&p->rc, p->posAlignEncoder, 4, ((1 << 4) - 1));
+	RcTree_Encode(&p->rc, p->posSlotEncoder[(((len) < 4 + 1) ? (len)-2 : 4 - 1)], 6, (0x40) - 1);
+	RangeEnc_EncodeDirectBits(&p->rc, (UINT32_C(0x40000000) - 1) >> 4, 30 - 4);
+	RcTree_ReverseEncode(&p->rc, p->posAlignEncoder, 4, (UINT32_C(0x10) - 1));
 }
 
 static lzma_rc_t CheckErrors(CLzmaEnc *p)
@@ -4808,7 +5149,7 @@ static lzma_rc_t Flush(CLzmaEnc *p, uint32_t nowPos)
 static void FillAlignPrices(CLzmaEnc *p)
 {
 	uint32_t i;
-	for (i = 0; i < (1 << 4); ++i)
+	for (i = 0; i < UINT32_C(0x10); ++i)
 		p->alignPrices[i] = RcTree_ReverseGetPrice(p->posAlignEncoder, 4, i, p->ProbPrices);
 	p->alignPriceCount = 0;
 }
@@ -4849,7 +5190,7 @@ static void FillDistancesPrices(CLzmaEnc *p)
 void LzmaEnc_Construct(CLzmaEnc *p)
 {
 	RangeEnc_Construct(&p->rc);
-	MatchFinder_Construct(&p->matchFinderBase);
+	lzma_mf_construct(&p->matchFinderBase);
 
 	{
 		lzma_encoder_properties_t properties;
@@ -4887,7 +5228,7 @@ void LzmaEnc_FreeLits(CLzmaEnc *p, lzma_allocator_ptr_t allocator)
 
 void LzmaEnc_Destruct(CLzmaEnc *p, lzma_allocator_ptr_t allocator, lzma_allocator_ptr_t allocator_large)
 {
-	MatchFinder_Free(&p->matchFinderBase, allocator_large);
+	lzma_mf_free(&p->matchFinderBase, allocator_large);
 	LzmaEnc_FreeLits(p, allocator);
 	RangeEnc_Free(&p->rc, allocator);
 }
@@ -4907,7 +5248,7 @@ static lzma_rc_t LzmaEnc_CodeOneBlock(CLzmaEnc *p, uint8_t useLimits, uint32_t m
 
 	if (p->needInit)
 	{
-		p->matchFinder.Init(p->matchFinderObj);
+		p->matchFinder.initialize(p->matchFinderObj);
 		p->needInit = 0;
 	}
 
@@ -4925,18 +5266,18 @@ static lzma_rc_t LzmaEnc_CodeOneBlock(CLzmaEnc *p, uint8_t useLimits, uint32_t m
 	{
 		uint32_t numPairs;
 		uint8_t curByte;
-		if (p->matchFinder.GetNumAvailableBytes(p->matchFinderObj) == 0)
+		if (p->matchFinder.get_available_bytes(p->matchFinderObj) == 0)
 			return Flush(p, nowPos32);
 		ReadMatchDistances(p, &numPairs);
 		RangeEnc_EncodeBit(&p->rc, &p->isMatch[p->state][0], 0);
 		p->state = kLiteralNextStates[p->state];
-		curByte = *(p->matchFinder.GetPointerToCurrentPos(p->matchFinderObj) - p->additionalOffset);
+		curByte = *(p->matchFinder.get_ptr_to_current_pos(p->matchFinderObj) - p->additionalOffset);
 		LitEnc_Encode(&p->rc, p->litProbs, curByte);
 		p->additionalOffset--;
 		nowPos32++;
 	}
 
-	if (p->matchFinder.GetNumAvailableBytes(p->matchFinderObj) != 0)
+	if (p->matchFinder.get_available_bytes(p->matchFinderObj) != 0)
 	{
 		for (;;)
 		{
@@ -4955,7 +5296,7 @@ static lzma_rc_t LzmaEnc_CodeOneBlock(CLzmaEnc *p, uint8_t useLimits, uint32_t m
 				const uint8_t *data;
 
 				RangeEnc_EncodeBit(&p->rc, &p->isMatch[p->state][pos_state], 0);
-				data = p->matchFinder.GetPointerToCurrentPos(p->matchFinderObj) - p->additionalOffset;
+				data = p->matchFinder.get_ptr_to_current_pos(p->matchFinderObj) - p->additionalOffset;
 				curByte = *data;
 				probabilities = (p->litProbs + ((((nowPos32)& p->lp_mask) << p->lc) + ((*(data - 1)) >> (8 - p->lc))) * UINT32_C(0x300));
 				if (((p->state) < 7))
@@ -5021,7 +5362,7 @@ static lzma_rc_t LzmaEnc_CodeOneBlock(CLzmaEnc *p, uint8_t useLimits, uint32_t m
 						else
 						{
 							RangeEnc_EncodeDirectBits(&p->rc, posReduced >> 4, footerBits - 4);
-							RcTree_ReverseEncode(&p->rc, p->posAlignEncoder, 4, posReduced & ((1 << 4) - 1));
+							RcTree_ReverseEncode(&p->rc, p->posAlignEncoder, 4, posReduced & (UINT32_C(0x10) - 1));
 							p->alignPriceCount++;
 						}
 					}
@@ -5041,16 +5382,16 @@ static lzma_rc_t LzmaEnc_CodeOneBlock(CLzmaEnc *p, uint8_t useLimits, uint32_t m
 				{
 					if (p->matchPriceCount >= 0x80)
 						FillDistancesPrices(p);
-					if (p->alignPriceCount >= (1 << 4))
+					if (p->alignPriceCount >= UINT32_C(0x10))
 						FillAlignPrices(p);
 				}
-				if (p->matchFinder.GetNumAvailableBytes(p->matchFinderObj) == 0)
+				if (p->matchFinder.get_available_bytes(p->matchFinderObj) == 0)
 					break;
 				processed = nowPos32 - startPos32;
 				if (useLimits)
 				{
-					if (processed + (1 << 12) + 300 >= maxUnpackSize ||
-						(p->rc.processed + (p->rc.buffer - p->rc.bufBase) + p->rc.cacheSize) + (1 << 12) * 2 >= maxPackSize)
+					if (processed + UINT32_C(0x1000) + 300 >= maxUnpackSize ||
+						(p->rc.processed + (p->rc.buffer - p->rc.bufBase) + p->rc.cacheSize) + UINT32_C(0x1000) * 2 >= maxPackSize)
 						break;
 				}
 				else if (processed >= (1 << 17))
@@ -5071,7 +5412,7 @@ static lzma_rc_t LzmaEnc_CodeOneBlock(CLzmaEnc *p, uint8_t useLimits, uint32_t m
 
 static lzma_rc_t LzmaEnc_Alloc(CLzmaEnc *p, uint32_t keepWindowSize, lzma_allocator_ptr_t allocator, lzma_allocator_ptr_t allocator_large)
 {
-	uint32_t beforeSize = (1 << 12);
+	uint32_t beforeSize = UINT32_C(0x1000);
 
 	if (!RangeEnc_Alloc(&p->rc, allocator))
 		return LZMA_RC_MEMORY;
@@ -5095,16 +5436,16 @@ static lzma_rc_t LzmaEnc_Alloc(CLzmaEnc *p, uint32_t keepWindowSize, lzma_alloca
 		}
 	}
 
-	p->matchFinderBase.bigHash = (uint8_t)(p->dictionary_size > (UINT32_C(1) << 24) ? 1 : 0);
+	p->matchFinderBase.big_hash = (uint8_t)(p->dictionary_size > UINT32_C(0x1000000) ? 1 : 0);
 
 	if (beforeSize + p->dictionary_size < keepWindowSize)
 		beforeSize = keepWindowSize - p->dictionary_size;
 
 	{
-		if (!MatchFinder_Create(&p->matchFinderBase, p->dictionary_size, beforeSize, p->numFastBytes, (2 + ((1 << 3) + (1 << 3) + (1 << 8)) - 1), allocator_large))
+		if (!lzma_mf_create(&p->matchFinderBase, p->dictionary_size, beforeSize, p->numFastBytes, (2 + (UINT32_C(0x10) + (0x100)) - 1), allocator_large))
 			return LZMA_RC_MEMORY;
 		p->matchFinderObj = &p->matchFinderBase;
-		MatchFinder_CreateVTable(&p->matchFinderBase, &p->matchFinder);
+		lzma_mf_create_vtable(&p->matchFinderBase, &p->matchFinder);
 	}
 
 	return LZMA_RC_OK;
@@ -5124,16 +5465,16 @@ void LzmaEnc_Init(CLzmaEnc *p)
 	{
 		uint32_t j;
 
-		for (j = 0; j < (1 << 4); ++j)
+		for (j = 0; j < UINT32_C(0x10); ++j)
 		{
-			p->isMatch[i][j] = ((1 << 11) >> 1);
-			p->isRep0Long[i][j] = ((1 << 11) >> 1);
+			p->isMatch[i][j] = (0x400);
+			p->isRep0Long[i][j] = (0x400);
 		}
 
-		p->isRep[i] = ((1 << 11) >> 1);
-		p->isRepG0[i] = ((1 << 11) >> 1);
-		p->isRepG1[i] = ((1 << 11) >> 1);
-		p->isRepG2[i] = ((1 << 11) >> 1);
+		p->isRep[i] = (0x400);
+		p->isRepG0[i] = (0x400);
+		p->isRepG1[i] = (0x400);
+		p->isRepG2[i] = (0x400);
 	}
 
 	{
@@ -5141,7 +5482,7 @@ void LzmaEnc_Init(CLzmaEnc *p)
 		uint16_t* probabilities = p->litProbs;
 
 		for (i = 0; i < num; ++i)
-			probabilities[i] = ((1 << 11) >> 1);
+			probabilities[i] = (0x400);
 	}
 
 	for (i = 0; i < 4; ++i)
@@ -5149,18 +5490,18 @@ void LzmaEnc_Init(CLzmaEnc *p)
 		uint16_t* probabilities = p->posSlotEncoder[i];
 		uint32_t j;
 
-		for (j = 0; j < (1 << 6); ++j)
-			probabilities[j] = ((1 << 11) >> 1);
+		for (j = 0; j < (0x40); ++j)
+			probabilities[j] = (0x400);
 	}
 
 	for (i = 0; i < (1 << (14 >> 1)) - 14; ++i)
-		p->posEncoders[i] = ((1 << 11) >> 1);
+		p->posEncoders[i] = (0x400);
 
 	LenEnc_Init(&p->lenEnc.p);
 	LenEnc_Init(&p->repLenEnc.p);
 
-	for (i = 0; i < (1 << 4); ++i)
-		p->posAlignEncoder[i] = ((1 << 11) >> 1);
+	for (i = 0; i < UINT32_C(0x10); ++i)
+		p->posAlignEncoder[i] = (0x400);
 
 	p->optimumEndIndex = 0;
 	p->optimumCurrentIndex = 0;
@@ -5233,15 +5574,15 @@ lzma_rc_t LzmaEnc_PrepareForLzma2(lzma_encoder_handle_t pp, lzma_seq_in_stream_t
 }
 
 
-static void LzmaEnc_SetInputBuf(CLzmaEnc *p, const uint8_t *src, size_t src_len)
+static void LzmaEnc_SetInputBuf(CLzmaEnc *p, const uint8_t* src, size_t src_len)
 {
-	p->matchFinderBase.directInput = 1;
-	p->matchFinderBase.bufferBase = (uint8_t*)src;
-	p->matchFinderBase.directInputRem = src_len;
+	p->matchFinderBase.direct_input = 1;
+	p->matchFinderBase.buffer_base = (uint8_t*)src;
+	p->matchFinderBase.direct_input_remaining = src_len;
 }
 
 
-lzma_rc_t LzmaEnc_MemPrepare(lzma_encoder_handle_t pp, const uint8_t *src, size_t src_len,
+lzma_rc_t LzmaEnc_MemPrepare(lzma_encoder_handle_t pp, const uint8_t* src, size_t src_len,
 	uint32_t keepWindowSize, lzma_allocator_ptr_t allocator, lzma_allocator_ptr_t allocator_large)
 {
 	CLzmaEnc *p = (CLzmaEnc*)pp;
@@ -5289,19 +5630,19 @@ static size_t SeqOutStreamBuf_Write(const lzma_seq_out_stream_t *pp, const void 
 uint32_t LzmaEnc_GetNumAvailableBytes(lzma_encoder_handle_t pp)
 {
 	const CLzmaEnc *p = (CLzmaEnc*)pp;
-	return p->matchFinder.GetNumAvailableBytes(p->matchFinderObj);
+	return p->matchFinder.get_available_bytes(p->matchFinderObj);
 }
 
 
 const uint8_t *LzmaEnc_GetCurBuf(lzma_encoder_handle_t pp)
 {
 	const CLzmaEnc *p = (CLzmaEnc*)pp;
-	return p->matchFinder.GetPointerToCurrentPos(p->matchFinderObj) - p->additionalOffset;
+	return p->matchFinder.get_ptr_to_current_pos(p->matchFinderObj) - p->additionalOffset;
 }
 
 
 lzma_rc_t LzmaEnc_CodeOneMemBlock(lzma_encoder_handle_t pp, uint8_t reInit,
-	uint8_t *dest, size_t *dest_len, uint32_t desiredPackSize, uint32_t *unpacked_size)
+	uint8_t *dest, size_t* dest_len, uint32_t desiredPackSize, uint32_t *unpacked_size)
 {
 	CLzmaEnc *p = (CLzmaEnc*)pp;
 	uint64_t nowPos64;
@@ -5392,9 +5733,9 @@ lzma_rc_t lzma_encoder_write_properties(lzma_encoder_handle_t pp, uint8_t *prope
 	*size = 5;
 	properties[0] = (uint8_t)((p->pb * 5 + p->lp) * 9 + p->lc);
 
-	if (dictionary_size >= (UINT32_C(1) << 22))
+	if (dictionary_size >= UINT32_C(0x400000))
 	{
-		uint32_t kDictMask = (UINT32_C(1) << 20) - 1;
+		uint32_t kDictMask = UINT32_C(0xFFFFF);
 		if (dictionary_size < UINT32_C(0xFFFFFFFF) - kDictMask)
 			dictionary_size = (dictionary_size + kDictMask) & ~kDictMask;
 	}
@@ -5417,7 +5758,7 @@ uint32_t lzma_encoder_is_write_end_mark(lzma_encoder_handle_t pp)
 }
 
 
-lzma_rc_t lzma_encoder_encode_in_memory(lzma_encoder_handle_t pp, uint8_t *dest, size_t *dest_len, const uint8_t *src, size_t src_len,
+lzma_rc_t lzma_encoder_encode_in_memory(lzma_encoder_handle_t pp, uint8_t* dest, size_t* dest_len, const uint8_t* src, size_t src_len,
 	int32_t write_end_mark, lzma_compress_progress_t *progress, lzma_allocator_ptr_t allocator, lzma_allocator_ptr_t allocator_large)
 {
 	lzma_rc_t res;
@@ -5452,7 +5793,7 @@ lzma_rc_t lzma_encoder_encode_in_memory(lzma_encoder_handle_t pp, uint8_t *dest,
 }
 
 
-lzma_rc_t lzma_encode(uint8_t *dest, size_t *dest_len, const uint8_t *src, size_t src_len, const lzma_encoder_properties_t *properties, uint8_t *properties_encoded, size_t *properties_size, int32_t write_end_mark, lzma_compress_progress_t *progress, lzma_allocator_ptr_t allocator, lzma_allocator_ptr_t allocator_large)
+lzma_rc_t lzma_encode(uint8_t *dest, size_t* dest_len, const uint8_t* src, size_t src_len, const lzma_encoder_properties_t *properties, uint8_t *properties_encoded, size_t *properties_size, int32_t write_end_mark, lzma_compress_progress_t *progress, lzma_allocator_ptr_t allocator, lzma_allocator_ptr_t allocator_large)
 {
 	CLzmaEnc *p = (CLzmaEnc*)lzma_encoder_create(allocator);
 	lzma_rc_t res;
@@ -5583,8 +5924,8 @@ static void Lzma2EncInt_InitBlock(CLzma2EncInt *p)
 
 
 lzma_rc_t LzmaEnc_PrepareForLzma2(lzma_encoder_handle_t pp, lzma_seq_in_stream_t *in_stream, uint32_t keepWindowSize, lzma_allocator_ptr_t allocator, lzma_allocator_ptr_t allocator_large);
-lzma_rc_t LzmaEnc_MemPrepare(lzma_encoder_handle_t pp, const uint8_t *src, size_t src_len, uint32_t keepWindowSize, lzma_allocator_ptr_t allocator, lzma_allocator_ptr_t allocator_large);
-lzma_rc_t LzmaEnc_CodeOneMemBlock(lzma_encoder_handle_t pp, uint8_t reInit, uint8_t *dest, size_t *dest_len, uint32_t desiredPackSize, uint32_t *unpacked_size);
+lzma_rc_t LzmaEnc_MemPrepare(lzma_encoder_handle_t pp, const uint8_t* src, size_t src_len, uint32_t keepWindowSize, lzma_allocator_ptr_t allocator, lzma_allocator_ptr_t allocator_large);
+lzma_rc_t LzmaEnc_CodeOneMemBlock(lzma_encoder_handle_t pp, uint8_t reInit, uint8_t* dest, size_t* dest_len, uint32_t desiredPackSize, uint32_t *unpacked_size);
 const uint8_t *LzmaEnc_GetCurBuf(lzma_encoder_handle_t pp);
 void LzmaEnc_Finish(lzma_encoder_handle_t pp);
 void LzmaEnc_SaveState(lzma_encoder_handle_t pp);
@@ -5608,7 +5949,7 @@ static lzma_rc_t Lzma2EncInt_EncodeSubblock(CLzma2EncInt *p, uint8_t *out_buffer
 
 	LzmaEnc_SaveState(p->enc);
 	res = LzmaEnc_CodeOneMemBlock(p->enc, p->need_to_init_state,
-		out_buffer + lzHeaderSize, &packed_size, (1 << 16), &unpacked_size);
+		out_buffer + lzHeaderSize, &packed_size, UINT32_C(0x10000), &unpacked_size);
 
 	;
 
@@ -5616,7 +5957,7 @@ static lzma_rc_t Lzma2EncInt_EncodeSubblock(CLzma2EncInt *p, uint8_t *out_buffer
 		return res;
 
 	if (res == LZMA_RC_OK)
-		useCopyBlock = (packed_size + 2 >= unpacked_size || packed_size > (1 << 16));
+		useCopyBlock = (packed_size + 2 >= unpacked_size || packed_size > UINT32_C(0x10000));
 	else
 	{
 		if (res != LZMA_RC_OUTPUT_EOF)
@@ -5632,7 +5973,7 @@ static lzma_rc_t Lzma2EncInt_EncodeSubblock(CLzma2EncInt *p, uint8_t *out_buffer
 
 		while (unpacked_size > 0)
 		{
-			uint32_t u = (unpacked_size < (1 << 16)) ? unpacked_size : (1 << 16);
+			uint32_t u = (unpacked_size < UINT32_C(0x10000)) ? unpacked_size : UINT32_C(0x10000);
 			if (packSizeLimit - destPos < u + 3)
 				return LZMA_RC_OUTPUT_EOF;
 			out_buffer[destPos++] = (uint8_t)(p->srcPos == 0 ? 1 : 2);
@@ -5819,7 +6160,7 @@ typedef struct
 {
 	uint8_t propEncoded;
 	lzma_2_encoder_properties_t properties;
-	uint64_t expectedDataSize;
+	uint64_t expected_data_size;
 
 	uint8_t *tempBufLzma;
 
@@ -5839,7 +6180,7 @@ lzma_2_encoder_handle_t lzma_2_encoder_create(lzma_allocator_ptr_t allocator, lz
 
 	lzma_2_encoder_properties_init(&p->properties);
 	lzma_2_encoder_properties_normalize(&p->properties);
-	p->expectedDataSize = (uint64_t)INT64_C(-1);
+	p->expected_data_size = (uint64_t)INT64_C(-1);
 	p->tempBufLzma = NULL;
 	p->allocator = allocator;
 	p->allocator_large = allocator_large;
@@ -5894,7 +6235,7 @@ lzma_rc_t lzma_2_encoder_set_properties(lzma_2_encoder_handle_t pp, const lzma_2
 void lzma_2_encoder_set_data_size(lzma_encoder_handle_t pp, uint64_t expected_data_size)
 {
 	CLzma2Enc *p = (CLzma2Enc *)pp;
-	p->expectedDataSize = expected_data_size;
+	p->expected_data_size = expected_data_size;
 }
 
 
@@ -5945,7 +6286,7 @@ static lzma_rc_t Lzma2Enc_EncodeMt1(CLzma2Enc *me, CLzma2EncInt *p, lzma_seq_out
 
 		if (!me->tempBufLzma)
 		{
-			me->tempBufLzma = (uint8_t*)(me->allocator)->allocate(me->allocator, ((1 << 16) + 16));
+			me->tempBufLzma = (uint8_t*)(me->allocator)->allocate(me->allocator, (UINT32_C(0x10000) + 16));
 
 			if (!me->tempBufLzma)
 				return LZMA_RC_MEMORY;
@@ -5971,8 +6312,8 @@ static lzma_rc_t Lzma2Enc_EncodeMt1(CLzma2Enc *me, CLzma2EncInt *p, lzma_seq_out
 		{
 			uint64_t expected = (uint64_t)INT64_C(-1);
 
-			if (me->expectedDataSize != (uint64_t)INT64_C(-1) && me->expectedDataSize >= unpackTotal)
-				expected = me->expectedDataSize - unpackTotal;
+			if (me->expected_data_size != (uint64_t)INT64_C(-1) && me->expected_data_size >= unpackTotal)
+				expected = me->expected_data_size - unpackTotal;
 
 			if (me->properties.block_size != ((uint64_t)INT64_C(-1)) && expected > me->properties.block_size)
 				expected = (size_t)me->properties.block_size;
@@ -5993,7 +6334,7 @@ static lzma_rc_t Lzma2Enc_EncodeMt1(CLzma2Enc *me, CLzma2EncInt *p, lzma_seq_out
 
 		for (;;)
 		{
-			size_t packed_size = ((1 << 16) + 16);
+			size_t packed_size = (UINT32_C(0x10000) + 16);
 			if (out_buffer)
 				packed_size = outLim - (size_t)packTotal;
 
