@@ -219,6 +219,7 @@ void generate_mutator_function(const char* name);
 extern sm_error_t callconv lzss_compress(const void* src, uint64_t slen, void *dst, uint64_t* dlen);
 extern sm_error_t callconv lzss_decompress(const void* src, uint64_t slen, void* dst, uint64_t* dlen);
 
+
 int main(int argc, char* argv[])
 {
 	printf("MKC Code Generator for Secure Memory Library\n");
@@ -234,16 +235,18 @@ int main(int argc, char* argv[])
 	//uint64_t v1 = foo(v0);
 	//printf("%016" PRIX64 " -> %016" PRIX64 "\n", v0, v1);
 
-	char aaa[4096];
-	char bbb[4096];
+	char aaa[0xFFFF];
+	char bbb[0xFFFF];
 
 	int index;
-	for (index = 0; index < 4095; ++index)
+	for (index = 0; index < 0xFFFF; ++index)
 		aaa[index] = 0x41 + ((index + 1) % 26);
-	aaa[index] = 0;
-	uint64_t isize = 4096, osize = 4096;
 
-	lzss_compress(aaa, 4096, bbb, &isize);
+	aaa[index] = 0;
+
+	uint64_t isize = 0xFFFF, osize = 0xFFFF;
+
+	lzss_compress(aaa, 0xFFFF, bbb, &isize);
 	lzss_decompress(bbb, isize, aaa, &osize);
 
 	if (argc == 2 && strlen(argv[1]) > 3 && strncmp(argv[1], "-crc", 4) == 0)
