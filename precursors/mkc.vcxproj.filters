@@ -16,6 +16,9 @@
     <Filter Include="Code Templates">
       <UniqueIdentifier>{70344b0c-d5ac-407b-b07c-2dec485e3b5b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\xz">
+      <UniqueIdentifier>{8d874ca4-9333-4918-be19-2ead7284ef21}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cmp.c">
@@ -52,9 +55,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="foo.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="lzma.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

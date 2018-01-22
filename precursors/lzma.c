@@ -1488,7 +1488,7 @@ void lzma_decoder_init(lzma_decoder_t* p)
 
 static void lzma_decoder_init_state_real(lzma_decoder_t* p)
 {
-	size_t i, probabilities_count = (UINT32_C(0xA36) << ((&p->properties)->lc + (&p->properties)->lp)));
+	size_t i, probabilities_count = (UINT32_C(0xA36) << ((&p->properties)->lc + (&p->properties)->lp));
 	uint16_t* probabilities = p->probabilities;
 
 	for (i = 0; i < probabilities_count; ++i)
@@ -1769,7 +1769,7 @@ lzma_rc_t lzma_properties_decode(lzma_properties_t* p, const uint8_t* data, uint
 
 static lzma_rc_t lzma_decoder_allocate_probabilities_ex(lzma_decoder_t* p, const lzma_properties_t *new_prop, lzma_allocator_ptr_t allocator)
 {
-	uint32_t probabilities_count = (UINT32_C(0xA36) << ((new_prop)->lc + (new_prop)->lp)));
+	uint32_t probabilities_count = (UINT32_C(0xA36) << (new_prop->lc + new_prop->lp));
 
 	if (!p->probabilities || probabilities_count != p->probabilities_count)
 	{
