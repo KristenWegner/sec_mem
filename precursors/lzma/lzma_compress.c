@@ -1,25 +1,13 @@
-///////////////////////////////////////////////////////////////////////////////
-//
-/// \file       01_compress_easy.c
-/// \brief      Compress from stdin to stdout in multi-call mode
-///
-/// Usage:      ./01_compress_easy PRESET < INFILE > OUTFILE
-///
-/// Example:    ./01_compress_easy 6 < foo > foo.xz
-//
-//  Author:     Lasse Collin
-//
-//  This file has been put into the public domain.
-//  You can do whatever you want with this file.
-//
-///////////////////////////////////////////////////////////////////////////////
+// lzma_compress.c
+
 
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
-#include <lzma.h>
+
+#include "lzma.h"
 
 
 static void
@@ -259,8 +247,7 @@ compress(lzma_stream *strm, FILE *infile, FILE *outfile)
 }
 
 
-extern int
-main(int argc, char **argv)
+extern int lzma_compress_main(int argc, char **argv)
 {
 	// Get the preset number from the command line.
 	uint32_t preset = get_preset(argc, argv);

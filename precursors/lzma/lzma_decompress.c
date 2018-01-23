@@ -1,29 +1,16 @@
-///////////////////////////////////////////////////////////////////////////////
-//
-/// \file       02_decompress.c
-/// \brief      Decompress .xz files to stdout
-///
-/// Usage:      ./02_decompress INPUT_FILES... > OUTFILE
-///
-/// Example:    ./02_decompress foo.xz bar.xz > foobar
-//
-//  Author:     Lasse Collin
-//
-//  This file has been put into the public domain.
-//  You can do whatever you want with this file.
-//
-///////////////////////////////////////////////////////////////////////////////
+// lzma_decompress.c
+
 
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
-#include <lzma.h>
+
+#include "lzma.h"
 
 
-static bool
-init_decoder(lzma_stream *strm)
+static bool init_decoder(lzma_stream *strm)
 {
 	// Initialize a .xz decoder. The decoder supports a memory usage limit
 	// and a set of flags.
@@ -240,8 +227,7 @@ decompress(lzma_stream *strm, const char *inname, FILE *infile, FILE *outfile)
 }
 
 
-extern int
-main(int argc, char **argv)
+int lzma_decompress_main(int argc, char **argv)
 {
 	if (argc <= 1) {
 		fprintf(stderr, "Usage: %s FILES...\n", argv[0]);
