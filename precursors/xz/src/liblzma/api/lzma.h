@@ -187,6 +187,7 @@
  * need to worry about LZMA_API_STATIC. Also the calling convention is
  * omitted on Cygwin but not on MinGW.
  */
+#define LZMA_API_IMPORT
 #ifndef LZMA_API_IMPORT
 #	if !defined(LZMA_API_STATIC) && defined(_WIN32) && !defined(__GNUC__)
 #		define LZMA_API_IMPORT __declspec(dllimport)
@@ -197,7 +198,7 @@
 
 #ifndef LZMA_API_CALL
 #	if defined(_WIN32) && !defined(__CYGWIN__)
-#		define LZMA_API_CALL __cdecl
+#		define LZMA_API_CALL __stdcall
 #	else
 #		define LZMA_API_CALL
 #	endif

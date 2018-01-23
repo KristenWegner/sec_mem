@@ -359,7 +359,7 @@ typedef enum {
  * lzma_allocator. Thus, it is OK to change these function pointers in
  * the middle of the coding process, but obviously it must be done
  * carefully to make sure that the replacement `free' can deallocate
- * memory allocated by the earlier `alloc' function(s).
+ * memory allocated by the earlier `allocate' function(s).
  *
  * Multithreaded mode: liblzma might internally store pointers to the
  * lzma_allocator given via the lzma_stream structure. The application
@@ -404,7 +404,7 @@ typedef struct {
 	 *              returned NULL if some function from liblzma
 	 *              returns LZMA_MEM_ERROR.
 	 */
-	void *(LZMA_API_CALL *alloc)(void *opaque, size_t nmemb, size_t size);
+	void *(LZMA_API_CALL *allocate)(void *opaque, size_t nmemb, size_t size);
 
 	/**
 	 * \brief       Pointer to a custom memory freeing function
@@ -414,16 +414,16 @@ typedef struct {
 	 * will use the standard free().
 	 *
 	 * \param       opaque  lzma_allocator.opaque (see below)
-	 * \param       ptr     Pointer returned by lzma_allocator.alloc(),
+	 * \param       ptr     Pointer returned by lzma_allocator.allocate(),
 	 *                      or when it is set to NULL, a pointer returned
 	 *                      by the standard malloc().
 	 */
-	void (LZMA_API_CALL *free)(void *opaque, void *ptr);
+	void (LZMA_API_CALL *release)(void *opaque, void *ptr);
 
 	/**
-	 * \brief       Pointer passed to .alloc() and .free()
+	 * \brief       Pointer passed to .allocate() and .free()
 	 *
-	 * opaque is passed as the first argument to lzma_allocator.alloc()
+	 * opaque is passed as the first argument to lzma_allocator.allocate()
 	 * and lzma_allocator.free(). This intended to ease implementing
 	 * custom memory allocation functions for use with liblzma.
 	 *

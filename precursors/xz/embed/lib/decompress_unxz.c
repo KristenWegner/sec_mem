@@ -337,10 +337,10 @@ STATIC int INIT unxz(unsigned char *in, int in_size,
 		} while (ret == XZ_OK);
 
 		if (must_free_in)
-			free(in);
+			release(in);
 
 		if (flush != NULL)
-			free(b.out);
+			release(b.out);
 	}
 
 	if (in_used != NULL)
@@ -380,7 +380,7 @@ STATIC int INIT unxz(unsigned char *in, int in_size,
 
 error_alloc_in:
 	if (flush != NULL)
-		free(b.out);
+		release(b.out);
 
 error_alloc_out:
 	xz_dec_end(s);

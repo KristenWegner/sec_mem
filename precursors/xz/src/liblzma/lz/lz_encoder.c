@@ -256,7 +256,10 @@ lz_encoder_prepare(lzma_mf *mf, const lzma_allocator *allocator,
 	// limits to change.
 	mf->cyclic_size = lz_options->dict_size + 1;
 
+	mf->kind = lz_options->match_finder;
+
 	// Validate the match finder ID and setup the function pointers.
+	/*
 	switch (lz_options->match_finder) {
 #ifdef HAVE_MF_HC3
 	case LZMA_MF_HC3:
@@ -292,14 +295,18 @@ lz_encoder_prepare(lzma_mf *mf, const lzma_allocator *allocator,
 	default:
 		return true;
 	}
+	*/
 
 	// Calculate the sizes of mf->hash and mf->son and check that
 	// nice_len is big enough for the selected match finder.
+
 	const uint32_t hash_bytes = lz_options->match_finder & 0x0F;
+
 	if (hash_bytes > mf->nice_len)
 		return true;
 
 	const bool is_bt = (lz_options->match_finder & 0x10) != 0;
+
 	uint32_t hs;
 
 	if (hash_bytes == 2) {
@@ -338,13 +345,16 @@ lz_encoder_prepare(lzma_mf *mf, const lzma_allocator *allocator,
 
 	const uint32_t old_hash_count = mf->hash_count;
 	const uint32_t old_sons_count = mf->sons_count;
+
 	mf->hash_count = hs;
 	mf->sons_count = mf->cyclic_size;
+
 	if (is_bt)
 		mf->sons_count *= 2;
 
 	// Deallocate the old hash array if it exists and has different size
 	// than what is needed now.
+
 	if (old_hash_count != mf->hash_count
 			|| old_sons_count != mf->sons_count) {
 		lzma_free(mf->hash, allocator);
@@ -442,8 +452,7 @@ lz_encoder_init(lzma_mf *mf, const lzma_allocator *allocator,
 	mf->cyclic_pos = 0;
 
 	// Handle preset dictionary.
-	if (lz_options->preset_dict != NULL
-			&& lz_options->preset_dict_size > 0) {
+	if (lz_options->preset_dict != NULL && lz_options->preset_dict_size > 0) {
 		// If the preset dictionary is bigger than the actual
 		// dictionary, use only the tail.
 		mf->write_pos = my_min(lz_options->preset_dict_size, mf->size);

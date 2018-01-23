@@ -15,6 +15,10 @@
 
 #include "common.h"
 
+
+#define TUKLIB_FAST_UNALIGNED_ACCESS 1
+
+
 #ifdef HAVE_IMMINTRIN_H
 #	include <immintrin.h>
 #endif
