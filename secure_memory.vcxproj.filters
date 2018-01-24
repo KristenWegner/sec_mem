@@ -103,6 +103,9 @@
     <ClInclude Include="sm_internal.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="precursors\perm.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="precursors\rdr.asm">

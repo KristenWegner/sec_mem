@@ -230,6 +230,7 @@
     <ClInclude Include="allocator.h" />
     <ClInclude Include="hash_table.h" />
     <ClInclude Include="mutex.h" />
+    <ClInclude Include="precursors\perm.h" />
     <ClInclude Include="random.h" />
     <ClInclude Include="memory.h" />
     <ClInclude Include="secure_memory.h" />

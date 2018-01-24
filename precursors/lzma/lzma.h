@@ -8,7 +8,75 @@
 #include "../../config.h"
 
 
+#include <stdint.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <inttypes.h>
+#include <limits.h>
+
+
 #define LZMA_API_IMPORT
+
+
+#undef memzero
+#define memzero(s, n) memset(s, 0, n)
+
+
+#define my_min(x, y) ((x) < (y) ? (x) : (y))
+#define my_max(x, y) ((x) > (y) ? (x) : (y))
+
+
+#ifndef ARRAY_SIZE
+#define ARRAY_SIZE(array) (sizeof(array) / sizeof((array)[0]))
+#endif
+
+
+#if (__GNUC__ == 4 && __GNUC_MINOR__ >= 3) || __GNUC__ > 4
+#define lzma_attr_alloc_size(x) __attribute__((__alloc_size__(x)))
+#else
+#define lzma_attr_alloc_size(x)
+#endif
+
+
+#ifndef TUKLIB_SYMBOL_PREFIX
+#define TUKLIB_SYMBOL_PREFIX
+#endif
+
+
+#define TUKLIB_CAT_X(a, b) a ## b
+#define TUKLIB_CAT(a, b) TUKLIB_CAT_X(a, b)
+
+
+#ifndef TUKLIB_SYMBOL
+#define TUKLIB_SYMBOL(sym) TUKLIB_CAT(TUKLIB_SYMBOL_PREFIX, sym)
+#endif
+
+
+#ifndef TUKLIB_DECLS_BEGIN
+#define TUKLIB_DECLS_BEGIN
+#endif
+
+#ifndef TUKLIB_DECLS_END
+#define TUKLIB_DECLS_END
+#endif
+
+
+#if defined(__GNUC__) && defined(__GNUC_MINOR__)
+#define TUKLIB_GNUC_REQ(major, minor) ((__GNUC__ == (major) && __GNUC_MINOR__ >= (minor)) || __GNUC__ > (major))
+#else
+#define TUKLIB_GNUC_REQ(major, minor) 0
+#endif
+
+
+#if TUKLIB_GNUC_REQ(2, 5)
+#define tuklib_attr_noreturn __attribute__((__noreturn__))
+#else
+#define tuklib_attr_noreturn
+#endif
+
+#if (defined(_WIN32) && !defined(__CYGWIN__)) || defined(__OS2__) || defined(__MSDOS__)
+#define TUKLIB_DOSLIKE 1
+#endif
 
 
 #ifndef LZMA_API_CALL
@@ -2326,11 +2394,1553 @@ extern LZMA_API(lzma_ret) lzma_alone_decoder(lzma_stream *strm, uint64_t memlimi
 */
 extern LZMA_API(lzma_ret) lzma_stream_buffer_decode(uint64_t *memlimit, uint32_t flags, const lzma_allocator *allocator, const uint8_t *in, size_t *in_pos, size_t in_size, uint8_t *out, size_t *out_pos, size_t out_size) lzma_nothrow lzma_attr_warn_unused_result;
 
-#include "stream_flags.h"
-#include "block.h"
-#include "index.h"
-#include "index_hash.h"
-#include "hardware.h"
+/**
+* \brief       Size of Stream Header and Stream Footer
+*
+* Stream Header and Stream Footer have the same size and they are not
+* going to change even if a newer version of the .xz file format is
+* developed in future.
+*/
+#define LZMA_STREAM_HEADER_SIZE 12
+
+
+/**
+* \brief       Options for encoding/decoding Stream Header and Stream Footer
+*/
+typedef struct {
+	/**
+	* \brief       Stream Flags format version
+	*
+	* To prevent API and ABI breakages if new features are needed in
+	* Stream Header or Stream Footer, a version number is used to
+	* indicate which fields in this structure are in use. For now,
+	* version must always be zero. With non-zero version, the
+	* lzma_stream_header_encode() and lzma_stream_footer_encode()
+	* will return LZMA_OPTIONS_ERROR.
+	*
+	* lzma_stream_header_decode() and lzma_stream_footer_decode()
+	* will always set this to the lowest value that supports all the
+	* features indicated by the Stream Flags field. The application
+	* must check that the version number set by the decoding functions
+	* is supported by the application. Otherwise it is possible that
+	* the application will decode the Stream incorrectly.
+	*/
+	uint32_t version;
+
+	/**
+	* \brief       Backward Size
+	*
+	* Backward Size must be a multiple of four bytes. In this Stream
+	* format version, Backward Size is the size of the Index field.
+	*
+	* Backward Size isn't actually part of the Stream Flags field, but
+	* it is convenient to include in this structure anyway. Backward
+	* Size is present only in the Stream Footer. There is no need to
+	* initialize backward_size when encoding Stream Header.
+	*
+	* lzma_stream_header_decode() always sets backward_size to
+	* LZMA_VLI_UNKNOWN so that it is convenient to use
+	* lzma_stream_flags_compare() when both Stream Header and Stream
+	* Footer have been decoded.
+	*/
+	lzma_vli backward_size;
+#	define LZMA_BACKWARD_SIZE_MIN 4
+#	define LZMA_BACKWARD_SIZE_MAX (LZMA_VLI_C(1) << 34)
+
+	/**
+	* \brief       Check ID
+	*
+	* This indicates the type of the integrity check calculated from
+	* uncompressed data.
+	*/
+	lzma_check check;
+
+	/*
+	* Reserved space to allow possible future extensions without
+	* breaking the ABI. You should not touch these, because the
+	* names of these variables may change.
+	*
+	* (We will never be able to use all of these since Stream Flags
+	* is just two bytes plus Backward Size of four bytes. But it's
+	* nice to have the proper types when they are needed.)
+	*/
+	lzma_reserved_enum reserved_enum1;
+	lzma_reserved_enum reserved_enum2;
+	lzma_reserved_enum reserved_enum3;
+	lzma_reserved_enum reserved_enum4;
+	lzma_bool reserved_bool1;
+	lzma_bool reserved_bool2;
+	lzma_bool reserved_bool3;
+	lzma_bool reserved_bool4;
+	lzma_bool reserved_bool5;
+	lzma_bool reserved_bool6;
+	lzma_bool reserved_bool7;
+	lzma_bool reserved_bool8;
+	uint32_t reserved_int1;
+	uint32_t reserved_int2;
+
+} lzma_stream_flags;
+
+
+/**
+* \brief       Encode Stream Header
+*
+* \param       options     Stream Header options to be encoded.
+*                          options->backward_size is ignored and doesn't
+*                          need to be initialized.
+* \param       out         Beginning of the output buffer of
+*                          LZMA_STREAM_HEADER_SIZE bytes.
+*
+* \return      - LZMA_OK: Encoding was successful.
+*              - LZMA_OPTIONS_ERROR: options->version is not supported by
+*                this liblzma version.
+*              - LZMA_PROG_ERROR: Invalid options.
+*/
+extern LZMA_API(lzma_ret) lzma_stream_header_encode(
+	const lzma_stream_flags *options, uint8_t *out)
+	lzma_nothrow lzma_attr_warn_unused_result;
+
+
+/**
+* \brief       Encode Stream Footer
+*
+* \param       options     Stream Footer options to be encoded.
+* \param       out         Beginning of the output buffer of
+*                          LZMA_STREAM_HEADER_SIZE bytes.
+*
+* \return      - LZMA_OK: Encoding was successful.
+*              - LZMA_OPTIONS_ERROR: options->version is not supported by
+*                this liblzma version.
+*              - LZMA_PROG_ERROR: Invalid options.
+*/
+extern LZMA_API(lzma_ret) lzma_stream_footer_encode(
+	const lzma_stream_flags *options, uint8_t *out)
+	lzma_nothrow lzma_attr_warn_unused_result;
+
+
+/**
+* \brief       Decode Stream Header
+*
+* \param       options     Target for the decoded Stream Header options.
+* \param       in          Beginning of the input buffer of
+*                          LZMA_STREAM_HEADER_SIZE bytes.
+*
+* options->backward_size is always set to LZMA_VLI_UNKNOWN. This is to
+* help comparing Stream Flags from Stream Header and Stream Footer with
+* lzma_stream_flags_compare().
+*
+* \return      - LZMA_OK: Decoding was successful.
+*              - LZMA_FORMAT_ERROR: Magic bytes don't match, thus the given
+*                buffer cannot be Stream Header.
+*              - LZMA_DATA_ERROR: CRC32 doesn't match, thus the header
+*                is corrupt.
+*              - LZMA_OPTIONS_ERROR: Unsupported options are present
+*                in the header.
+*
+* \note        When decoding .xz files that contain multiple Streams, it may
+*              make sense to print "file format not recognized" only if
+*              decoding of the Stream Header of the _first_ Stream gives
+*              LZMA_FORMAT_ERROR. If non-first Stream Header gives
+*              LZMA_FORMAT_ERROR, the message used for LZMA_DATA_ERROR is
+*              probably more appropriate.
+*
+*              For example, Stream decoder in liblzma uses LZMA_DATA_ERROR if
+*              LZMA_FORMAT_ERROR is returned by lzma_stream_header_decode()
+*              when decoding non-first Stream.
+*/
+extern LZMA_API(lzma_ret) lzma_stream_header_decode(
+	lzma_stream_flags *options, const uint8_t *in)
+	lzma_nothrow lzma_attr_warn_unused_result;
+
+
+/**
+* \brief       Decode Stream Footer
+*
+* \param       options     Target for the decoded Stream Header options.
+* \param       in          Beginning of the input buffer of
+*                          LZMA_STREAM_HEADER_SIZE bytes.
+*
+* \return      - LZMA_OK: Decoding was successful.
+*              - LZMA_FORMAT_ERROR: Magic bytes don't match, thus the given
+*                buffer cannot be Stream Footer.
+*              - LZMA_DATA_ERROR: CRC32 doesn't match, thus the Stream Footer
+*                is corrupt.
+*              - LZMA_OPTIONS_ERROR: Unsupported options are present
+*                in Stream Footer.
+*
+* \note        If Stream Header was already decoded successfully, but
+*              decoding Stream Footer returns LZMA_FORMAT_ERROR, the
+*              application should probably report some other error message
+*              than "file format not recognized", since the file more likely
+*              is corrupt (possibly truncated). Stream decoder in liblzma
+*              uses LZMA_DATA_ERROR in this situation.
+*/
+extern LZMA_API(lzma_ret) lzma_stream_footer_decode(lzma_stream_flags *options, const uint8_t *in) lzma_nothrow lzma_attr_warn_unused_result;
+
+
+/**
+* \brief       Compare two lzma_stream_flags structures
+*
+* backward_size values are compared only if both are not
+* LZMA_VLI_UNKNOWN.
+*
+* \return      - LZMA_OK: Both are equal. If either had backward_size set
+*                to LZMA_VLI_UNKNOWN, backward_size values were not
+*                compared or validated.
+*              - LZMA_DATA_ERROR: The structures differ.
+*              - LZMA_OPTIONS_ERROR: version in either structure is greater
+*                than the maximum supported version (currently zero).
+*              - LZMA_PROG_ERROR: Invalid value, e.g. invalid check or
+*                backward_size.
+*/
+extern LZMA_API(lzma_ret) lzma_stream_flags_compare(const lzma_stream_flags *a, const lzma_stream_flags *b) lzma_nothrow lzma_attr_pure;
+
+
+/**
+* \brief       Options for the Block and Block Header encoders and decoders
+*
+* Different Block handling functions use different parts of this structure.
+* Some read some members, other functions write, and some do both. Only the
+* members listed for reading need to be initialized when the specified
+* functions are called. The members marked for writing will be assigned
+* new values at some point either by calling the given function or by
+* later calls to lzma_code().
+*/
+typedef struct {
+	/**
+	* \brief       Block format version
+	*
+	* To prevent API and ABI breakages when new features are needed,
+	* a version number is used to indicate which fields in this
+	* structure are in use:
+	*   - liblzma >= 5.0.0: version = 0 is supported.
+	*   - liblzma >= 5.1.4beta: Support for version = 1 was added,
+	*     which adds the ignore_check field.
+	*
+	* If version is greater than one, most Block related functions
+	* will return LZMA_OPTIONS_ERROR (lzma_block_header_decode() works
+	* with any version value).
+	*
+	* Read by:
+	*  - All functions that take pointer to lzma_block as argument,
+	*    including lzma_block_header_decode().
+	*
+	* Written by:
+	*  - lzma_block_header_decode()
+	*/
+	uint32_t version;
+
+	/**
+	* \brief       Size of the Block Header field
+	*
+	* This is always a multiple of four.
+	*
+	* Read by:
+	*  - lzma_block_header_encode()
+	*  - lzma_block_header_decode()
+	*  - lzma_block_compressed_size()
+	*  - lzma_block_unpadded_size()
+	*  - lzma_block_total_size()
+	*  - lzma_block_decoder()
+	*  - lzma_block_buffer_decode()
+	*
+	* Written by:
+	*  - lzma_block_header_size()
+	*  - lzma_block_buffer_encode()
+	*/
+	uint32_t header_size;
+#	define LZMA_BLOCK_HEADER_SIZE_MIN 8
+#	define LZMA_BLOCK_HEADER_SIZE_MAX 1024
+
+	/**
+	* \brief       Type of integrity Check
+	*
+	* The Check ID is not stored into the Block Header, thus its value
+	* must be provided also when decoding.
+	*
+	* Read by:
+	*  - lzma_block_header_encode()
+	*  - lzma_block_header_decode()
+	*  - lzma_block_compressed_size()
+	*  - lzma_block_unpadded_size()
+	*  - lzma_block_total_size()
+	*  - lzma_block_encoder()
+	*  - lzma_block_decoder()
+	*  - lzma_block_buffer_encode()
+	*  - lzma_block_buffer_decode()
+	*/
+	lzma_check check;
+
+	/**
+	* \brief       Size of the Compressed Data in bytes
+	*
+	* Encoding: If this is not LZMA_VLI_UNKNOWN, Block Header encoder
+	* will store this value to the Block Header. Block encoder doesn't
+	* care about this value, but will set it once the encoding has been
+	* finished.
+	*
+	* Decoding: If this is not LZMA_VLI_UNKNOWN, Block decoder will
+	* verify that the size of the Compressed Data field matches
+	* compressed_size.
+	*
+	* Usually you don't know this value when encoding in streamed mode,
+	* and thus cannot write this field into the Block Header.
+	*
+	* In non-streamed mode you can reserve space for this field before
+	* encoding the actual Block. After encoding the data, finish the
+	* Block by encoding the Block Header. Steps in detail:
+	*
+	*  - Set compressed_size to some big enough value. If you don't know
+	*    better, use LZMA_VLI_MAX, but remember that bigger values take
+	*    more space in Block Header.
+	*
+	*  - Call lzma_block_header_size() to see how much space you need to
+	*    reserve for the Block Header.
+	*
+	*  - Encode the Block using lzma_block_encoder() and lzma_code().
+	*    It sets compressed_size to the correct value.
+	*
+	*  - Use lzma_block_header_encode() to encode the Block Header.
+	*    Because space was reserved in the first step, you don't need
+	*    to call lzma_block_header_size() anymore, because due to
+	*    reserving, header_size has to be big enough. If it is "too big",
+	*    lzma_block_header_encode() will add enough Header Padding to
+	*    make Block Header to match the size specified by header_size.
+	*
+	* Read by:
+	*  - lzma_block_header_size()
+	*  - lzma_block_header_encode()
+	*  - lzma_block_compressed_size()
+	*  - lzma_block_unpadded_size()
+	*  - lzma_block_total_size()
+	*  - lzma_block_decoder()
+	*  - lzma_block_buffer_decode()
+	*
+	* Written by:
+	*  - lzma_block_header_decode()
+	*  - lzma_block_compressed_size()
+	*  - lzma_block_encoder()
+	*  - lzma_block_decoder()
+	*  - lzma_block_buffer_encode()
+	*  - lzma_block_buffer_decode()
+	*/
+	lzma_vli compressed_size;
+
+	/**
+	* \brief       Uncompressed Size in bytes
+	*
+	* This is handled very similarly to compressed_size above.
+	*
+	* uncompressed_size is needed by fewer functions than
+	* compressed_size. This is because uncompressed_size isn't
+	* needed to validate that Block stays within proper limits.
+	*
+	* Read by:
+	*  - lzma_block_header_size()
+	*  - lzma_block_header_encode()
+	*  - lzma_block_decoder()
+	*  - lzma_block_buffer_decode()
+	*
+	* Written by:
+	*  - lzma_block_header_decode()
+	*  - lzma_block_encoder()
+	*  - lzma_block_decoder()
+	*  - lzma_block_buffer_encode()
+	*  - lzma_block_buffer_decode()
+	*/
+	lzma_vli uncompressed_size;
+
+	/**
+	* \brief       Array of filters
+	*
+	* There can be 1-4 filters. The end of the array is marked with
+	* .id = LZMA_VLI_UNKNOWN.
+	*
+	* Read by:
+	*  - lzma_block_header_size()
+	*  - lzma_block_header_encode()
+	*  - lzma_block_encoder()
+	*  - lzma_block_decoder()
+	*  - lzma_block_buffer_encode()
+	*  - lzma_block_buffer_decode()
+	*
+	* Written by:
+	*  - lzma_block_header_decode(): Note that this does NOT free()
+	*    the old filter options structures. All unused filters[] will
+	*    have .id == LZMA_VLI_UNKNOWN and .options == NULL. If
+	*    decoding fails, all filters[] are guaranteed to be
+	*    LZMA_VLI_UNKNOWN and NULL.
+	*
+	* \note        Because of the array is terminated with
+	*              .id = LZMA_VLI_UNKNOWN, the actual array must
+	*              have LZMA_FILTERS_MAX + 1 members or the Block
+	*              Header decoder will overflow the buffer.
+	*/
+	lzma_filter *filters;
+
+	/**
+	* \brief       Raw value stored in the Check field
+	*
+	* After successful coding, the first lzma_check_size(check) bytes
+	* of this array contain the raw value stored in the Check field.
+	*
+	* Note that CRC32 and CRC64 are stored in little endian byte order.
+	* Take it into account if you display the Check values to the user.
+	*
+	* Written by:
+	*  - lzma_block_encoder()
+	*  - lzma_block_decoder()
+	*  - lzma_block_buffer_encode()
+	*  - lzma_block_buffer_decode()
+	*/
+	uint8_t raw_check[LZMA_CHECK_SIZE_MAX];
+
+	/*
+	* Reserved space to allow possible future extensions without
+	* breaking the ABI. You should not touch these, because the names
+	* of these variables may change. These are and will never be used
+	* with the currently supported options, so it is safe to leave these
+	* uninitialized.
+	*/
+	void *reserved_ptr1;
+	void *reserved_ptr2;
+	void *reserved_ptr3;
+	uint32_t reserved_int1;
+	uint32_t reserved_int2;
+	lzma_vli reserved_int3;
+	lzma_vli reserved_int4;
+	lzma_vli reserved_int5;
+	lzma_vli reserved_int6;
+	lzma_vli reserved_int7;
+	lzma_vli reserved_int8;
+	lzma_reserved_enum reserved_enum1;
+	lzma_reserved_enum reserved_enum2;
+	lzma_reserved_enum reserved_enum3;
+	lzma_reserved_enum reserved_enum4;
+
+	/**
+	* \brief       A flag to Block decoder to not verify the Check field
+	*
+	* This field is supported by liblzma >= 5.1.4beta if .version >= 1.
+	*
+	* If this is set to true, the integrity check won't be calculated
+	* and verified. Unless you know what you are doing, you should
+	* leave this to false. (A reason to set this to true is when the
+	* file integrity is verified externally anyway and you want to
+	* speed up the decompression, which matters mostly when using
+	* SHA-256 as the integrity check.)
+	*
+	* If .version >= 1, read by:
+	*   - lzma_block_decoder()
+	*   - lzma_block_buffer_decode()
+	*
+	* Written by (.version is ignored):
+	*   - lzma_block_header_decode() always sets this to false
+	*/
+	lzma_bool ignore_check;
+
+	lzma_bool reserved_bool2;
+	lzma_bool reserved_bool3;
+	lzma_bool reserved_bool4;
+	lzma_bool reserved_bool5;
+	lzma_bool reserved_bool6;
+	lzma_bool reserved_bool7;
+	lzma_bool reserved_bool8;
+
+} lzma_block;
+
+
+/**
+* \brief       Decode the Block Header Size field
+*
+* To decode Block Header using lzma_block_header_decode(), the size of the
+* Block Header has to be known and stored into lzma_block.header_size.
+* The size can be calculated from the first byte of a Block using this macro.
+* Note that if the first byte is 0x00, it indicates beginning of Index; use
+* this macro only when the byte is not 0x00.
+*
+* There is no encoding macro, because Block Header encoder is enough for that.
+*/
+#define lzma_block_header_size_decode(b) (((uint32_t)(b) + 1) * 4)
+
+
+/**
+* \brief       Calculate Block Header Size
+*
+* Calculate the minimum size needed for the Block Header field using the
+* settings specified in the lzma_block structure. Note that it is OK to
+* increase the calculated header_size value as long as it is a multiple of
+* four and doesn't exceed LZMA_BLOCK_HEADER_SIZE_MAX. Increasing header_size
+* just means that lzma_block_header_encode() will add Header Padding.
+*
+* \return      - LZMA_OK: Size calculated successfully and stored to
+*                block->header_size.
+*              - LZMA_OPTIONS_ERROR: Unsupported version, filters or
+*                filter options.
+*              - LZMA_PROG_ERROR: Invalid values like compressed_size == 0.
+*
+* \note        This doesn't check that all the options are valid i.e. this
+*              may return LZMA_OK even if lzma_block_header_encode() or
+*              lzma_block_encoder() would fail. If you want to validate the
+*              filter chain, consider using lzma_memlimit_encoder() which as
+*              a side-effect validates the filter chain.
+*/
+extern LZMA_API(lzma_ret) lzma_block_header_size(lzma_block *block)
+lzma_nothrow lzma_attr_warn_unused_result;
+
+
+/**
+* \brief       Encode Block Header
+*
+* The caller must have calculated the size of the Block Header already with
+* lzma_block_header_size(). If a value larger than the one calculated by
+* lzma_block_header_size() is used, the Block Header will be padded to the
+* specified size.
+*
+* \param       out         Beginning of the output buffer. This must be
+*                          at least block->header_size bytes.
+* \param       block       Block options to be encoded.
+*
+* \return      - LZMA_OK: Encoding was successful. block->header_size
+*                bytes were written to output buffer.
+*              - LZMA_OPTIONS_ERROR: Invalid or unsupported options.
+*              - LZMA_PROG_ERROR: Invalid arguments, for example
+*                block->header_size is invalid or block->filters is NULL.
+*/
+extern LZMA_API(lzma_ret) lzma_block_header_encode(
+	const lzma_block *block, uint8_t *out)
+	lzma_nothrow lzma_attr_warn_unused_result;
+
+
+/**
+* \brief       Decode Block Header
+*
+* block->version should (usually) be set to the highest value supported
+* by the application. If the application sets block->version to a value
+* higher than supported by the current liblzma version, this function will
+* downgrade block->version to the highest value supported by it. Thus one
+* should check the value of block->version after calling this function if
+* block->version was set to a non-zero value and the application doesn't
+* otherwise know that the liblzma version being used is new enough to
+* support the specified block->version.
+*
+* The size of the Block Header must have already been decoded with
+* lzma_block_header_size_decode() macro and stored to block->header_size.
+*
+* The integrity check type from Stream Header must have been stored
+* to block->check.
+*
+* block->filters must have been allocated, but they don't need to be
+* initialized (possible existing filter options are not freed).
+*
+* \param       block       Destination for Block options.
+* \param       allocator   lzma_allocator for custom allocator functions.
+*                          Set to NULL to use malloc() (and also free()
+*                          if an error occurs).
+* \param       in          Beginning of the input buffer. This must be
+*                          at least block->header_size bytes.
+*
+* \return      - LZMA_OK: Decoding was successful. block->header_size
+*                bytes were read from the input buffer.
+*              - LZMA_OPTIONS_ERROR: The Block Header specifies some
+*                unsupported options such as unsupported filters. This can
+*                happen also if block->version was set to a too low value
+*                compared to what would be required to properly represent
+*                the information stored in the Block Header.
+*              - LZMA_DATA_ERROR: Block Header is corrupt, for example,
+*                the CRC32 doesn't match.
+*              - LZMA_PROG_ERROR: Invalid arguments, for example
+*                block->header_size is invalid or block->filters is NULL.
+*/
+extern LZMA_API(lzma_ret) lzma_block_header_decode(lzma_block *block,
+	const lzma_allocator *allocator, const uint8_t *in)
+	lzma_nothrow lzma_attr_warn_unused_result;
+
+
+/**
+* \brief       Validate and set Compressed Size according to Unpadded Size
+*
+* Block Header stores Compressed Size, but Index has Unpadded Size. If the
+* application has already parsed the Index and is now decoding Blocks,
+* it can calculate Compressed Size from Unpadded Size. This function does
+* exactly that with error checking:
+*
+*  - Compressed Size calculated from Unpadded Size must be positive integer,
+*    that is, Unpadded Size must be big enough that after Block Header and
+*    Check fields there's still at least one byte for Compressed Size.
+*
+*  - If Compressed Size was present in Block Header, the new value
+*    calculated from Unpadded Size is compared against the value
+*    from Block Header.
+*
+* \note        This function must be called _after_ decoding the Block Header
+*              field so that it can properly validate Compressed Size if it
+*              was present in Block Header.
+*
+* \return      - LZMA_OK: block->compressed_size was set successfully.
+*              - LZMA_DATA_ERROR: unpadded_size is too small compared to
+*                block->header_size and lzma_check_size(block->check).
+*              - LZMA_PROG_ERROR: Some values are invalid. For example,
+*                block->header_size must be a multiple of four and
+*                between 8 and 1024 inclusive.
+*/
+extern LZMA_API(lzma_ret) lzma_block_compressed_size(
+	lzma_block *block, lzma_vli unpadded_size)
+	lzma_nothrow lzma_attr_warn_unused_result;
+
+
+/**
+* \brief       Calculate Unpadded Size
+*
+* The Index field stores Unpadded Size and Uncompressed Size. The latter
+* can be taken directly from the lzma_block structure after coding a Block,
+* but Unpadded Size needs to be calculated from Block Header Size,
+* Compressed Size, and size of the Check field. This is where this function
+* is needed.
+*
+* \return      Unpadded Size on success, or zero on error.
+*/
+extern LZMA_API(lzma_vli) lzma_block_unpadded_size(const lzma_block *block)
+lzma_nothrow lzma_attr_pure;
+
+
+/**
+* \brief       Calculate the total encoded size of a Block
+*
+* This is equivalent to lzma_block_unpadded_size() except that the returned
+* value includes the size of the Block Padding field.
+*
+* \return      On success, total encoded size of the Block. On error,
+*              zero is returned.
+*/
+extern LZMA_API(lzma_vli) lzma_block_total_size(const lzma_block *block)
+lzma_nothrow lzma_attr_pure;
+
+
+/**
+* \brief       Initialize .xz Block encoder
+*
+* Valid actions for lzma_code() are LZMA_RUN, LZMA_SYNC_FLUSH (only if the
+* filter chain supports it), and LZMA_FINISH.
+*
+* \return      - LZMA_OK: All good, continue with lzma_code().
+*              - LZMA_MEM_ERROR
+*              - LZMA_OPTIONS_ERROR
+*              - LZMA_UNSUPPORTED_CHECK: block->check specifies a Check ID
+*                that is not supported by this buid of liblzma. Initializing
+*                the encoder failed.
+*              - LZMA_PROG_ERROR
+*/
+extern LZMA_API(lzma_ret) lzma_block_encoder(
+	lzma_stream *strm, lzma_block *block)
+	lzma_nothrow lzma_attr_warn_unused_result;
+
+
+/**
+* \brief       Initialize .xz Block decoder
+*
+* Valid actions for lzma_code() are LZMA_RUN and LZMA_FINISH. Using
+* LZMA_FINISH is not required. It is supported only for convenience.
+*
+* \return      - LZMA_OK: All good, continue with lzma_code().
+*              - LZMA_UNSUPPORTED_CHECK: Initialization was successful, but
+*                the given Check ID is not supported, thus Check will be
+*                ignored.
+*              - LZMA_PROG_ERROR
+*              - LZMA_MEM_ERROR
+*/
+extern LZMA_API(lzma_ret) lzma_block_decoder(
+	lzma_stream *strm, lzma_block *block)
+	lzma_nothrow lzma_attr_warn_unused_result;
+
+
+/**
+* \brief       Calculate maximum output size for single-call Block encoding
+*
+* This is equivalent to lzma_stream_buffer_bound() but for .xz Blocks.
+* See the documentation of lzma_stream_buffer_bound().
+*/
+extern LZMA_API(size_t) lzma_block_buffer_bound(size_t uncompressed_size)
+lzma_nothrow;
+
+
+/**
+* \brief       Single-call .xz Block encoder
+*
+* In contrast to the multi-call encoder initialized with
+* lzma_block_encoder(), this function encodes also the Block Header. This
+* is required to make it possible to write appropriate Block Header also
+* in case the data isn't compressible, and different filter chain has to be
+* used to encode the data in uncompressed form using uncompressed chunks
+* of the LZMA2 filter.
+*
+* When the data isn't compressible, header_size, compressed_size, and
+* uncompressed_size are set just like when the data was compressible, but
+* it is possible that header_size is too small to hold the filter chain
+* specified in block->filters, because that isn't necessarily the filter
+* chain that was actually used to encode the data. lzma_block_unpadded_size()
+* still works normally, because it doesn't read the filters array.
+*
+* \param       block       Block options: block->version, block->check,
+*                          and block->filters must have been initialized.
+* \param       allocator   lzma_allocator for custom allocator functions.
+*                          Set to NULL to use malloc() and free().
+* \param       in          Beginning of the input buffer
+* \param       in_size     Size of the input buffer
+* \param       out         Beginning of the output buffer
+* \param       out_pos     The next byte will be written to out[*out_pos].
+*                          *out_pos is updated only if encoding succeeds.
+* \param       out_size    Size of the out buffer; the first byte into
+*                          which no data is written to is out[out_size].
+*
+* \return      - LZMA_OK: Encoding was successful.
+*              - LZMA_BUF_ERROR: Not enough output buffer space.
+*              - LZMA_UNSUPPORTED_CHECK
+*              - LZMA_OPTIONS_ERROR
+*              - LZMA_MEM_ERROR
+*              - LZMA_DATA_ERROR
+*              - LZMA_PROG_ERROR
+*/
+extern LZMA_API(lzma_ret) lzma_block_buffer_encode(
+	lzma_block *block, const lzma_allocator *allocator,
+	const uint8_t *in, size_t in_size,
+	uint8_t *out, size_t *out_pos, size_t out_size)
+	lzma_nothrow lzma_attr_warn_unused_result;
+
+
+/**
+* \brief       Single-call uncompressed .xz Block encoder
+*
+* This is like lzma_block_buffer_encode() except this doesn't try to
+* compress the data and instead encodes the data using LZMA2 uncompressed
+* chunks. The required output buffer size can be determined with
+* lzma_block_buffer_bound().
+*
+* Since the data won't be compressed, this function ignores block->filters.
+* This function doesn't take lzma_allocator because this function doesn't
+* allocate any memory from the heap.
+*/
+extern LZMA_API(lzma_ret) lzma_block_uncomp_encode(lzma_block *block,
+	const uint8_t *in, size_t in_size,
+	uint8_t *out, size_t *out_pos, size_t out_size)
+	lzma_nothrow lzma_attr_warn_unused_result;
+
+
+/**
+* \brief       Single-call .xz Block decoder
+*
+* This is single-call equivalent of lzma_block_decoder(), and requires that
+* the caller has already decoded Block Header and checked its memory usage.
+*
+* \param       block       Block options just like with lzma_block_decoder().
+* \param       allocator   lzma_allocator for custom allocator functions.
+*                          Set to NULL to use malloc() and free().
+* \param       in          Beginning of the input buffer
+* \param       in_pos      The next byte will be read from in[*in_pos].
+*                          *in_pos is updated only if decoding succeeds.
+* \param       in_size     Size of the input buffer; the first byte that
+*                          won't be read is in[in_size].
+* \param       out         Beginning of the output buffer
+* \param       out_pos     The next byte will be written to out[*out_pos].
+*                          *out_pos is updated only if encoding succeeds.
+* \param       out_size    Size of the out buffer; the first byte into
+*                          which no data is written to is out[out_size].
+*
+* \return      - LZMA_OK: Decoding was successful.
+*              - LZMA_OPTIONS_ERROR
+*              - LZMA_DATA_ERROR
+*              - LZMA_MEM_ERROR
+*              - LZMA_BUF_ERROR: Output buffer was too small.
+*              - LZMA_PROG_ERROR
+*/
+extern LZMA_API(lzma_ret) lzma_block_buffer_decode(
+	lzma_block *block, const lzma_allocator *allocator,
+	const uint8_t *in, size_t *in_pos, size_t in_size,
+	uint8_t *out, size_t *out_pos, size_t out_size)
+	lzma_nothrow;
+
+
+/**
+* \brief       Opaque data type to hold the Index(es) and other information
+*
+* lzma_index often holds just one .xz Index and possibly the Stream Flags
+* of the same Stream and size of the Stream Padding field. However,
+* multiple lzma_indexes can be concatenated with lzma_index_cat() and then
+* there may be information about multiple Streams in the same lzma_index.
+*
+* Notes about thread safety: Only one thread may modify lzma_index at
+* a time. All functions that take non-const pointer to lzma_index
+* modify it. As long as no thread is modifying the lzma_index, getting
+* information from the same lzma_index can be done from multiple threads
+* at the same time with functions that take a const pointer to
+* lzma_index or use lzma_index_iter. The same iterator must be used
+* only by one thread at a time, of course, but there can be as many
+* iterators for the same lzma_index as needed.
+*/
+typedef struct lzma_index_s lzma_index;
+
+
+/**
+* \brief       Iterator to get information about Blocks and Streams
+*/
+typedef struct {
+	struct {
+		/**
+		* \brief       Pointer to Stream Flags
+		*
+		* This is NULL if Stream Flags have not been set for
+		* this Stream with lzma_index_stream_flags().
+		*/
+		const lzma_stream_flags *flags;
+
+		const void *reserved_ptr1;
+		const void *reserved_ptr2;
+		const void *reserved_ptr3;
+
+		/**
+		* \brief       Stream number in the lzma_index
+		*
+		* The first Stream is 1.
+		*/
+		lzma_vli number;
+
+		/**
+		* \brief       Number of Blocks in the Stream
+		*
+		* If this is zero, the block structure below has
+		* undefined values.
+		*/
+		lzma_vli block_count;
+
+		/**
+		* \brief       Compressed start offset of this Stream
+		*
+		* The offset is relative to the beginning of the lzma_index
+		* (i.e. usually the beginning of the .xz file).
+		*/
+		lzma_vli compressed_offset;
+
+		/**
+		* \brief       Uncompressed start offset of this Stream
+		*
+		* The offset is relative to the beginning of the lzma_index
+		* (i.e. usually the beginning of the .xz file).
+		*/
+		lzma_vli uncompressed_offset;
+
+		/**
+		* \brief       Compressed size of this Stream
+		*
+		* This includes all headers except the possible
+		* Stream Padding after this Stream.
+		*/
+		lzma_vli compressed_size;
+
+		/**
+		* \brief       Uncompressed size of this Stream
+		*/
+		lzma_vli uncompressed_size;
+
+		/**
+		* \brief       Size of Stream Padding after this Stream
+		*
+		* If it hasn't been set with lzma_index_stream_padding(),
+		* this defaults to zero. Stream Padding is always
+		* a multiple of four bytes.
+		*/
+		lzma_vli padding;
+
+		lzma_vli reserved_vli1;
+		lzma_vli reserved_vli2;
+		lzma_vli reserved_vli3;
+		lzma_vli reserved_vli4;
+	} stream;
+
+	struct {
+		/**
+		* \brief       Block number in the file
+		*
+		* The first Block is 1.
+		*/
+		lzma_vli number_in_file;
+
+		/**
+		* \brief       Compressed start offset of this Block
+		*
+		* This offset is relative to the beginning of the
+		* lzma_index (i.e. usually the beginning of the .xz file).
+		* Normally this is where you should seek in the .xz file
+		* to start decompressing this Block.
+		*/
+		lzma_vli compressed_file_offset;
+
+		/**
+		* \brief       Uncompressed start offset of this Block
+		*
+		* This offset is relative to the beginning of the lzma_index
+		* (i.e. usually the beginning of the .xz file).
+		*
+		* When doing random-access reading, it is possible that
+		* the target offset is not exactly at Block boundary. One
+		* will need to compare the target offset against
+		* uncompressed_file_offset or uncompressed_stream_offset,
+		* and possibly decode and throw away some amount of data
+		* before reaching the target offset.
+		*/
+		lzma_vli uncompressed_file_offset;
+
+		/**
+		* \brief       Block number in this Stream
+		*
+		* The first Block is 1.
+		*/
+		lzma_vli number_in_stream;
+
+		/**
+		* \brief       Compressed start offset of this Block
+		*
+		* This offset is relative to the beginning of the Stream
+		* containing this Block.
+		*/
+		lzma_vli compressed_stream_offset;
+
+		/**
+		* \brief       Uncompressed start offset of this Block
+		*
+		* This offset is relative to the beginning of the Stream
+		* containing this Block.
+		*/
+		lzma_vli uncompressed_stream_offset;
+
+		/**
+		* \brief       Uncompressed size of this Block
+		*
+		* You should pass this to the Block decoder if you will
+		* decode this Block. It will allow the Block decoder to
+		* validate the uncompressed size.
+		*/
+		lzma_vli uncompressed_size;
+
+		/**
+		* \brief       Unpadded size of this Block
+		*
+		* You should pass this to the Block decoder if you will
+		* decode this Block. It will allow the Block decoder to
+		* validate the unpadded size.
+		*/
+		lzma_vli unpadded_size;
+
+		/**
+		* \brief       Total compressed size
+		*
+		* This includes all headers and padding in this Block.
+		* This is useful if you need to know how many bytes
+		* the Block decoder will actually read.
+		*/
+		lzma_vli total_size;
+
+		lzma_vli reserved_vli1;
+		lzma_vli reserved_vli2;
+		lzma_vli reserved_vli3;
+		lzma_vli reserved_vli4;
+
+		const void *reserved_ptr1;
+		const void *reserved_ptr2;
+		const void *reserved_ptr3;
+		const void *reserved_ptr4;
+	} block;
+
+	/*
+	* Internal data which is used to store the state of the iterator.
+	* The exact format may vary between liblzma versions, so don't
+	* touch these in any way.
+	*/
+	union {
+		const void *p;
+		size_t s;
+		lzma_vli v;
+	} internal[6];
+} lzma_index_iter;
+
+
+/**
+* \brief       Operation mode for lzma_index_iter_next()
+*/
+typedef enum {
+	LZMA_INDEX_ITER_ANY = 0,
+	/**<
+	* \brief       Get the next Block or Stream
+	*
+	* Go to the next Block if the current Stream has at least
+	* one Block left. Otherwise go to the next Stream even if
+	* it has no Blocks. If the Stream has no Blocks
+	* (lzma_index_iter.stream.block_count == 0),
+	* lzma_index_iter.block will have undefined values.
+	*/
+
+	LZMA_INDEX_ITER_STREAM = 1,
+	/**<
+	* \brief       Get the next Stream
+	*
+	* Go to the next Stream even if the current Stream has
+	* unread Blocks left. If the next Stream has at least one
+	* Block, the iterator will point to the first Block.
+	* If there are no Blocks, lzma_index_iter.block will have
+	* undefined values.
+	*/
+
+	LZMA_INDEX_ITER_BLOCK = 2,
+	/**<
+	* \brief       Get the next Block
+	*
+	* Go to the next Block if the current Stream has at least
+	* one Block left. If the current Stream has no Blocks left,
+	* the next Stream with at least one Block is located and
+	* the iterator will be made to point to the first Block of
+	* that Stream.
+	*/
+
+	LZMA_INDEX_ITER_NONEMPTY_BLOCK = 3
+	/**<
+	* \brief       Get the next non-empty Block
+	*
+	* This is like LZMA_INDEX_ITER_BLOCK except that it will
+	* skip Blocks whose Uncompressed Size is zero.
+	*/
+
+} lzma_index_iter_mode;
+
+
+/**
+* \brief       Calculate memory usage of lzma_index
+*
+* On disk, the size of the Index field depends on both the number of Records
+* stored and how big values the Records store (due to variable-length integer
+* encoding). When the Index is kept in lzma_index structure, the memory usage
+* depends only on the number of Records/Blocks stored in the Index(es), and
+* in case of concatenated lzma_indexes, the number of Streams. The size in
+* RAM is almost always significantly bigger than in the encoded form on disk.
+*
+* This function calculates an approximate amount of memory needed hold
+* the given number of Streams and Blocks in lzma_index structure. This
+* value may vary between CPU architectures and also between liblzma versions
+* if the internal implementation is modified.
+*/
+extern LZMA_API(uint64_t) lzma_index_memusage(
+	lzma_vli streams, lzma_vli blocks) lzma_nothrow;
+
+
+/**
+* \brief       Calculate the memory usage of an existing lzma_index
+*
+* This is a shorthand for lzma_index_memusage(lzma_index_stream_count(i),
+* lzma_index_block_count(i)).
+*/
+extern LZMA_API(uint64_t) lzma_index_memused(const lzma_index *i)
+lzma_nothrow;
+
+
+/**
+* \brief       Allocate and initialize a new lzma_index structure
+*
+* \return      On success, a pointer to an empty initialized lzma_index is
+*              returned. If allocation fails, NULL is returned.
+*/
+extern LZMA_API(lzma_index *) lzma_index_init(const lzma_allocator *allocator)
+lzma_nothrow;
+
+
+/**
+* \brief       Deallocate lzma_index
+*
+* If i is NULL, this does nothing.
+*/
+extern LZMA_API(void) lzma_index_end(
+	lzma_index *i, const lzma_allocator *allocator) lzma_nothrow;
+
+
+/**
+* \brief       Add a new Block to lzma_index
+*
+* \param       i                 Pointer to a lzma_index structure
+* \param       allocator         Pointer to lzma_allocator, or NULL to
+*                                use malloc()
+* \param       unpadded_size     Unpadded Size of a Block. This can be
+*                                calculated with lzma_block_unpadded_size()
+*                                after encoding or decoding the Block.
+* \param       uncompressed_size Uncompressed Size of a Block. This can be
+*                                taken directly from lzma_block structure
+*                                after encoding or decoding the Block.
+*
+* Appending a new Block does not invalidate iterators. For example,
+* if an iterator was pointing to the end of the lzma_index, after
+* lzma_index_append() it is possible to read the next Block with
+* an existing iterator.
+*
+* \return      - LZMA_OK
+*              - LZMA_MEM_ERROR
+*              - LZMA_DATA_ERROR: Compressed or uncompressed size of the
+*                Stream or size of the Index field would grow too big.
+*              - LZMA_PROG_ERROR
+*/
+extern LZMA_API(lzma_ret) lzma_index_append(
+	lzma_index *i, const lzma_allocator *allocator,
+	lzma_vli unpadded_size, lzma_vli uncompressed_size)
+	lzma_nothrow lzma_attr_warn_unused_result;
+
+
+/**
+* \brief       Set the Stream Flags
+*
+* Set the Stream Flags of the last (and typically the only) Stream
+* in lzma_index. This can be useful when reading information from the
+* lzma_index, because to decode Blocks, knowing the integrity check type
+* is needed.
+*
+* The given Stream Flags are copied into internal preallocated structure
+* in the lzma_index, thus the caller doesn't need to keep the *stream_flags
+* available after calling this function.
+*
+* \return      - LZMA_OK
+*              - LZMA_OPTIONS_ERROR: Unsupported stream_flags->version.
+*              - LZMA_PROG_ERROR
+*/
+extern LZMA_API(lzma_ret) lzma_index_stream_flags(
+	lzma_index *i, const lzma_stream_flags *stream_flags)
+	lzma_nothrow lzma_attr_warn_unused_result;
+
+
+/**
+* \brief       Get the types of integrity Checks
+*
+* If lzma_index_stream_flags() is used to set the Stream Flags for
+* every Stream, lzma_index_checks() can be used to get a bitmask to
+* indicate which Check types have been used. It can be useful e.g. if
+* showing the Check types to the user.
+*
+* The bitmask is 1 << check_id, e.g. CRC32 is 1 << 1 and SHA-256 is 1 << 10.
+*/
+extern LZMA_API(uint32_t) lzma_index_checks(const lzma_index *i)
+lzma_nothrow lzma_attr_pure;
+
+
+/**
+* \brief       Set the amount of Stream Padding
+*
+* Set the amount of Stream Padding of the last (and typically the only)
+* Stream in the lzma_index. This is needed when planning to do random-access
+* reading within multiple concatenated Streams.
+*
+* By default, the amount of Stream Padding is assumed to be zero bytes.
+*
+* \return      - LZMA_OK
+*              - LZMA_DATA_ERROR: The file size would grow too big.
+*              - LZMA_PROG_ERROR
+*/
+extern LZMA_API(lzma_ret) lzma_index_stream_padding(
+	lzma_index *i, lzma_vli stream_padding)
+	lzma_nothrow lzma_attr_warn_unused_result;
+
+
+/**
+* \brief       Get the number of Streams
+*/
+extern LZMA_API(lzma_vli) lzma_index_stream_count(const lzma_index *i)
+lzma_nothrow lzma_attr_pure;
+
+
+/**
+* \brief       Get the number of Blocks
+*
+* This returns the total number of Blocks in lzma_index. To get number
+* of Blocks in individual Streams, use lzma_index_iter.
+*/
+extern LZMA_API(lzma_vli) lzma_index_block_count(const lzma_index *i)
+lzma_nothrow lzma_attr_pure;
+
+
+/**
+* \brief       Get the size of the Index field as bytes
+*
+* This is needed to verify the Backward Size field in the Stream Footer.
+*/
+extern LZMA_API(lzma_vli) lzma_index_size(const lzma_index *i)
+lzma_nothrow lzma_attr_pure;
+
+
+/**
+* \brief       Get the total size of the Stream
+*
+* If multiple lzma_indexes have been combined, this works as if the Blocks
+* were in a single Stream. This is useful if you are going to combine
+* Blocks from multiple Streams into a single new Stream.
+*/
+extern LZMA_API(lzma_vli) lzma_index_stream_size(const lzma_index *i)
+lzma_nothrow lzma_attr_pure;
+
+
+/**
+* \brief       Get the total size of the Blocks
+*
+* This doesn't include the Stream Header, Stream Footer, Stream Padding,
+* or Index fields.
+*/
+extern LZMA_API(lzma_vli) lzma_index_total_size(const lzma_index *i)
+lzma_nothrow lzma_attr_pure;
+
+
+/**
+* \brief       Get the total size of the file
+*
+* When no lzma_indexes have been combined with lzma_index_cat() and there is
+* no Stream Padding, this function is identical to lzma_index_stream_size().
+* If multiple lzma_indexes have been combined, this includes also the headers
+* of each separate Stream and the possible Stream Padding fields.
+*/
+extern LZMA_API(lzma_vli) lzma_index_file_size(const lzma_index *i)
+lzma_nothrow lzma_attr_pure;
+
+
+/**
+* \brief       Get the uncompressed size of the file
+*/
+extern LZMA_API(lzma_vli) lzma_index_uncompressed_size(const lzma_index *i)
+lzma_nothrow lzma_attr_pure;
+
+
+/**
+* \brief       Initialize an iterator
+*
+* \param       iter    Pointer to a lzma_index_iter structure
+* \param       i       lzma_index to which the iterator will be associated
+*
+* This function associates the iterator with the given lzma_index, and calls
+* lzma_index_iter_rewind() on the iterator.
+*
+* This function doesn't allocate any memory, thus there is no
+* lzma_index_iter_end(). The iterator is valid as long as the
+* associated lzma_index is valid, that is, until lzma_index_end() or
+* using it as source in lzma_index_cat(). Specifically, lzma_index doesn't
+* become invalid if new Blocks are added to it with lzma_index_append() or
+* if it is used as the destination in lzma_index_cat().
+*
+* It is safe to make copies of an initialized lzma_index_iter, for example,
+* to easily restart reading at some particular position.
+*/
+extern LZMA_API(void) lzma_index_iter_init(
+	lzma_index_iter *iter, const lzma_index *i) lzma_nothrow;
+
+
+/**
+* \brief       Rewind the iterator
+*
+* Rewind the iterator so that next call to lzma_index_iter_next() will
+* return the first Block or Stream.
+*/
+extern LZMA_API(void) lzma_index_iter_rewind(lzma_index_iter *iter)
+lzma_nothrow;
+
+
+/**
+* \brief       Get the next Block or Stream
+*
+* \param       iter    Iterator initialized with lzma_index_iter_init()
+* \param       mode    Specify what kind of information the caller wants
+*                      to get. See lzma_index_iter_mode for details.
+*
+* \return      If next Block or Stream matching the mode was found, *iter
+*              is updated and this function returns false. If no Block or
+*              Stream matching the mode is found, *iter is not modified
+*              and this function returns true. If mode is set to an unknown
+*              value, *iter is not modified and this function returns true.
+*/
+extern LZMA_API(lzma_bool) lzma_index_iter_next(
+	lzma_index_iter *iter, lzma_index_iter_mode mode)
+	lzma_nothrow lzma_attr_warn_unused_result;
+
+
+/**
+* \brief       Locate a Block
+*
+* If it is possible to seek in the .xz file, it is possible to parse
+* the Index field(s) and use lzma_index_iter_locate() to do random-access
+* reading with granularity of Block size.
+*
+* \param       iter    Iterator that was earlier initialized with
+*                      lzma_index_iter_init().
+* \param       target  Uncompressed target offset which the caller would
+*                      like to locate from the Stream
+*
+* If the target is smaller than the uncompressed size of the Stream (can be
+* checked with lzma_index_uncompressed_size()):
+*  - Information about the Stream and Block containing the requested
+*    uncompressed offset is stored into *iter.
+*  - Internal state of the iterator is adjusted so that
+*    lzma_index_iter_next() can be used to read subsequent Blocks or Streams.
+*  - This function returns false.
+*
+* If target is greater than the uncompressed size of the Stream, *iter
+* is not modified, and this function returns true.
+*/
+extern LZMA_API(lzma_bool) lzma_index_iter_locate(
+	lzma_index_iter *iter, lzma_vli target) lzma_nothrow;
+
+
+/**
+* \brief       Concatenate lzma_indexes
+*
+* Concatenating lzma_indexes is useful when doing random-access reading in
+* multi-Stream .xz file, or when combining multiple Streams into single
+* Stream.
+*
+* \param       dest      lzma_index after which src is appended
+* \param       src       lzma_index to be appended after dest. If this
+*                        function succeeds, the memory allocated for src
+*                        is freed or moved to be part of dest, and all
+*                        iterators pointing to src will become invalid.
+* \param       allocator Custom memory allocator; can be NULL to use
+*                        malloc() and free().
+*
+* \return      - LZMA_OK: lzma_indexes were concatenated successfully.
+*                src is now a dangling pointer.
+*              - LZMA_DATA_ERROR: *dest would grow too big.
+*              - LZMA_MEM_ERROR
+*              - LZMA_PROG_ERROR
+*/
+extern LZMA_API(lzma_ret) lzma_index_cat(lzma_index *dest, lzma_index *src,
+	const lzma_allocator *allocator)
+	lzma_nothrow lzma_attr_warn_unused_result;
+
+
+/**
+* \brief       Duplicate lzma_index
+*
+* \return      A copy of the lzma_index, or NULL if memory allocation failed.
+*/
+extern LZMA_API(lzma_index *) lzma_index_dup(
+	const lzma_index *i, const lzma_allocator *allocator)
+	lzma_nothrow lzma_attr_warn_unused_result;
+
+
+/**
+* \brief       Initialize .xz Index encoder
+*
+* \param       strm        Pointer to properly prepared lzma_stream
+* \param       i           Pointer to lzma_index which should be encoded.
+*
+* The valid `action' values for lzma_code() are LZMA_RUN and LZMA_FINISH.
+* It is enough to use only one of them (you can choose freely; use LZMA_RUN
+* to support liblzma versions older than 5.0.0).
+*
+* \return      - LZMA_OK: Initialization succeeded, continue with lzma_code().
+*              - LZMA_MEM_ERROR
+*              - LZMA_PROG_ERROR
+*/
+extern LZMA_API(lzma_ret) lzma_index_encoder(
+	lzma_stream *strm, const lzma_index *i)
+	lzma_nothrow lzma_attr_warn_unused_result;
+
+
+/**
+* \brief       Initialize .xz Index decoder
+*
+* \param       strm        Pointer to properly prepared lzma_stream
+* \param       i           The decoded Index will be made available via
+*                          this pointer. Initially this function will
+*                          set *i to NULL (the old value is ignored). If
+*                          decoding succeeds (lzma_code() returns
+*                          LZMA_STREAM_END), *i will be set to point
+*                          to a new lzma_index, which the application
+*                          has to later free with lzma_index_end().
+* \param       memlimit    How much memory the resulting lzma_index is
+*                          allowed to require.
+*
+* The valid `action' values for lzma_code() are LZMA_RUN and LZMA_FINISH.
+* It is enough to use only one of them (you can choose freely; use LZMA_RUN
+* to support liblzma versions older than 5.0.0).
+*
+* \return      - LZMA_OK: Initialization succeeded, continue with lzma_code().
+*              - LZMA_MEM_ERROR
+*              - LZMA_MEMLIMIT_ERROR
+*              - LZMA_PROG_ERROR
+*/
+extern LZMA_API(lzma_ret) lzma_index_decoder(
+	lzma_stream *strm, lzma_index **i, uint64_t memlimit)
+	lzma_nothrow lzma_attr_warn_unused_result;
+
+
+/**
+* \brief       Single-call .xz Index encoder
+*
+* \param       i         lzma_index to be encoded
+* \param       out       Beginning of the output buffer
+* \param       out_pos   The next byte will be written to out[*out_pos].
+*                        *out_pos is updated only if encoding succeeds.
+* \param       out_size  Size of the out buffer; the first byte into
+*                        which no data is written to is out[out_size].
+*
+* \return      - LZMA_OK: Encoding was successful.
+*              - LZMA_BUF_ERROR: Output buffer is too small. Use
+*                lzma_index_size() to find out how much output
+*                space is needed.
+*              - LZMA_PROG_ERROR
+*
+* \note        This function doesn't take allocator argument since all
+*              the internal data is allocated on stack.
+*/
+extern LZMA_API(lzma_ret) lzma_index_buffer_encode(const lzma_index *i,
+	uint8_t *out, size_t *out_pos, size_t out_size) lzma_nothrow;
+
+
+/**
+* \brief       Single-call .xz Index decoder
+*
+* \param       i           If decoding succeeds, *i will point to a new
+*                          lzma_index, which the application has to
+*                          later free with lzma_index_end(). If an error
+*                          occurs, *i will be NULL. The old value of *i
+*                          is always ignored and thus doesn't need to be
+*                          initialized by the caller.
+* \param       memlimit    Pointer to how much memory the resulting
+*                          lzma_index is allowed to require. The value
+*                          pointed by this pointer is modified if and only
+*                          if LZMA_MEMLIMIT_ERROR is returned.
+* \param       allocator   Pointer to lzma_allocator, or NULL to use malloc()
+* \param       in          Beginning of the input buffer
+* \param       in_pos      The next byte will be read from in[*in_pos].
+*                          *in_pos is updated only if decoding succeeds.
+* \param       in_size     Size of the input buffer; the first byte that
+*                          won't be read is in[in_size].
+*
+* \return      - LZMA_OK: Decoding was successful.
+*              - LZMA_MEM_ERROR
+*              - LZMA_MEMLIMIT_ERROR: Memory usage limit was reached.
+*                The minimum required memlimit value was stored to *memlimit.
+*              - LZMA_DATA_ERROR
+*              - LZMA_PROG_ERROR
+*/
+extern LZMA_API(lzma_ret) lzma_index_buffer_decode(lzma_index **i,
+	uint64_t *memlimit, const lzma_allocator *allocator,
+	const uint8_t *in, size_t *in_pos, size_t in_size)
+	lzma_nothrow;
+
+
+/**
+* \brief       Opaque data type to hold the Index hash
+*/
+typedef struct lzma_index_hash_s lzma_index_hash;
+
+
+/**
+* \brief       Allocate and initialize a new lzma_index_hash structure
+*
+* If index_hash is NULL, a new lzma_index_hash structure is allocated,
+* initialized, and a pointer to it returned. If allocation fails, NULL
+* is returned.
+*
+* If index_hash is non-NULL, it is reinitialized and the same pointer
+* returned. In this case, return value cannot be NULL or a different
+* pointer than the index_hash that was given as an argument.
+*/
+extern LZMA_API(lzma_index_hash *) lzma_index_hash_init(
+	lzma_index_hash *index_hash, const lzma_allocator *allocator)
+	lzma_nothrow lzma_attr_warn_unused_result;
+
+
+/**
+* \brief       Deallocate lzma_index_hash structure
+*/
+extern LZMA_API(void) lzma_index_hash_end(
+	lzma_index_hash *index_hash, const lzma_allocator *allocator)
+	lzma_nothrow;
+
+
+/**
+* \brief       Add a new Record to an Index hash
+*
+* \param       index             Pointer to a lzma_index_hash structure
+* \param       unpadded_size     Unpadded Size of a Block
+* \param       uncompressed_size Uncompressed Size of a Block
+*
+* \return      - LZMA_OK
+*              - LZMA_DATA_ERROR: Compressed or uncompressed size of the
+*                Stream or size of the Index field would grow too big.
+*              - LZMA_PROG_ERROR: Invalid arguments or this function is being
+*                used when lzma_index_hash_decode() has already been used.
+*/
+extern LZMA_API(lzma_ret) lzma_index_hash_append(lzma_index_hash *index_hash,
+	lzma_vli unpadded_size, lzma_vli uncompressed_size)
+	lzma_nothrow lzma_attr_warn_unused_result;
+
+
+/**
+* \brief       Decode and validate the Index field
+*
+* After telling the sizes of all Blocks with lzma_index_hash_append(),
+* the actual Index field is decoded with this function. Specifically,
+* once decoding of the Index field has been started, no more Records
+* can be added using lzma_index_hash_append().
+*
+* This function doesn't use lzma_stream structure to pass the input data.
+* Instead, the input buffer is specified using three arguments. This is
+* because it matches better the internal APIs of liblzma.
+*
+* \param       index_hash      Pointer to a lzma_index_hash structure
+* \param       in              Pointer to the beginning of the input buffer
+* \param       in_pos          in[*in_pos] is the next byte to process
+* \param       in_size         in[in_size] is the first byte not to process
+*
+* \return      - LZMA_OK: So far good, but more input is needed.
+*              - LZMA_STREAM_END: Index decoded successfully and it matches
+*                the Records given with lzma_index_hash_append().
+*              - LZMA_DATA_ERROR: Index is corrupt or doesn't match the
+*                information given with lzma_index_hash_append().
+*              - LZMA_BUF_ERROR: Cannot progress because *in_pos >= in_size.
+*              - LZMA_PROG_ERROR
+*/
+extern LZMA_API(lzma_ret) lzma_index_hash_decode(lzma_index_hash *index_hash,
+	const uint8_t *in, size_t *in_pos, size_t in_size)
+	lzma_nothrow lzma_attr_warn_unused_result;
+
+
+/**
+* \brief       Get the size of the Index field as bytes
+*
+* This is needed to verify the Backward Size field in the Stream Footer.
+*/
+extern LZMA_API(lzma_vli) lzma_index_hash_size(
+	const lzma_index_hash *index_hash)
+	lzma_nothrow lzma_attr_pure;
+
+
+/**
+* \brief       Get the total amount of physical memory (RAM) in bytes
+*
+* This function may be useful when determining a reasonable memory
+* usage limit for decompressing or how much memory it is OK to use
+* for compressing.
+*
+* \return      On success, the total amount of physical memory in bytes
+*              is returned. If the amount of RAM cannot be determined,
+*              zero is returned. This can happen if an error occurs
+*              or if there is no code in liblzma to detect the amount
+*              of RAM on the specific operating system.
+*/
+extern LZMA_API(uint64_t) lzma_physmem(void) lzma_nothrow;
+
+
+/**
+* \brief       Get the number of processor cores or threads
+*
+* This function may be useful when determining how many threads to use.
+* If the hardware supports more than one thread per CPU core, the number
+* of hardware threads is returned if that information is available.
+*
+* \brief       On success, the number of available CPU threads or cores is
+*              returned. If this information isn't available or an error
+*              occurs, zero is returned.
+*/
+extern LZMA_API(uint32_t) lzma_cputhreads(void) lzma_nothrow;
 
 
 #endif // INCLUDE_LZMA_H
