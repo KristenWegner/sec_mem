@@ -332,5 +332,112 @@ inline static uint64_t next_exponent_of_two(register uint64_t value)
 }
 
 
+// Returns the minimal bit count of (t ^ value2) where t runs through the cyclic rotations of value1.
+inline static uint64_t cyclic_distance_64(register uint64_t value1, register uint64_t value2)
+{
+	register uint64_t result = ~UINT64_C(0), t = value1;
+
+	do
+	{
+		register uint64_t z = t ^ value2;
+		register uint64_t e = count_set_bits_64(z);
+
+		if (e < result) 
+			result = e;
+
+		t = rotate_right_64(t, UINT64_C(1));
+	}
+	while (t != value1);
+
+	return result;
+}
+
+
+// Swaps the two central blocks of 16 bits.
+inline static uint64_t butterfly_16_64(register uint64_t value)
+{
+	return (value & UINT64_C(0xFFFF0000FC0003FF)) | ((value & UINT64_C(0xFFFF00000000)) >> UINT64_C(16)) | ((value & UINT64_C(0x3FFFC00)) << UINT64_C(16));
+}
+
+
+// Swaps in each block of 32 bits the two central blocks of 8 bits.
+inline static uint64_t butterfly_8_64(register uint64_t value)
+{
+	return (value & ~UINT64_C(0xFFFF0000FFFF00)) | ((value & UINT64_C(0xFF000000FF0000)) >> UINT64_C(8)) | ((value & UINT64_C(0xFF000000FF00)) << UINT64_C(8));
+}
+
+
+// Swaps in each block of 16 bits the two central blocks of 4 bits.
+inline static uint64_t butterfly_4_64(register uint64_t value)
+{
+	return (value & ~UINT64_C(0xFF00FF00FF00FF0)) | ((value & UINT64_C(0x0F000F000F000F00)) >> UINT64_C(4)) | ((value & UINT64_C(0xF000F000F000F0)) << UINT64_C(4));
+}
+
+
+// Swaps in each block of 8 bits the two central blocks of 2 bits.
+inline static uint64_t butterfly_2_64(register uint64_t value)
+{
+	return (value & ~UINT64_C(0x3C3C3C3C3C3C3C3C)) | ((value & UINT64_C(0x3030303030303030)) >> UINT64_C(2)) | ((value & UINT64_C(0xC0C0C0C0C0C0C0C)) << UINT64_C(2));
+}
+
+
+// Returns the first combination (smallest word with) k bits, i.e. 00..001111..1 (low bits set). 
+// Restrictions: Must have 0 <= value <= 64.
+inline static uint64_t first_combination_64(register uint64_t value)
+{
+	if (value == UINT64_C(0)) return UINT64_C(0);
+	return ~UINT64_C(0) >> (UINT64_C(16) - value);
+}
+
+
+// Returns the last combination of (biggest n-bit word with) k bits, i.e. 1111..100..00 (k high bits set).
+// Restrictions: Must have 0 <= value <= bits <= 64.
+inline static uint64_t last_combination_64(register uint64_t value, register uint64_t bits)
+{
+	return  first_combination_64(value) << (bits - value);
+}
+
+
+// Return smallest integer greater than value with the same number of bits set.
+inline static uint64_t next_colexicographic_combination_64(register uint64_t value)
+{
+	register uint64_t z;
+
+	if (value & UINT64_C(1))
+	{
+		z = ~value;
+		z &= -z;
+
+		if (z == UINT64_C(0)) 
+			return UINT64_C(0);
+
+		value += (z >> UINT64_C(1));
+
+		return value;
+	}
+
+	z = value & -value;
+
+	register uint64_t v = value + z;
+
+	if (v)
+		v += (v ^ value) / (z >> UINT64_C(2));
+
+	return v;
+}
+
+
+// Returns the inverse of the next colexicographic combination.
+static inline uint64_t previous_colexicographic_combination_64(register uint64_t value)
+{
+	value = next_colexicographic_combination_64(~value);
+
+	if (value != UINT64_C(0)) 
+		value = ~value;
+
+	return value;
+}
+
+
 #endif // INCLUDE_PERM_H
 
