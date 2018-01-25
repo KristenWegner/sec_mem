@@ -19,14 +19,14 @@
 
 
 // Returns a word rotated n bits to the left.
-inline static uint64_t rotate_left_64(register uint64_t value, register uint64_t bits)
+inline static uint64_t rotl_64(register uint64_t value, register uint64_t bits)
 {
 	return  (value << bits) | (value >> (UINT64_C(64) - bits));
 }
 
 
 // Returns a word rotated n bits to the right.
-inline static uint64_t rotate_right_64(register uint64_t value, register uint64_t bits)
+inline static uint64_t rotr_64(register uint64_t value, register uint64_t bits)
 {
 	return  (value >> bits) | (value << (UINT64_C(64) - bits));
 }
@@ -35,8 +35,8 @@ inline static uint64_t rotate_right_64(register uint64_t value, register uint64_
 // Rotate value left or right by the specified count of bits.
 inline static uint64_t rotate_64(register uint64_t value, register int64_t bits)
 {
-	if (bits < 0) return rotate_left_64(value, -bits);
-	else if (bits > 0) return rotate_right_64(value, bits);
+	if (bits < 0) return rotl_64(value, -bits);
+	else if (bits > 0) return rotr_64(value, bits);
 	else return UINT64_C(0);
 }
 
@@ -76,7 +76,7 @@ inline static uint64_t gather_64(register uint64_t value, register uint64_t mask
 
 
 // Returns the count of set bits.
-inline static uint64_t count_set_bits_64(register uint64_t x)
+inline static uint64_t bits_64(register uint64_t x)
 {
 	x -= (x >> UINT64_C(1)) & UINT64_C(0x5555555555555555);
 	x = ((x >> UINT64_C(2)) & UINT64_C(0x3333333333333333)) + (x & UINT64_C(0x3333333333333333));
@@ -88,21 +88,21 @@ inline static uint64_t count_set_bits_64(register uint64_t x)
 
 
 // Returns the count of bit blocks.
-inline static uint64_t count_bit_blocks_64(register uint64_t value)
+inline static uint64_t blocks_64(register uint64_t value)
 {
-	return (value & UINT64_C(1)) + count_set_bits_64((value ^ (value >> UINT64_C(1)))) / UINT64_C(2);
+	return (value & UINT64_C(1)) + bits_64((value ^ (value >> UINT64_C(1)))) / UINT64_C(2);
 }
 
 
 // Return floor((value1 + value2) / 2) even if (value1 + value2) doesn't fit into a uint64_t.
-inline static uint64_t average_64(register uint64_t value1, register uint64_t value2)
+inline static uint64_t avg_64(register uint64_t value1, register uint64_t value2)
 {
 	return  (value1 & value2) + ((value1 ^ value2) >> UINT64_C(1));
 }
 
 
 // Returns the Gray code, e.g. the bit-wise derivative modulo 2.
-inline static uint64_t gray_code_64(register uint64_t value)
+inline static uint64_t gray_64(register uint64_t value)
 {
 	return  value ^ (value >> UINT64_C(1));
 }
@@ -110,7 +110,7 @@ inline static uint64_t gray_code_64(register uint64_t value)
 
 // Returns the inverse Gray code, e.g. at each bit position, the parity of all bits of the 
 // input to the left from it (including itself).
-inline static uint64_t inverse_gray_code_64(register uint64_t value)
+inline static uint64_t inv_gray_64(register uint64_t value)
 {
 	value ^= value >> UINT64_C(1);
 	value ^= value >> UINT64_C(2);
@@ -126,12 +126,12 @@ inline static uint64_t inverse_gray_code_64(register uint64_t value)
 // Return 0 if the number of set bits is even, else 1.
 inline static uint64_t parity_64(register uint64_t value)
 {
-	return inverse_gray_code_64(value) & UINT64_C(1);
+	return inv_gray_64(value) & UINT64_C(1);
 }
 
 
 // Converts a binary number to the corresponding word in SL-Gray order.
-inline static uint64_t bin_to_sl_gray_64(register uint64_t value, register uint64_t ldn)
+inline static uint64_t bin_sl_gray_64(register uint64_t value, register uint64_t ldn)
 {
 	if (ldn == UINT64_C(0))
 		return UINT64_C(0);
@@ -161,7 +161,7 @@ inline static uint64_t bin_to_sl_gray_64(register uint64_t value, register uint6
 
 
 // Converts a binary word in SL-Gray order to a binary number.
-inline static uint64_t sl_gray_to_bin_64(register uint64_t value, register uint64_t ldn)
+inline static uint64_t sl_gray_bin_64(register uint64_t value, register uint64_t ldn)
 {
 	if (value == UINT64_C(0)) 
 		return UINT64_C(0);
@@ -171,7 +171,7 @@ inline static uint64_t sl_gray_to_bin_64(register uint64_t value, register uint6
 
 	value ^= h;
 
-	register uint64_t z = sl_gray_to_bin_64(value, ldn - UINT64_C(1));
+	register uint64_t z = sl_gray_bin_64(value, ldn - UINT64_C(1));
 
 	if (h == UINT64_C(0)) 
 		return (b << UINT64_C(1)) - z;
@@ -181,7 +181,7 @@ inline static uint64_t sl_gray_to_bin_64(register uint64_t value, register uint6
 
 // Returns the next value in the Thue-Morse sequence of the given value and state.
 // If first is true then the state is initialized.
-inline static uint64_t thue_morse_next_64(register uint64_t* value, register uint64_t* state, bool first)
+inline static uint64_t thue_morse_64(register uint64_t* value, register uint64_t* state, bool first)
 {
 	if (first) *state = parity_64(*value);
 
@@ -198,7 +198,7 @@ inline static uint64_t thue_morse_next_64(register uint64_t* value, register uin
 
 // Returns the inverse modulo 2 ^ 64 of the input. 
 // Restrictions: Input must be odd.
-inline static uint64_t inverse_to_adic_64(register uint64_t value)
+inline static uint64_t inv_adic_64(register uint64_t value)
 {
 	if ((value & UINT64_C(1)) == UINT64_C(0))
 		return UINT64_C(0);
@@ -218,7 +218,7 @@ inline static uint64_t inverse_to_adic_64(register uint64_t value)
 
 // Returns the inverse square root modulo 2 ^ 64. 
 // Restrictions: Input must have value = 1 mod 8.
-inline static uint64_t inverse_sqrt_to_adic_64(register uint64_t value)
+inline static uint64_t inv_sqrt_adic_64(register uint64_t value)
 {
 	if ((value & UINT64_C(7)) != UINT64_C(1))
 		return UINT64_C(0);
@@ -237,9 +237,9 @@ inline static uint64_t inverse_sqrt_to_adic_64(register uint64_t value)
 }
 
 
-// Returns the square root modulo 2 ^ 64. Restrictions: Input must have value = 1 mod 8, 
-// value = 4 mod 32, value = 16 mod 128, etc.
-inline static uint64_t sqrt_to_adic_64(register uint64_t value)
+// Returns the square root modulo 2 ^ 64.
+// Restrictions: Input must have value = 1 mod 8, value = 4 mod 32, value = 16 mod 128, etc.
+inline static uint64_t sqrt_adic_64(register uint64_t value)
 {
 	if (value == UINT64_C(0))
 		return UINT64_C(0);
@@ -249,7 +249,7 @@ inline static uint64_t sqrt_to_adic_64(register uint64_t value)
 	while ((value & UINT64_C(1)) == UINT64_C(0))
 		value >>= UINT64_C(1), ++s;
 
-	value *= inverse_sqrt_to_adic_64(value);
+	value *= inv_sqrt_adic_64(value);
 	value <<= (s >> UINT64_C(1));
 
 	return value;
@@ -257,42 +257,42 @@ inline static uint64_t sqrt_to_adic_64(register uint64_t value)
 
 
 // Returns whether floor(log2(value1)) == floor(log2(value2)).
-inline static bool floor_log_two_equal_64(register uint64_t value1, register uint64_t value2)
+inline static bool floor_log2_equ_64(register uint64_t value1, register uint64_t value2)
 {
 	return  ((value1 ^ value2) <= (value1 & value2));
 }
 
 
 // Returns whether floor(log2(value1)) != floor(log2(value2)).
-inline static bool floor_log_two_not_equal_64(register uint64_t value1, register uint64_t value2)
+inline static bool floor_log2_neq_64(register uint64_t value1, register uint64_t value2)
 {
 	return  ((value1 ^ value2) > (value1 & value2));
 }
 
 
 // Returns the index of the highest set bit, or 0 if no bit is set.
-inline static uint64_t index_highest_set_64(register uint64_t value)
+inline static uint64_t highest_set_64(register uint64_t value)
 {
 	return
-		   (uint64_t)floor_log_two_not_equal_64(value, value & UINT64_C(0x5555555555555555))
-		+ ((uint64_t)floor_log_two_not_equal_64(value, value & UINT64_C(0x3333333333333333)) << UINT64_C(1))
-		+ ((uint64_t)floor_log_two_not_equal_64(value, value & UINT64_C(0x0F0F0F0F0F0F0F0F)) << UINT64_C(2))
-		+ ((uint64_t)floor_log_two_not_equal_64(value, value & UINT64_C(0x00FF00FF00FF00FF)) << UINT64_C(3))
-		+ ((uint64_t)floor_log_two_not_equal_64(value, value & UINT64_C(0x0000FFFF0000FFFF)) << UINT64_C(4))
-		+ ((uint64_t)floor_log_two_not_equal_64(value, value & UINT64_C(0x00000000FFFFFFFF)) << UINT64_C(5));
+		   (uint64_t)floor_log2_neq_64(value, value & UINT64_C(0x5555555555555555))
+		+ ((uint64_t)floor_log2_neq_64(value, value & UINT64_C(0x3333333333333333)) << UINT64_C(1))
+		+ ((uint64_t)floor_log2_neq_64(value, value & UINT64_C(0x0F0F0F0F0F0F0F0F)) << UINT64_C(2))
+		+ ((uint64_t)floor_log2_neq_64(value, value & UINT64_C(0x00FF00FF00FF00FF)) << UINT64_C(3))
+		+ ((uint64_t)floor_log2_neq_64(value, value & UINT64_C(0x0000FFFF0000FFFF)) << UINT64_C(4))
+		+ ((uint64_t)floor_log2_neq_64(value, value & UINT64_C(0x00000000FFFFFFFF)) << UINT64_C(5));
 }
 
 
 // Returns floor(log2(value)), i.e. return k so that 2 ^ k <= x < 2 ^ (k + 1). 
 // If x = 0, then 0 is returned.
-inline static uint64_t floor_log_two_64(register uint64_t value)
+inline static uint64_t floor_log2_64(register uint64_t value)
 {
-	return index_highest_set_64(value);
+	return highest_set_64(value);
 }
 
 
 // Returns true if value = 0 or value = 2 ^ k.
-inline static bool is_power_of_two_64(register uint64_t value)
+inline static bool is_pow2_64(register uint64_t value)
 {
 	return !(value & (value - UINT64_C(1)));
 }
@@ -308,9 +308,9 @@ inline static bool one_bit_q_64(register uint64_t value)
 
 // Returns value if value = 2 ^ k, else returns 2 ^ ceil(log2(value)). 
 // Exceptions: Returns 0 for value = 0.
-inline static uint64_t next_power_of_two_64(register uint64_t value)
+inline static uint64_t next_pow_two_64(register uint64_t value)
 {
-	if (is_power_of_two_64(value))
+	if (is_pow2_64(value))
 		return value;
 
 	value |= value >> UINT64_C(1);
@@ -325,27 +325,27 @@ inline static uint64_t next_power_of_two_64(register uint64_t value)
 
 
 // Returns k if value = 2 ^ k, else k + 1. Exception: returns 0 for value = 0.
-inline static uint64_t next_exponent_of_two(register uint64_t value)
+inline static uint64_t next_exp2_64(register uint64_t value)
 {
 	if (value <= UINT64_C(1)) return UINT64_C(0);
-	return floor_log_two_64(value - UINT64_C(1)) + UINT64_C(1);
+	return floor_log2_64(value - UINT64_C(1)) + UINT64_C(1);
 }
 
 
 // Returns the minimal bit count of (t ^ value2) where t runs through the cyclic rotations of value1.
-inline static uint64_t cyclic_distance_64(register uint64_t value1, register uint64_t value2)
+inline static uint64_t cyc_dist_64(register uint64_t value1, register uint64_t value2)
 {
 	register uint64_t result = ~UINT64_C(0), t = value1;
 
 	do
 	{
 		register uint64_t z = t ^ value2;
-		register uint64_t e = count_set_bits_64(z);
+		register uint64_t e = bits_64(z);
 
 		if (e < result) 
 			result = e;
 
-		t = rotate_right_64(t, UINT64_C(1));
+		t = rotr_64(t, UINT64_C(1));
 	}
 	while (t != value1);
 
@@ -383,7 +383,7 @@ inline static uint64_t butterfly_2_64(register uint64_t value)
 
 // Returns the first combination (smallest word with) k bits, i.e. 00..001111..1 (low bits set). 
 // Restrictions: Must have 0 <= value <= 64.
-inline static uint64_t first_combination_64(register uint64_t value)
+inline static uint64_t first_comb_64(register uint64_t value)
 {
 	if (value == UINT64_C(0)) return UINT64_C(0);
 	return ~UINT64_C(0) >> (UINT64_C(16) - value);
@@ -392,14 +392,14 @@ inline static uint64_t first_combination_64(register uint64_t value)
 
 // Returns the last combination of (biggest n-bit word with) k bits, i.e. 1111..100..00 (k high bits set).
 // Restrictions: Must have 0 <= value <= bits <= 64.
-inline static uint64_t last_combination_64(register uint64_t value, register uint64_t bits)
+inline static uint64_t last_comb_64(register uint64_t value, register uint64_t bits)
 {
-	return  first_combination_64(value) << (bits - value);
+	return  first_comb_64(value) << (bits - value);
 }
 
 
 // Return smallest integer greater than value with the same number of bits set.
-inline static uint64_t next_colexicographic_combination_64(register uint64_t value)
+inline static uint64_t next_colex_comb_64(register uint64_t value)
 {
 	register uint64_t z;
 
@@ -428,9 +428,9 @@ inline static uint64_t next_colexicographic_combination_64(register uint64_t val
 
 
 // Returns the inverse of the next colexicographic combination.
-static inline uint64_t previous_colexicographic_combination_64(register uint64_t value)
+static inline uint64_t prev_colex_comb_64(register uint64_t value)
 {
-	value = next_colexicographic_combination_64(~value);
+	value = next_colex_comb_64(~value);
 
 	if (value != UINT64_C(0)) 
 		value = ~value;
@@ -438,6 +438,47 @@ static inline uint64_t previous_colexicographic_combination_64(register uint64_t
 	return value;
 }
 
+
+// Returns the inverse Gray code of the next combination in minimal-change order.
+// Restrictions: The input must be the inverse Gray code of the current combination.
+inline static uint64_t inv_gray_next_min_change_64(register uint64_t value)
+{
+	register uint64_t ga = gray_64(value);
+	register uint64_t i = UINT64_C(2);
+
+	do
+	{
+		register uint64_t y = value + i;
+
+		i <<= 1;
+
+		register uint64_t gb = gray_64(y);
+		register uint64_t r = ga ^ gb;
+
+		if (is_pow2_64(r & gb) && is_pow2_64(r & ga))
+			return y;
+	}
+	while (true);
+
+	return UINT64_C(0);
+}
+
+
+// Returns the inverse Gray code of the previous combination in minimal-change order.
+// Restrictions: The input must be the inverse Gray code of the current combination.
+inline static uint64_t inv_gray_prev_min_change_64(register uint64_t value1, register uint64_t value2)
+{
+	uint64_t result, i = UINT64_C(1);
+
+	do
+	{
+		i <<= UINT64_C(1);
+		result = value1 - i;
+	}
+	while (bits_64(gray_64(result)) != value2);
+
+	return result;
+}
 
 #endif // INCLUDE_PERM_H
 
