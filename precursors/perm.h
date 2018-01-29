@@ -18,72 +18,115 @@
 #endif
 
 
-// Returns a word rotated n bits to the left.
+// 8-bit cyclic rotate bits left.
+inline static uint8_t rotl_8(register uint8_t value, register uint8_t bits)
+{
+	bits &= UINT8_C(7);
+	return (value << bits) | (value >> ((-bits) & UINT8_C(7)));
+}
+
+
+// 8-bit cyclic rotate bits right.
+inline static uint8_t rotr_8(register uint8_t value, register uint8_t bits)
+{
+	bits &= UINT8_C(7);
+	return (value >> bits) | (value << ((-bits) & UINT8_C(7)));
+}
+
+
+// Cyclic rotate bits left.
 inline static uint64_t rotl_64(register uint64_t value, register uint64_t bits)
 {
-	return  (value << bits) | (value >> (UINT64_C(64) - bits));
+	bits &= UINT64_C(63);
+	return (value << bits) | (value >> ((-bits) & UINT64_C(63)));
 }
 
 
-// Returns a word rotated n bits to the right.
+// Cyclic rotate bits right.
 inline static uint64_t rotr_64(register uint64_t value, register uint64_t bits)
 {
-	return  (value >> bits) | (value << (UINT64_C(64) - bits));
+	bits &= UINT64_C(63);
+	return (value >> bits) | (value << ((-bits) & UINT64_C(63)));
 }
 
 
-// Rotate value left or right by the specified count of bits.
-inline static uint64_t rotate_64(register uint64_t value, register int64_t bits)
+// Rotate value left if bits < 0 or right if bits > 0 by the specified absolute count of bits, 
+// otherwise (bits = 0) return value.
+inline static uint64_t rot_64(register uint64_t value, register int64_t bits)
 {
-	if (bits < 0) return rotl_64(value, -bits);
-	else if (bits > 0) return rotr_64(value, bits);
-	else return UINT64_C(0);
+	bool left = (bits < INT64_C(0));
+	register uint64_t dist = (uint64_t)(left ? -bits : bits);
+
+	dist = (dist > UINT64_C(63)) ? dist % UINT64_C(64) : dist;
+
+	if (!dist) return value;
+	else if (left) return rotl_64(value, dist);
+	return rotr_64(value, dist);
+}
+
+
+// Performs 64-bit bit-wise perfect shuffle.
+inline static uint64_t shuffle_64(register uint64_t value)
+{
+	register uint64_t temp = (value ^ (value >> 16)) & UINT64_C(0x00000000FFFF0000);
+
+	value = value ^ temp ^ (temp << 16);
+	temp = (value ^ (value >> 8)) & UINT64_C(0x0000FF000000FF00);
+	value = value ^ temp ^ (temp << 8);
+	temp = (value ^ (value >> 4)) & UINT64_C(0x00F000F000F000F0);
+	value = value ^ temp ^ (temp << 4);
+	temp = (value ^ (value >> 2)) & UINT64_C(0x0C0C0C0C0C0C0C0C);
+	value = value ^ temp ^ (temp << 2);
+	temp = (value ^ (value >> 1)) & UINT64_C(0x2222222222222222);
+	value = value ^ temp ^ (temp << 1);
+
+	return value;
 }
 
 
 // Returns a word with bits of value distributed as indicated by mask.
 inline static uint64_t scatter_64(register uint64_t value, register uint64_t mask)
 {
-	register uint64_t i, b = UINT64_C(1), z = UINT64_C(0);
+	register uint64_t bit = UINT64_C(1), result = UINT64_C(0);
 
 	while (mask)
 	{
-		i = mask & -mask;
-		mask ^= i;
-		z += (b & value) ? i : UINT64_C(0);
-		b <<= UINT64_C(1);
+		register uint64_t temp = mask & -mask;
+		mask ^= temp;
+		result += (bit & value) ? temp : UINT64_C(0);
+		bit <<= UINT64_C(1);
 	}
 
-	return z;
+	return result;
 }
 
 
 // Returns a word with bits of value collected as indicated by mask.
 inline static uint64_t gather_64(register uint64_t value, register uint64_t mask)
 {
-	register uint64_t i, z = 0, b = 1;
+	register uint64_t result = UINT64_C(0), bit = UINT64_C(1);
 
 	while (mask)
 	{
-		i = mask & -mask;
-		mask ^= i;
-		z += (i & value) ? b : UINT64_C(0);
-		b <<= UINT64_C(1);
+		register uint64_t temp = mask & -mask;
+		mask ^= temp;
+		result += (temp & value) ? bit : UINT64_C(0);
+		bit <<= UINT64_C(1);
 	}
 
-	return z;
+	return result;
 }
 
 
 // Returns the count of set bits.
-inline static uint64_t bits_64(register uint64_t x)
+inline static uint64_t bits_64(register uint64_t value)
 {
-	x -= (x >> UINT64_C(1)) & UINT64_C(0x5555555555555555);
-	x = ((x >> UINT64_C(2)) & UINT64_C(0x3333333333333333)) + (x & UINT64_C(0x3333333333333333));
-	x = ((x >> UINT64_C(4)) + x) & UINT64_C(0x0F0F0F0F0F0F0F0F);
-	x *= UINT64_C(0x0101010101010101);
+	value -= (value >> UINT64_C(1)) & UINT64_C(0x5555555555555555);
+	value = ((value >> UINT64_C(2)) & UINT64_C(0x3333333333333333)) + (value & UINT64_C(0x3333333333333333));
+	value = ((value >> UINT64_C(4)) + value) & UINT64_C(0x0F0F0F0F0F0F0F0F);
+	value *= UINT64_C(0x0101010101010101);
 
-	return (x >> 56);
+	return (value >> 56);
 }
 
 
@@ -356,28 +399,32 @@ inline static uint64_t cyc_dist_64(register uint64_t value1, register uint64_t v
 // Swaps the two central blocks of 16 bits.
 inline static uint64_t butterfly_16_64(register uint64_t value)
 {
-	return (value & UINT64_C(0xFFFF0000FC0003FF)) | ((value & UINT64_C(0xFFFF00000000)) >> UINT64_C(16)) | ((value & UINT64_C(0x3FFFC00)) << UINT64_C(16));
+	return (value & UINT64_C(0xFFFF0000FC0003FF)) | ((value & UINT64_C(0xFFFF00000000)) >> UINT64_C(16)) | 
+		((value & UINT64_C(0x3FFFC00)) << UINT64_C(16));
 }
 
 
 // Swaps in each block of 32 bits the two central blocks of 8 bits.
 inline static uint64_t butterfly_8_64(register uint64_t value)
 {
-	return (value & ~UINT64_C(0xFFFF0000FFFF00)) | ((value & UINT64_C(0xFF000000FF0000)) >> UINT64_C(8)) | ((value & UINT64_C(0xFF000000FF00)) << UINT64_C(8));
+	return (value & ~UINT64_C(0xFFFF0000FFFF00)) | ((value & UINT64_C(0xFF000000FF0000)) >> UINT64_C(8)) | 
+		((value & UINT64_C(0xFF000000FF00)) << UINT64_C(8));
 }
 
 
 // Swaps in each block of 16 bits the two central blocks of 4 bits.
 inline static uint64_t butterfly_4_64(register uint64_t value)
 {
-	return (value & ~UINT64_C(0xFF00FF00FF00FF0)) | ((value & UINT64_C(0x0F000F000F000F00)) >> UINT64_C(4)) | ((value & UINT64_C(0xF000F000F000F0)) << UINT64_C(4));
+	return (value & ~UINT64_C(0xFF00FF00FF00FF0)) | ((value & UINT64_C(0x0F000F000F000F00)) >> UINT64_C(4)) | 
+		((value & UINT64_C(0xF000F000F000F0)) << UINT64_C(4));
 }
 
 
 // Swaps in each block of 8 bits the two central blocks of 2 bits.
 inline static uint64_t butterfly_2_64(register uint64_t value)
 {
-	return (value & ~UINT64_C(0x3C3C3C3C3C3C3C3C)) | ((value & UINT64_C(0x3030303030303030)) >> UINT64_C(2)) | ((value & UINT64_C(0xC0C0C0C0C0C0C0C)) << UINT64_C(2));
+	return (value & ~UINT64_C(0x3C3C3C3C3C3C3C3C)) | ((value & UINT64_C(0x3030303030303030)) >> UINT64_C(2)) | 
+		((value & UINT64_C(0xC0C0C0C0C0C0C0C)) << UINT64_C(2));
 }
 
 
@@ -479,6 +526,139 @@ inline static uint64_t inv_gray_prev_min_change_64(register uint64_t value1, reg
 
 	return result;
 }
+
+
+// Returns result if value1 == rotr(value2, result), else return ~0, e.g. how many times the 
+// value2 argument must be rotated right in order to match value1.
+inline static uint64_t cyc_match_64(register uint64_t value1, register uint64_t value2)
+{
+	register uint64_t result = UINT64_C(0);
+
+	do
+	{
+		if (value1 == value2)
+			return result;
+
+		value2 = rotr_64(value2, UINT64_C(1));
+	} 
+	while (++result < UINT64_C(64));
+
+	return ~UINT64_C(0);
+}
+
+
+// Returns the minimal value such that that c = value1 ^ rotr(value2, result, n) is a one-bit word, 
+// or ~0 if there is no such result.
+inline static uint64_t cyc_dist_match(register uint64_t value1, register uint64_t value2)
+{
+	register uint64_t result = UINT64_C(0);
+
+	do
+	{
+		if (one_bit_q_64(value1 ^ value2))
+			return result;
+
+		value2 = rotr_64(value2, UINT64_C(1));
+	}
+	while (++result < UINT64_C(64));
+
+	return ~UINT64_C(0);
+}
+
+
+// Copies the bit from value[source] to value[destination], returning the modified value.
+inline static uint64_t copy_bit_64(register uint64_t value, register uint64_t source, register uint64_t destination)
+{
+	return value ^ ((((value >> source) ^ (value >> destination)) & UINT64_C(1)) << destination);
+}
+
+
+// Copies a single bit, according to mask1, to the bit according to mask2, returning the modified value.
+// Restrictions: Both mask1 and mask2 may have only a single bit set.
+inline static uint64_t mask_copy_64(register uint64_t value, register uint64_t mask1, register uint64_t mask2)
+{
+	register uint64_t temp = mask2;
+
+	if (mask1 & value)
+		temp = UINT64_C(0);
+
+	temp ^= mask2;
+	value &= ~mask2;
+	value |= temp;
+
+	return value;
+}
+
+
+// Returns the minimum value of all cyclic rotations of the specified value.
+inline static uint64_t cyc_min_64(register uint64_t value)
+{
+	register uint64_t temp = UINT64_C(1), result = value;
+
+	do
+	{
+		value = rotr_64(value, UINT64_C(1));
+
+		if (value < result)
+			result = value;
+	}
+	while (++temp < UINT64_C(64));
+
+	return result;
+}
+
+
+// Returns the maximum value of all cyclic rotations of the specified value.
+inline static uint64_t cyc_max_64(register uint64_t value)
+{
+	register uint64_t temp = UINT64_C(1), result = value;
+
+	do
+	{
+		value = rotr_64(value, UINT64_C(1));
+
+		if (value > result)
+			result = value;
+	}
+	while (++temp < UINT64_C(64));
+
+	return result;
+}
+
+
+// Returns the minimal positive bit-rotation that transforms the given value into itself.
+static inline uint64_t cyc_period_64(register uint64_t value)
+{
+	register uint64_t result = UINT64_C(1);
+
+	do
+	{
+		if (value == rotr_64(value, result))
+			return result;
+
+		result <<= 1;
+	}
+	while (result < UINT64_C(64));
+
+	return result;
+}
+
+
+// Similar to the Gray code, except the right-most shifted bit is moved to the highest bit
+// position. The returned value will have an even number of bits set.
+inline static uint64_t cyc_rxor_64(register uint64_t value)
+{
+	return value ^ rotr_64(value, UINT64_C(1));
+}
+
+
+// Similar to the Gray code, except the left-most shifted bit is moved to the lowest bit
+// position. The returned value will have an even number of bits set.
+inline static uint64_t cyc_lxor_64(register uint64_t value)
+{
+	return value ^ rotl_64(value, UINT64_C(1));
+}
+
 
 #endif // INCLUDE_PERM_H
 

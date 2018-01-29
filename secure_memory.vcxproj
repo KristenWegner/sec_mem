@@ -220,6 +220,7 @@
   <ItemGroup>
     <ClInclude Include="allocator_internal.h" />
     <ClInclude Include="bits.h" />
+    <ClInclude Include="bitfield.h" />
     <ClInclude Include="checksum.h" />
     <ClInclude Include="compatibility\gettimeofday.h" />
     <ClInclude Include="compatibility\getuid.h" />
