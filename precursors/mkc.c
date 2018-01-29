@@ -229,12 +229,30 @@ dummy_t;
 
 
 
-inline static void dump_bytes(const char* prefix, uint8_t* buffer, size_t length)
+inline static void dump_binary(uint8_t value)
+{
+	char i, bits[9];
+	bits[CHAR_BIT] = 0;
+
+	for (i = CHAR_BIT - 1; i >= 0; --i) 
+	{
+		bits[i] = '0' + (value & 1);
+		value >>= 1;
+	}
+
+	printf("%s ", bits);
+}
+
+
+inline static void dump_bytes(const char* prefix, uint8_t* buffer, size_t length, bool binary)
 {
 	size_t i;
 	printf("%s: ", prefix);
-	for (i = 0; i < length; ++i) 
-		printf("%02X", buffer[i]); 
+	for (i = 0; i < length; ++i)
+	{
+		if (binary) dump_binary(buffer[i]);
+		else printf("%02X", buffer[i]);
+	}
 	printf("\n");
 }
 
@@ -253,25 +271,35 @@ int main(int argc, char* argv[])
 		sm_bf_schema_t schema;
 		sm_bf_create_schema(sizes, 8, next_rand, crc_64, crc_64_tab, &schema);
 		dummy_t my_data = { 0xFFFFFFFF, 0xA1B2C3D4, 0x1010101010101010, 0xFF00FF00FF00FF00, 0xAAAA, 0xBBBB, 0xFF, 0x00 };
+
+		memset(&my_data, 0xFFFFFFFF, sizeof(dummy_t));
+
 		uint8_t* buf = (uint8_t*)malloc(schema.bytes);
 		uint16_t byte;
 
 		for (byte = 0; byte < schema.bytes; ++byte) 
 			buf[byte] = next_rand();
 
-		dump_bytes("data", &my_data, sizeof(my_data));
-		dump_bytes("bits", buf, schema.bytes);
+		dump_bytes("data", &my_data, sizeof(my_data), false);
+		dump_bytes("bits", buf, schema.bytes, false);
 
 		sm_bf_write(buf, &schema, &my_data);
 
-		dump_bytes("bits", buf, schema.bytes);
+		dump_bytes("bits", buf, schema.bytes, false);
 
 		memset(&my_data, 0, sizeof(dummy_t));
 
 		sm_bf_read(buf, &schema, (uint8_t*)&my_data);
 
-		dump_bytes("data", &my_data, sizeof(my_data));
-		dump_bytes("bits", buf, schema.bytes);
+		dump_bytes("data", &my_data, sizeof(my_data), false);
+		dump_bytes("bits", buf, schema.bytes, false);
+
+		for (byte = 0; byte < schema.bytes; ++byte)
+			buf[byte] = 0;
+
+		memset(&my_data, 0xFFFFFFFF, sizeof(dummy_t));
+		sm_bf_write(buf, &schema, &my_data);
+		dump_bytes("bits", buf, schema.bytes, true);
 
 		free(buf);
 	}
