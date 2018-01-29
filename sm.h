@@ -28,40 +28,40 @@ typedef uint64_t sm_ref_t;
 
 
 // Function that accepts no arguments and returns a 64-bit integer.
-typedef uint64_t (*sm_get64_f)(void);
+typedef uint64_t (callconv *sm_get64_f)(void);
 
 // Seeds a RNG state vector with the given seed.
-typedef void (*sm_srs64_f)(void* state, uint64_t seed);
+typedef void (callconv *sm_srs64_f)(void* state, uint64_t seed);
 
 // Gets a random 64-bit integer, given the specified state vector.
-typedef uint64_t (*sm_ran64_f)(void* state);
+typedef uint64_t (callconv *sm_ran64_f)(void* state);
 
 // Compute 64-bit CRC with starting seed, data array, size in bytes, and tab.
-typedef uint64_t (*sm_crc64_f)(uint64_t seed, const uint8_t* data, uint64_t size, void* tab);
+typedef uint64_t (callconv *sm_crc64_f)(uint64_t seed, const uint8_t* data, uint64_t size, void* tab);
 
 // Compute 32-bit CRC with starting seed, data array, size in bytes, and tab.
-typedef uint32_t (*sm_crc32_f)(uint32_t seed, const uint8_t* data, uint64_t size, void* tab);
+typedef uint32_t (callconv *sm_crc32_f)(uint32_t seed, const uint8_t* data, uint64_t size, void* tab);
 
 // Compress from src to dst. Size of temporary param htab must be determined by sm_op_get_size_compress_htab. Returns 0 on no error.
-typedef uint8_t (*sm_cpr_f)(const void *const src, const uint64_t slen, void *dst, uint64_t *const dlen, void* htab);
+typedef uint8_t (callconv *sm_cpr_f)(const void *const src, const uint64_t slen, void *dst, uint64_t *const dlen, void* htab);
 
 // Decompress from src to dst. Returns 0 on no error. If dst is null and *dlen is zero, will set *dlen to to required dst buffer size.
-typedef uint8_t (*sm_dcp_f)(const void* src, uint64_t slen, void* dst, uint64_t* dlen);
+typedef uint8_t (callconv *sm_dcp_f)(const void* src, uint64_t slen, void* dst, uint64_t* dlen);
 
 // 64-bit hash bytes.
-typedef uint64_t (*sm_hsh64_f)(const void*, size_t);
+typedef uint64_t (callconv *sm_hsh64_f)(const void*, size_t);
 
 // 32-bit hash bytes.
-typedef uint32_t (*sm_hsh32_f)(const void*, size_t);
+typedef uint32_t (callconv *sm_hsh32_f)(const void*, size_t);
 
 // N-bit keyed, or stateful hash.
-typedef void* (*sm_khsh_f)(void*, const void*, size_t);
+typedef void* (callconv *sm_khsh_f)(void*, const void*, size_t);
 
 // Error callback function type. Receives an error code - see: SM_ERR_*.
-typedef void (*sm_err_f)(sm_t sm, sm_error_t);
+typedef void (callconv *sm_err_f)(sm_t sm, sm_error_t);
 
 // Mutex operational function.
-typedef uint8_t (*sm_mutex_f)(sm_mutex_t*);
+typedef uint8_t (callconv *sm_mutex_f)(sm_mutex_t*);
 
 
 // Methods
@@ -70,7 +70,7 @@ typedef uint8_t (*sm_mutex_f)(sm_mutex_t*);
 // Master entropic/quasi-entropic random number generator. Uses RDRAND if 
 // present, else uses XorShift1024* 64-bit with random intermittent 
 // re-seeding. If sm_t is null, uses default RNG support.
-extern uint64_t sm_random(sm_t);
+extern uint64_t callconv sm_random(sm_t);
 
 // Creates a new context with the initial count of space in bytes.
 extern sm_t callconv sm_create(uint64_t bytes);

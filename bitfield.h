@@ -12,46 +12,51 @@
 #include "sm.h"
 
 
-/*
-	Bit-Field Schema / Meta-Data Layout
-
-	Represents a byte-packed schema for selecting dispersed bits across a n-bit bit-field.
-
-	<bit-field-schema> ::= <size> <checksum> <size> <bit-field-size> <bit-field-entries-count> (<bit-field-entry>+) ;
-	<size> ::= uint64_t ; // Count of bytes in the overall structure, not including <size>.
-	<checksum> ::= uint64_t ; // CRC-64 of the following data.
-	<bit-field-size> ::= uint16_t ; // How many bytes in the actual bit-field.
-	<bit-field-entries-count> ::= uint8_t ; // Count of <bit-field-entry>.
-	<bit-field-entry> ::= <bit-index-count> (<bit-index>+) ; // A single schema entry.
-	<bit-index-count> ::= uint8_t ; // Count of indices in this <bit-field-entry>, must be in [8, 16, 32, 64].
-	<bit-index> :: uint16_t ; // Index of bit to select, unique across <bit-field-schema>. 
-*/
+#define SM_BF_ENTRY_MAX_BITS          64U // Maximum count of bits an element may have (64-bits).
+#define SM_BF_SCHEMA_MAX_ENTRIES      64U // Maximum possible count of bit field entries.
+#define SM_BF_PERCENTAGE_RANDOM_BYTES 0.5F // Percentage of the bit field that may be composed of random bytes.
+#define SM_BF_MAX_POSSIBLE_BITS       ((SM_BF_ENTRY_MAX_BITS * SM_BF_SCHEMA_MAX_ENTRIES) + (unsigned)((SM_BF_ENTRY_MAX_BITS * SM_BF_SCHEMA_MAX_ENTRIES) * SM_BF_PERCENTAGE_RANDOM_BYTES)) // Maximum count of bits we may have in total.
 
 
-#define SM_BIT_FIELD_ENTRY_MAX_INDICES       64 // Maximum possible count of indices in a bit field entry.
-#define SM_BIT_FIELD_SCHEMA_MAX_ENTRIES      64 // Maximum possible count of bit field entries.
-#define SM_BIT_FIELD_PERCENTAGE_RANDOM_BYTES 0.25F // Percentage of the bit field that may be composed of random bytes.
-#define SM_BIT_FIELD_MAX_POSSIBLE_BITS       ((SM_BIT_FIELD_ENTRY_MAX_INDICES * 64U) + (unsigned)(SM_BIT_FIELD_ENTRY_MAX_INDICES * SM_BIT_FIELD_PERCENTAGE_RANDOM_BYTES)) // Maximum count of bits we may have in total.
-
-// Unpacked bit-field schema entry structure.
-typedef struct sm_bf_schema_entry_s
+// Bit-field schema entry structure.
+typedef struct halign(1) sm_bf_schema_entry_s
 {
 	uint8_t indices; // Count of indices, must be in [8, 16, 32, 64].
-	uint16_t index[SM_BIT_FIELD_ENTRY_MAX_INDICES]; // Indexes of bits to select, unique across all entries in sm_bf_schema_t.
+	uint16_t index[SM_BF_ENTRY_MAX_BITS]; // Indices of bits to select, must be unique across all entries in sm_bf_schema_t.
 }
+talign(1)
 sm_bf_schema_entry_t;
 
 
-// Unpacked bit-field schema structure.
-typedef struct sm_bf_schema_s
+// Bit-field schema structure.
+typedef struct halign(1) sm_bf_schema_s
 {
 	uint64_t checksum; // CRC-64 of the following data, not including 'checksum'.
 	uint64_t size; // Count of bytes in this structure overall, not including 'checksum' and 'size'.
 	uint16_t bytes; // How many bytes overall in the actual bit-field itself, including regions that may not be used.
 	uint8_t entries; // Count of entries in 'entry'.
-	sm_bf_schema_entry_t entry[SM_BIT_FIELD_SCHEMA_MAX_ENTRIES]; // Array of entries.
+	sm_bf_schema_entry_t entry[SM_BF_SCHEMA_MAX_ENTRIES]; // Array of entries.
 }
+talign(1)
 sm_bf_schema_t;
+
+
+// 8-bit cyclic rotate bits left. For obfuscating bytes after reading from a field.
+inline static uint8_t sm_bf_rotl_8(register uint8_t value, register uint8_t bits)
+{
+	const uint8_t mask = ((uint8_t)(CHAR_BIT * sizeof(value))) - UINT8_C(1);
+	bits &= mask;
+	return (value << bits) | (value >> ((-bits) & mask));
+}
+
+
+// 8-bit cyclic rotate bits right. For obfuscating bytes after reading from a field.
+inline static uint8_t sm_bf_rotr_8(register uint8_t value, register uint8_t bits)
+{
+	const uint8_t mask = ((uint8_t)(CHAR_BIT * sizeof(value))) - UINT8_C(1);
+	bits &= mask;
+	return (value >> bits) | (value << ((-bits) & mask));
+}
 
 
 // Returns the truth-value of the bit at byte value[index].
@@ -218,14 +223,16 @@ inline static void sm_bf_set_64(register uint8_t *restrict field, register uint1
 }
 
 
-// Coalesces bits from field into result, according to the specified schema. Result must have size sufficient to hold 
+// Coalesces bits from field into result, according to the specified schema. Param result must have size sufficient to hold 
 // all bits specified in schema.
 inline static void sm_bf_read(register uint8_t *restrict field, register sm_bf_schema_t *restrict schema, uint8_t *restrict result)
 {
-	register uint8_t i, n = schema->entries;
+	register size_t i, n = (size_t)schema->entries;
 	register uint8_t* chunk = result;
 
-	for (i = UINT8_C(0); i < n; ++i)
+	// Read from the field.
+
+	for (i = UINT64_C(0); i < n; ++i)
 	{
 		if (schema->entry[i].indices == UINT8_C(0x08))
 			*chunk = sm_bf_get_8(field, schema->entry[i].index);
@@ -236,6 +243,23 @@ inline static void sm_bf_read(register uint8_t *restrict field, register sm_bf_s
 		else *((uint64_t*)chunk) = sm_bf_get_64(field, schema->entry[i].index);
 		chunk += (uint64_t)(schema->entry[i].indices / 8);
 	}
+
+	// Now obfuscate the field.
+
+	n = (size_t)schema->bytes;
+
+	register uint8_t r1 = sm_bf_rotr_8((uint8_t)(schema->checksum ^ n), 5);
+	register size_t j = (n - UINT64_C(1));
+
+	for (i = UINT64_C(0); i < n; ++i, --j)
+	{
+		r1 ^= sm_bf_rotl_8(r1 ^ field[j] ^ (uint8_t)~i, (i + 1U) % 8);
+		r1 |= 0x01;
+		register uint8_t r2 = r1 % 8;
+		field[i] = (r1 & 1) ?
+			sm_bf_rotl_8(field[i] ^ sm_bf_rotr_8(field[j] ^ 0xAA, 5) ^ ~r1, r2) :
+			sm_bf_rotr_8(field[i] ^ sm_bf_rotl_8(field[j] ^ 0x55, 7) ^ r1, r2);
+	}
 }
 
 
@@ -243,10 +267,10 @@ inline static void sm_bf_read(register uint8_t *restrict field, register sm_bf_s
 // all bits specified in schema.
 inline static void sm_bf_write(register uint8_t *restrict field, register sm_bf_schema_t *restrict schema, uint8_t *restrict result)
 {
-	register uint8_t i, n = schema->entries;
+	register size_t i, n = (size_t)schema->entries;
 	register uint8_t* chunk = result;
 
-	for (i = UINT8_C(0); i < n; ++i)
+	for (i = UINT64_C(0); i < n; ++i)
 	{
 		if (schema->entry[i].indices == UINT8_C(0x08))
 			sm_bf_set_8(field, schema->entry[i].index, *chunk);
@@ -260,10 +284,59 @@ inline static void sm_bf_write(register uint8_t *restrict field, register sm_bf_
 }
 
 
-// Creates a new schema according to the element sizes in bits, specified in sizes, of count, given an entropy getter.
-inline static bool sm_bf_create_schema(register uint8_t* sizes, register uint8_t count, sm_get64_f entropy, register sm_bf_schema_t *restrict schema)
+// 64-bit cyclic rotate bits left.
+inline static uint64_t sm_bf_rotl_64(register uint64_t n, register uint64_t c)
 {
-	if (count > SM_BIT_FIELD_SCHEMA_MAX_ENTRIES)
+	const uint64_t mask = (uint64_t)((sizeof(n) * CHAR_BIT) - UINT64_C(1));
+	c &= mask;
+	return (n << c) | (n >> ((-c) & mask));
+}
+
+
+// Generates a 64-bit key for the CRC from the schema.
+inline static uint64_t sm_bf_make_crc_key(register sm_bf_schema_t *restrict schema)
+{
+	register uint64_t result = UINT64_C(0);
+	register size_t i, m = (size_t)schema->entries;
+	register size_t b = UINT64_C(0);
+
+	result = (m << 8);
+
+	for (i = UINT64_C(0); i < m; ++i)
+	{
+		register size_t j, n = (size_t)schema->entry[i].indices;
+
+		for (j = UINT64_C(0); j < n; ++j)
+			result = sm_bf_rotl_64(result ^ j ^ (uint64_t)schema->entry[i].index[j], 8);
+
+		result = sm_bf_rotl_64(result ^ n, 8);
+		result = sm_bf_rotl_64(result ^ i, 8);
+	}
+
+	return result;
+}
+
+
+// Round up to next power of 2, 32-bit.
+inline static uint32_t sm_bf_next_pow_2_32(register uint32_t value)
+{
+	value--;
+
+	value |= value >> 1;
+	value |= value >> 2;
+	value |= value >> 4;
+	value |= value >> 8;
+	value |= value >> 16;
+
+	return (value + UINT32_C(1));
+
+}
+
+// Creates a new schema according to the element sizes in bits, specified in sizes, of count, given an entropy getter.
+inline static bool sm_bf_create_schema(register uint8_t* sizes, register uint8_t count, sm_get64_f entropy, sm_crc64_f checksum, 
+	void* checksum_tab, register sm_bf_schema_t *restrict schema)
+{
+	if (count > SM_BF_SCHEMA_MAX_ENTRIES)
 		return false;
 
 	register size_t i, m = (size_t)count;
@@ -274,25 +347,23 @@ inline static bool sm_bf_create_schema(register uint8_t* sizes, register uint8_t
 	for (i = UINT64_C(0); i < m; ++i)
 	{
 		const uint8_t s = sizes[i];
-		if (s != UINT8_C(8) || s != UINT8_C(16) || s != UINT8_C(32) || s != UINT8_C(64)) // Constrain to valid sizes.
+		if (s != UINT8_C(8) && s != UINT8_C(16) && s != UINT8_C(32) && s != UINT8_C(64)) // Constrain to valid sizes.
 			return false;
 		b += (size_t)(sizes[i] / UINT8_C(8)); // Add bytes.
 	}
 
-	register size_t k = (SM_BIT_FIELD_MAX_POSSIBLE_BITS / 8U);
-	register size_t r = b + (UINT64_C(1) + (size_t)((((UINT64_C(1) + entropy()) % b) * SM_BIT_FIELD_PERCENTAGE_RANDOM_BYTES))); // Find a random amount of bytes < k.
+	register size_t k = (SM_BF_MAX_POSSIBLE_BITS / 8U); // Max possible bytes.
+	register size_t r = (size_t)sm_bf_next_pow_2_32((uint32_t)(b + (b * SM_BF_PERCENTAGE_RANDOM_BYTES))); // Compute the bit-field byte size.
 
-	while (r > k)
-		r = b + (UINT64_C(1) + (size_t)((((UINT64_C(1) + entropy()) % b) * SM_BIT_FIELD_PERCENTAGE_RANDOM_BYTES))); // Keep searching.
+	while (r > k) --r; // Shrink if we overran.
+	if (r < b) return false; // Sanity check.
 
-	schema->bytes = b = r; // Actual byte count.
+	b = r;
+	schema->bytes = r; // Actual byte count.
 	b *= UINT64_C(8); // Convert to bits.
+	k = SM_BF_MAX_POSSIBLE_BITS;
 
-	k = SM_BIT_FIELD_MAX_POSSIBLE_BITS;
-
-	if (b > k) return false;
-
-	register bool index[SM_BIT_FIELD_MAX_POSSIBLE_BITS]; // LUT for used-up indices.
+	bool index[SM_BF_MAX_POSSIBLE_BITS + 1]; // LUT for used-up indices.
 	register bool* p = index;
 	
 	while (k-- > UINT64_C(0)) *p++ = false; // Zero it.
@@ -311,6 +382,8 @@ inline static bool sm_bf_create_schema(register uint8_t* sizes, register uint8_t
 	}
 
 	schema->entries = (uint8_t)m;
+	schema->size = sizeof(sm_bf_schema_t);
+	schema->checksum = checksum(sm_bf_make_crc_key(schema), ((uint8_t*)schema) + sizeof(uint64_t), sizeof(sm_bf_schema_t) - sizeof(uint64_t), checksum_tab);
 
 	return true;
 }

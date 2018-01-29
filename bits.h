@@ -58,7 +58,7 @@ inline static uint8_t sm_rotr_8(register uint8_t n, register uint8_t c)
 // 64-bit cyclic rotate bits left.
 inline static uint64_t sm_rotl_64(register uint64_t n, register uint64_t c)
 {
-	const uint8_t mask = (CHAR_BIT * sizeof(n) - 1);
+	const uint64_t mask = (uint64_t)((sizeof(n) * CHAR_BIT) - UINT64_C(1));
 	c &= mask;
 	return (n << c) | (n >> ((-c) & mask));
 }
@@ -67,7 +67,7 @@ inline static uint64_t sm_rotl_64(register uint64_t n, register uint64_t c)
 // 64-bit cyclic rotate bits right.
 inline static uint64_t sm_rotr_64(register uint64_t n, register uint64_t c)
 {
-	const uint64_t mask = (CHAR_BIT * sizeof(n) - 1);
+	const uint64_t mask = (uint64_t)((sizeof(n) * CHAR_BIT) - UINT64_C(1));
 	c &= mask;
 	return (n >> c) | (n << ((-c) & mask));
 }
@@ -95,7 +95,7 @@ inline static uint64_t sm_shuffle_64(register uint64_t v)
 // Separate bits from a given integer 3 positions apart.
 inline static uint64_t sm_split_by_3_32_to_64(uint32_t v)
 {
-	register uint64_t x = (uint64_t)(v & 0x1FFFFF);
+	register uint64_t x = (uint64_t)(v & UINT32_C(0x1FFFFF));
 
 	x = (x | x << 32) & UINT64_C(0x001F00000000FFFF);
 	x = (x | x << 16) & UINT64_C(0x001F0000FF0000FF);

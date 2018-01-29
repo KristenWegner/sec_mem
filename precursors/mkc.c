@@ -20,6 +20,7 @@
 #include "../compatibility/gettimeofday.h"
 #include "../bits.h"
 #include "../sm.h"
+#include "../bitfield.h"
 
 
 #if defined(SM_OS_WINDOWS)
@@ -42,7 +43,6 @@ static uint8_t sm_rdrand[] = { 0x48, 0x0F, 0xC7, 0xF0, 0x73, 0xFA, 0xC3 };
 
 
 #include "crc.h"
-;
 
 extern void callconv ran_f_seed(void *restrict s, uint64_t seed);
 extern uint64_t callconv ran_f_rand(void *restrict s);
@@ -52,7 +52,7 @@ extern void* callconv sm_xor_pass(void *restrict data, register size_t bytes, ui
 extern uint64_t callconv crc_64(uint64_t c, register const uint8_t *restrict p, uint64_t n, void* t);
 
 
-uint64_t next_rand()
+uint64_t callconv next_rand()
 {
 	uint8_t i, n = 1 + (1 + rand()) % 32;
 	union { uint32_t i[2]; uint64_t q; } u1, u2;
@@ -213,41 +213,88 @@ const char* get_entity_tag(int kind)
 
 void output_crc_tabs();
 void generate_mutator_function(const char* name);
-
-//uint64_t callconv foo(uint64_t value);
-
 extern sm_error_t callconv lzss_compress(const void* src, uint64_t slen, void *dst, uint64_t* dlen);
 extern sm_error_t callconv lzss_decompress(const void* src, uint64_t slen, void* dst, uint64_t* dlen);
+
+
+typedef halign(1) struct dummy_s
+{
+	uint32_t a, b;
+	uint64_t c, d;
+	uint16_t e, f;
+	uint8_t g, h;
+}
+talign(1)
+dummy_t;
+
+
+
+inline static void dump_bytes(const char* prefix, uint8_t* buffer, size_t length)
+{
+	size_t i;
+	printf("%s: ", prefix);
+	for (i = 0; i < length; ++i) 
+		printf("%02X", buffer[i]); 
+	printf("\n");
+}
+
 
 
 int main(int argc, char* argv[])
 {
 	printf("MKC Code Generator for Secure Memory Library\n");
 	printf("Copyright (C) 2017-2018 by the Secure Memory Project, All rights Reserved\n");
-
-
-	uint32_t vvv = (((0 + 1) + 1) + (UINT32_C(0x10) << 3));
-	printf("%d\n", vvv);
-
 	srand(((uint32_t)time(NULL)) ^ ((uint32_t)getpid()));
 
-	uint64_t v0 = next_rand();
-	//uint64_t v1 = foo(v0);
-	//printf("%016" PRIX64 " -> %016" PRIX64 "\n", v0, v1);
 
-	char aaa[0xFFFF];
-	char bbb[0xFFFF];
+	// Test bit-fields.
+	{
+		uint8_t sizes[] = { 32, 32, 64, 64, 16, 16, 8, 8 };
+		sm_bf_schema_t schema;
+		sm_bf_create_schema(sizes, 8, next_rand, crc_64, crc_64_tab, &schema);
+		dummy_t my_data = { 0xFFFFFFFF, 0xA1B2C3D4, 0x1010101010101010, 0xFF00FF00FF00FF00, 0xAAAA, 0xBBBB, 0xFF, 0x00 };
+		uint8_t* buf = (uint8_t*)malloc(schema.bytes);
+		uint16_t byte;
 
-	int index;
-	for (index = 0; index < 0xFFFF; ++index)
-		aaa[index] = 0x41 + ((index + 1) % 26);
+		for (byte = 0; byte < schema.bytes; ++byte) 
+			buf[byte] = next_rand();
 
-	aaa[index] = 0;
+		dump_bytes("data", &my_data, sizeof(my_data));
+		dump_bytes("bits", buf, schema.bytes);
 
-	uint64_t isize = 0xFFFF, osize = 0xFFFF;
+		sm_bf_write(buf, &schema, &my_data);
 
-	lzss_compress(aaa, 0xFFFF, bbb, &isize);
-	lzss_decompress(bbb, isize, aaa, &osize);
+		dump_bytes("bits", buf, schema.bytes);
+
+		memset(&my_data, 0, sizeof(dummy_t));
+
+		sm_bf_read(buf, &schema, (uint8_t*)&my_data);
+
+		dump_bytes("data", &my_data, sizeof(my_data));
+		dump_bytes("bits", buf, schema.bytes);
+
+		free(buf);
+	}
+
+
+	// Test compression.
+	{
+		char aaa[0xFFFF];
+		char bbb[0xFFFF];
+		char ccc[0xFFFF];
+		int index;
+		for (index = 0; index < 0xFFFF; ++index)
+			aaa[index] = 0x41 + ((index + 1) % 26);
+		aaa[index] = 0;
+		uint64_t isize = 0xFFFF, osize = 0xFFFF;
+		lzss_compress(aaa, 0xFFFF, bbb, &isize);
+		memset(aaa, 0, sizeof(aaa));
+		lzss_decompress(bbb, isize, ccc, &osize);
+		int res = memcmp(aaa, ccc, 0xFFFFU);
+	}
+
+
+
 
 	if (argc == 2 && strlen(argv[1]) > 3 && strncmp(argv[1], "-crc", 4) == 0)
 	{
