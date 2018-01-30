@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <inttypes.h>
 #include <limits.h>
 #include <float.h>
@@ -229,33 +230,51 @@ dummy_t;
 
 
 
-inline static void dump_binary(uint8_t value)
-{
-	char i, bits[9];
-	bits[CHAR_BIT] = 0;
-
-	for (i = CHAR_BIT - 1; i >= 0; --i) 
-	{
-		bits[i] = '0' + (value & 1);
-		value >>= 1;
-	}
-
-	printf("%s ", bits);
-}
-
-
-inline static void dump_bytes(const char* prefix, uint8_t* buffer, size_t length, bool binary)
+inline static void sm_dump_bytes(const char* prefix, uint8_t* buffer, size_t length, bool binary)
 {
 	size_t i;
 	printf("%s: ", prefix);
 	for (i = 0; i < length; ++i)
 	{
-		if (binary) dump_binary(buffer[i]);
-		else printf("%02X", buffer[i]);
+		if (binary)
+		{
+			uint8_t v = buffer[i];
+			char j, s[9];
+			s[CHAR_BIT] = 0;
+			for (j = CHAR_BIT - 1; j >= 0; --j)
+			{
+				s[j] = '0' + (v & 1);
+				v >>= 1;
+			}
+			printf("%s ", s);
+		}
+		else printf("%02X ", buffer[i]);
+		//if (i && !(i % 2)) printf(" ");
 	}
 	printf("\n");
 }
 
+
+inline static void sm_bf_dump_schema(const char* prefix, sm_bf_schema_t* schema)
+{
+	size_t i, m = schema->entries;
+	size_t b = (schema->bytes * 8);
+	char* buf = malloc(b + 1);
+	memset(buf, '_', b);
+	buf[b] = 0;
+	for (i = 0; i < m; ++i)
+	{
+		char c = '?';
+		if (i < 10) c = 0x30 + i;
+		else if (i < 36) c = 0x41 + (i - 10);
+		else c = 0x61 + (i - 36);
+		size_t j, n = schema->entry[i].indices;
+		for (j = 0; j < n; ++j)
+			buf[schema->entry[i].index[j]] = c;
+	}
+	printf("%s: %s\n", prefix, buf);
+	free(buf);
+}
 
 
 int main(int argc, char* argv[])
@@ -270,9 +289,12 @@ int main(int argc, char* argv[])
 		uint8_t sizes[] = { 32, 32, 64, 64, 16, 16, 8, 8 };
 		sm_bf_schema_t schema;
 		sm_bf_create_schema(sizes, 8, next_rand, crc_64, crc_64_tab, &schema);
+
+		sm_bf_dump_schema("smap", &schema);
+
 		dummy_t my_data = { 0xFFFFFFFF, 0xA1B2C3D4, 0x1010101010101010, 0xFF00FF00FF00FF00, 0xAAAA, 0xBBBB, 0xFF, 0x00 };
 
-		memset(&my_data, 0xFFFFFFFF, sizeof(dummy_t));
+		//memset(&my_data, 0xFFFFFFFF, sizeof(dummy_t));
 
 		uint8_t* buf = (uint8_t*)malloc(schema.bytes);
 		uint16_t byte;
@@ -280,8 +302,8 @@ int main(int argc, char* argv[])
 		for (byte = 0; byte < schema.bytes; ++byte) 
 			buf[byte] = next_rand();
 
-		dump_bytes("data", &my_data, sizeof(my_data), false);
-		dump_bytes("bits", buf, schema.bytes, false);
+		sm_dump_bytes("data", &my_data, sizeof(my_data), false);
+		sm_dump_bytes("bits", buf, schema.bytes, false);
 
 		sm_bf_write(buf, &schema, &my_data);
 
@@ -291,15 +313,15 @@ int main(int argc, char* argv[])
 
 		sm_bf_read(buf, &schema, (uint8_t*)&my_data);
 
-		dump_bytes("data", &my_data, sizeof(my_data), false);
-		dump_bytes("bits", buf, schema.bytes, false);
+		sm_dump_bytes("data", &my_data, sizeof(my_data), false);
+		sm_dump_bytes("bits", buf, schema.bytes, false);
 
 		for (byte = 0; byte < schema.bytes; ++byte)
 			buf[byte] = 0;
 
 		memset(&my_data, 0xFFFFFFFF, sizeof(dummy_t));
 		sm_bf_write(buf, &schema, &my_data);
-		dump_bytes("bits", buf, schema.bytes, true);
+		sm_dump_bytes("bits", buf, schema.bytes, true);
 
 		free(buf);
 	}
