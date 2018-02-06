@@ -227,7 +227,7 @@
     <ClInclude Include="config.h" />
     <ClInclude Include="discontinuous_array.h" />
     <ClInclude Include="embedded.h" />
-    <ClInclude Include="expand.h" />
+    <ClInclude Include="disperse.c" />
     <ClInclude Include="hashing.h" />
     <ClInclude Include="allocator.h" />
     <ClInclude Include="hash_table.h" />

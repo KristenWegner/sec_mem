@@ -378,17 +378,7 @@ inline static bool sm_bf_create_schema(register uint8_t* sizes, register uint8_t
 		{
 			uint16_t x; 
 
-			do // Find a new unused index.
-			{
-				x = (uint16_t)((UINT64_C(1) + entropy()) % b);
-
-				/*if (x > 0 && !index[x] && index[x - 1] && index[x + 1])
-				{
-					if (entropy() & 1)
-						x = (uint16_t)((UINT64_C(1) + entropy()) % h);
-					else x = (uint16_t)h + ((UINT64_C(1) + entropy()) % h);
-				}*/
-			}
+			do x = (uint16_t)((UINT64_C(1) + entropy()) % b); // Find a new unused slot.
 			while (index[x]);
 
 			index[x] = true;
