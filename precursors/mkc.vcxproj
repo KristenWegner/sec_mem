@@ -49,6 +49,9 @@
       <EnforceTypeConversionRules Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</EnforceTypeConversionRules>
       <OmitDefaultLibName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</OmitDefaultLibName>
     </ClCompile>
+    <ClCompile Include="isaac.c">
+      <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Release|x64'">StdCall</CallingConvention>
+    </ClCompile>
     <ClCompile Include="mem.c">
       <InlineFunctionExpansion Condition="'$(Configuration)|$(Platform)'=='Release|x64'">AnySuitable</InlineFunctionExpansion>
       <StringPooling Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</StringPooling>

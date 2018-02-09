@@ -54,6 +54,9 @@
     <ClCompile Include="foo.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="isaac.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="rdr.asm">
