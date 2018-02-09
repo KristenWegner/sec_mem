@@ -660,5 +660,16 @@ inline static uint64_t cyc_lxor_64(register uint64_t value)
 }
 
 
-#endif // INCLUDE_PERM_H
+// Performs a bit reversal, e.g. [1100..] -> [..0011].
+inline static uint64_t rev_64(uint64_t value)
+{
+	value = ((value >> 0x20) & UINT64_C(0x00000000FFFFFFFF)) | ((value & UINT64_C(0x00000000FFFFFFFF)) << 0x20);
+	value = ((value >> 0x10) & UINT64_C(0x0000FFFF0000FFFF)) | ((value & UINT64_C(0x0000FFFF0000FFFF)) << 0x10);
+	value = ((value >> 0x08) & UINT64_C(0x00FF00FF00FF00FF)) | ((value & UINT64_C(0x00FF00FF00FF00FF)) << 0x08);
+	value = ((value >> 0x04) & UINT64_C(0x0F0F0F0F0F0F0F0F)) | ((value & UINT64_C(0x0F0F0F0F0F0F0F0F)) << 0x04);
+	value = ((value >> 0x02) & UINT64_C(0x3333333333333333)) | ((value & UINT64_C(0x3333333333333333)) << 0x02);
+	return  ((value >> 0x01) & UINT64_C(0x5555555555555555)) | ((value & UINT64_C(0x5555555555555555)) << 0x01);
+}
 
+
+#endif // INCLUDE_PERM_H

@@ -54,7 +54,11 @@
     <ClCompile Include="foo.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+<<<<<<< HEAD
     <ClCompile Include="isaac.c">
+=======
+    <ClCompile Include="..\disperse.c">
+>>>>>>> develop
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

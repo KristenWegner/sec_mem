@@ -230,7 +230,7 @@ dummy_t;
 
 
 
-inline static void sm_dump_bytes(const char* prefix, uint8_t* buffer, size_t length, bool binary)
+void sm_dump_bytes(const char* prefix, uint8_t* buffer, size_t length, bool binary)
 {
 	size_t i;
 	printf("%s: ", prefix);
@@ -249,13 +249,12 @@ inline static void sm_dump_bytes(const char* prefix, uint8_t* buffer, size_t len
 			printf("%s ", s);
 		}
 		else printf("%02X ", buffer[i]);
-		//if (i && !(i % 2)) printf(" ");
 	}
 	printf("\n");
 }
 
 
-inline static void sm_bf_dump_schema(const char* prefix, sm_bf_schema_t* schema)
+void sm_bf_dump_schema(const char* prefix, sm_bf_schema_t* schema)
 {
 	size_t i, m = schema->entries;
 	size_t b = (schema->bytes * 8);

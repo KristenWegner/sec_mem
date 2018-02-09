@@ -109,8 +109,8 @@
     <ClInclude Include="bitfield.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="expand.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="disperse.c">
+      <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
