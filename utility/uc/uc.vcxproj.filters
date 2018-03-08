@@ -1,0 +1,144 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav</Extensions>
+    </Filter>
+    <Filter Include="Source Files\cpu">
+      <UniqueIdentifier>{fff57699-462d-4432-8010-546600a6759b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\cpu\arm">
+      <UniqueIdentifier>{a1981c58-893f-4016-98ce-aa9836f6f834}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\cpu\x86">
+      <UniqueIdentifier>{48258faf-3ec5-4777-b138-8b855bf09c50}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\cpu\arm\64">
+      <UniqueIdentifier>{b2220f00-4b4b-4a55-b749-85e6bf6fce4e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\cpu\x86\64">
+      <UniqueIdentifier>{05300bd5-44fd-4a0f-ad5d-d58e1266fc0b}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="app.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="asm.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="cof.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="elf.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="gen.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="pex.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="pre.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="run.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="sup.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="cpu\arm\asm.c">
+      <Filter>Source Files\cpu\arm</Filter>
+    </ClCompile>
+    <ClCompile Include="cpu\arm\gen.c">
+      <Filter>Source Files\cpu\arm</Filter>
+    </ClCompile>
+    <ClCompile Include="cpu\arm\lnk.c">
+      <Filter>Source Files\cpu\arm</Filter>
+    </ClCompile>
+    <ClCompile Include="cpu\arm\64\gen.c">
+      <Filter>Source Files\cpu\arm\64</Filter>
+    </ClCompile>
+    <ClCompile Include="cpu\arm\64\lnk.c">
+      <Filter>Source Files\cpu\arm\64</Filter>
+    </ClCompile>
+    <ClCompile Include="cpu\x86\asm.c">
+      <Filter>Source Files\cpu\x86</Filter>
+    </ClCompile>
+    <ClCompile Include="cpu\x86\gen.c">
+      <Filter>Source Files\cpu\x86</Filter>
+    </ClCompile>
+    <ClCompile Include="cpu\x86\lnk.c">
+      <Filter>Source Files\cpu\x86</Filter>
+    </ClCompile>
+    <ClCompile Include="cpu\x86\64\gen.c">
+      <Filter>Source Files\cpu\x86\64</Filter>
+    </ClCompile>
+    <ClCompile Include="cpu\x86\64\lnk.c">
+      <Filter>Source Files\cpu\x86\64</Filter>
+    </ClCompile>
+    <ClCompile Include="api.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="cpu\x86\asm.h">
+      <Filter>Source Files\cpu\x86</Filter>
+    </ClInclude>
+    <ClInclude Include="cpu\x86\tok.h">
+      <Filter>Source Files\cpu\x86</Filter>
+    </ClInclude>
+    <ClInclude Include="cpu\x86\64\asm.h">
+      <Filter>Source Files\cpu\x86\64</Filter>
+    </ClInclude>
+    <ClInclude Include="all.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cfg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cof.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="elf.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="lib.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="tok.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="api.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cpu\arm\64\def.h">
+      <Filter>Source Files\cpu\arm\64</Filter>
+    </ClInclude>
+    <ClInclude Include="cpu\x86\64\def.h">
+      <Filter>Source Files\cpu\x86\64</Filter>
+    </ClInclude>
+    <ClInclude Include="cpu\x86\def.h">
+      <Filter>Source Files\cpu\x86</Filter>
+    </ClInclude>
+    <ClInclude Include="cpu\arm\def.h">
+      <Filter>Source Files\cpu\arm</Filter>
+    </ClInclude>
+    <ClInclude Include="dbx.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ctx.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

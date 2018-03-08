@@ -8,11 +8,15 @@
 #define sm_issac_state (sizeof(uint64_t) * 4) + (2 * (sizeof(uint64_t) * 0x100))
 
 
-// ISAAC-64 step.
+// ISAAC-64 step method.
 inline static void sm_issac_next(void* state)
 {
+	// Map out the state parts.
+
 	uint64_t *sn = state, *sa = sn + 1U, *sb = sa + 1U, *sc = sb + 1U;
 	uint64_t *sm = sc + 1U, *sr = sm + 0x100U;
+
+	// Working variables.
 
 	register uint64_t x, y;
 	register uint64_t *m1 = sm, *m2;
@@ -20,6 +24,8 @@ inline static void sm_issac_next(void* state)
 	register uint64_t a = *sa, b = *sb + (++*sc);
 
 	const uint8_t* t = (uint8_t*)sm;
+
+	// Step 1.
 
 	for (m1 = sm, e = m2 = m1 + UINT64_C(0x80); m1 < e; )
 	{
@@ -43,6 +49,8 @@ inline static void sm_issac_next(void* state)
 		*(m1++) = y = (*(uint64_t*)(t + (x & UINT64_C(0x7F8)))) + a + b;
 		*(r++) = b = (*(uint64_t*)(t + ((y >> 8) & UINT64_C(0x7F8)))) + x;
 	}
+
+	// Step 2.
 
 	for (m2 = sm; m2 < e; )
 	{
@@ -72,7 +80,21 @@ inline static void sm_issac_next(void* state)
 }
 
 
-// ISAAC-64 seed.
+inline static uint64_t rotl(register uint64_t value, register uint64_t bits)
+{
+	bits &= UINT64_C(63);
+	return (value << bits) | (value >> ((-bits) & UINT64_C(63)));
+}
+
+
+inline static uint64_t rotr(register uint64_t value, register uint64_t bits)
+{
+	bits &= UINT64_C(63);
+	return (value >> bits) | (value << ((-bits) & UINT64_C(63)));
+}
+
+
+// ISAAC-64 seed method.
 exported void callconv sm_issac_seed(void* state, uint64_t seed)
 {
 	register uint64_t a, b, c, d, e, f, g, h, i;
@@ -83,17 +105,17 @@ exported void callconv sm_issac_seed(void* state, uint64_t seed)
 
 	a = b = c = d = e = f = g = h = UINT64_C(0x9E3779B97F4A7C13);
 
-	// This seed loop is not in the original ISSAC code.
+	// The following seed loop is not in the original ISSAC code.
+	// Copied in part from the Mersenne Twister 19937 64-bit seed step.
 
 	r[0] = seed;
 
 	for (i = UINT64_C(0); i < UINT64_C(0x100); ++i)
 	{
 		m[i] = UINT64_C(0);
+		uint64_t v = UINT64_C(0x5851F42D4C957F2D) * (r[i - 1] ^ (r[i - 1] >> 62)) + i;
 
-		// Copied from the Mersenne Twister 19937 64-bit seed step.
-
-		r[i] = (UINT64_C(0x5851F42D4C957F2D) * (r[i - 1] ^ (r[i - 1] >> 62)) + i);
+		r[i] = v;
 	}
 
 	for (i = UINT64_C(0); i < UINT64_C(4); ++i)
@@ -174,7 +196,7 @@ exported void callconv sm_issac_seed(void* state, uint64_t seed)
 }
 
 
-// ISAAC-64 generate.
+// ISAAC-64 generate next method.
 exported uint64_t callconv sm_issac_rand(void* state)
 {
 	register uint64_t *n = state, *r = n + 0x104U;
