@@ -58,10 +58,10 @@
 #define INCLUDE_STACK_SIZE			32
 #define IFDEF_STACK_SIZE			64
 #define VSTACK_SIZE					256
-#define STRING_MAX_SIZE				1024
-#define TOKSTR_MAX_SIZE				256
+#define UC_LIMIT_STRING_MAXIMUM_SIZE				1024
+#define UC_LIMIT_TOKEN_STRING_MAXIMUM_SIZE				256
 #define PACK_STACK_SIZE				8
-#define TOK_HASH_SIZE				16384 // Must be a power of 2.
+#define UC_LIMIT_HASH_SIZE				16384 // Must be a power of 2.
 #define TOK_ALLOC_INCR				512  // Must be a power of 2.
 #define TOK_MAX_SIZE				4 // Maximum token size in integer units, when stored in a string.
 #define CACHED_INCLUDES_HASH_SIZE	32
@@ -311,10 +311,10 @@
 // Compiler / assembler / linker debugging.
 
 
-//#define PARSE_DEBUG				1 // Parser debug.
+//#define UC_OPTION_DEBUG_PARSE				1 // Parser debug.
 //#define PP_DEBUG					1 // Preprocessor debug.
 //#define INC_DEBUG					1 // Include file debug.
-//#define MEM_DEBUG					1 // Memory leak debug.
+//#define UC_OPTION_DEBUG_MEMORY					1 // Memory leak debug.
 //#define ASM_DEBUG					1 // Assembler debug.
 
 

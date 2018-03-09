@@ -45,7 +45,7 @@ static int func_ret_sub;
 ST_FUNC void g(int c)
 {
 	int ind1;
-	if (nocode_wanted)
+	if (want_no_code)
 		return;
 	ind1 = ind + 1;
 	if (ind1 > cur_text_section->data_allocated)
@@ -104,7 +104,7 @@ ST_FUNC void gsym_addr(int t, int a)
 {
 	while (t) {
 		unsigned char *ptr = cur_text_section->data + t;
-		uint32_t n = read32le(ptr); /* next value */
+		uint32_t n = read32le(ptr); /* uc_pre_next_expansion value */
 		write32le(ptr, a - t - 4);
 		t = n;
 	}
@@ -127,7 +127,7 @@ static int is64_type(int t)
 static int oad(int c, int s)
 {
 	int t;
-	if (nocode_wanted)
+	if (want_no_code)
 		return s;
 	o(c);
 	t = ind;
@@ -165,8 +165,8 @@ ST_FUNC void gen_addrpc32(int r, uc_symbol_t *sym, int c)
 static void gen_gotpcrel(int r, uc_symbol_t *sym, int c)
 {
 #ifdef TCC_TARGET_PE
-	tcc_error("internal error: no GOT on PE: %s %x %x | %02x %02x %02x\n",
-		get_tok_str(sym->v, NULL), c, r,
+	uc_error("internal error: no GOT on PE: %s %x %x | %02x %02x %02x\n",
+		uc_get_token_string(sym->v, NULL), c, r,
 		cur_text_section->data[ind - 3],
 		cur_text_section->data[ind - 2],
 		cur_text_section->data[ind - 1]
@@ -260,7 +260,7 @@ void load(int r, uc_stack_value_t *sv)
 	ft = sv->type.t & ~VT_DEFSIGN;
 	fc = sv->c.i;
 	if (fc != sv->c.i && (fr & VT_SYM))
-		tcc_error("64 bit addend in load");
+		uc_error("64 bit addend in load");
 
 	ft &= ~(VT_VOLATILE | VT_CONSTANT);
 
@@ -319,7 +319,7 @@ void load(int r, uc_stack_value_t *sv)
 			case 4: ft = VT_INT; break;
 			case 8: ft = VT_LLONG; break;
 			default:
-				tcc_error("invalid aggregate type for register load");
+				uc_error("invalid aggregate type for register load");
 				break;
 			}
 		}
@@ -479,7 +479,7 @@ void store(int r, uc_stack_value_t *v)
 	ft = v->type.t;
 	fc = v->c.i;
 	if (fc != v->c.i && (fr & VT_SYM))
-		tcc_error("64 bit addend in store");
+		uc_error("64 bit addend in store");
 	ft &= ~(VT_VOLATILE | VT_CONSTANT);
 	bt = ft & VT_BTYPE;
 
@@ -650,14 +650,14 @@ ST_FUNC void gen_bounded_ptr_deref(void)
 	case 12: func = TOK___bound_ptr_indir12; break;
 	case 16: func = TOK___bound_ptr_indir16; break;
 	default:
-		tcc_error("unhandled size when dereferencing bounded pointer");
+		uc_error("unhandled size when dereferencing bounded pointer");
 		func = 0;
 		break;
 	}
 
 	sym = external_global_sym(func, &func_old_type, 0);
 	if (!sym->c)
-		put_extern_sym(sym, NULL, 0, 0);
+		uc_put_external_symbol(sym, NULL, 0, 0);
 
 	/* patch relocation */
 	/* XXX: find a better solution ? */
@@ -755,7 +755,7 @@ void gfunc_call(int nb_args)
 	   call breaks register passing arguments we are preparing.
 	   So, we process arguments which will be passed by stack first. */
 	struct_size = args_size;
-	for (i = 0; i < nb_args; i++) {
+	for (i = 0; i < nb_args; ++i) {
 		uc_stack_value_t *sv;
 
 		--arg;
@@ -793,7 +793,7 @@ void gfunc_call(int nb_args)
 	arg = nb_args;
 	struct_size = args_size;
 
-	for (i = 0; i < nb_args; i++) {
+	for (i = 0; i < nb_args; ++i) {
 		--arg;
 		bt = (vtop->type.t & VT_BTYPE);
 
@@ -814,8 +814,8 @@ void gfunc_call(int nb_args)
 		}
 		else {
 			if (is_sse_float(vtop->type.t)) {
-				if (tcc_state->nosse)
-					tcc_error("SSE disabled");
+				if (this_state->nosse)
+					uc_error("SSE disabled");
 				gv(RC_XMM0); /* only use one float register */
 				if (arg >= REGN) {
 					/* movq %xmm0, j*8(%rsp) */
@@ -923,7 +923,7 @@ void gfunc_prolog(uc_c_type_t *func_type)
 	}
 
 	/* define parameters */
-	while ((sym = sym->next) != NULL) {
+	while ((sym = sym->uc_pre_next_expansion) != NULL) {
 		type = &sym->type;
 		bt = type->t & VT_BTYPE;
 		size = gfunc_arg_size(type);
@@ -937,8 +937,8 @@ void gfunc_prolog(uc_c_type_t *func_type)
 			if (reg_param_index < REGN) {
 				/* save arguments passed by register */
 				if ((bt == VT_FLOAT) || (bt == VT_DOUBLE)) {
-					if (tcc_state->nosse)
-						tcc_error("SSE disabled");
+					if (this_state->nosse)
+						uc_error("SSE disabled");
 					o(0xd60f66); /* movq */
 					gen_modrm(reg_param_index, VT_LOCAL, NULL, addr);
 				}
@@ -1072,7 +1072,7 @@ static X86_64_Mode classify_x86_64_inner(uc_c_type_t *ty)
 		f = ty->ref;
 
 		mode = x86_64_mode_none;
-		for (f = f->next; f; f = f->next)
+		for (f = f->uc_pre_next_expansion; f; f = f->uc_pre_next_expansion)
 			mode = classify_x86_64_merge(mode, classify_x86_64_inner(&f->type));
 
 		return mode;
@@ -1223,8 +1223,8 @@ void gfunc_call(int nb_args)
 		}
 	}
 
-	if (nb_sse_args && tcc_state->nosse)
-		tcc_error("SSE disabled but floating point arguments passed");
+	if (nb_sse_args && this_state->nosse)
+		uc_error("SSE disabled but floating point arguments passed");
 
 	/* fetch cpu flag before generating any code */
 	if (vtop >= vstack && (vtop->r & VT_VALMASK) == VT_CMP)
@@ -1314,7 +1314,7 @@ void gfunc_call(int nb_args)
 	   instead of them */
 	assert(gen_reg <= REGN);
 	assert(sse_reg <= 8);
-	for (i = 0; i < nb_args; i++) {
+	for (i = 0; i < nb_args; ++i) {
 		mode = classify_x86_64_arg(&vtop->type, &type, &size, &align, &reg_count);
 		/* Alter stack entry type so that gv() knows how to treat it */
 		vtop->type = type;
@@ -1411,7 +1411,7 @@ void gfunc_prolog(uc_c_type_t *func_type)
 		seen_stack_size = PTR_SIZE * 2;
 		/* count the number of seen parameters */
 		sym = func_type->ref;
-		while ((sym = sym->next) != NULL) {
+		while ((sym = sym->uc_pre_next_expansion) != NULL) {
 			type = &sym->type;
 			mode = classify_x86_64_arg(type, NULL, &size, &align, &reg_count);
 			switch (mode) {
@@ -1446,9 +1446,9 @@ void gfunc_prolog(uc_c_type_t *func_type)
 		gen_le32(seen_stack_size);
 
 		/* save all register passing arguments */
-		for (i = 0; i < 8; i++) {
+		for (i = 0; i < 8; ++i) {
 			loc -= 16;
-			if (!tcc_state->nosse) {
+			if (!this_state->nosse) {
 				o(0xd60f66); /* movq */
 				gen_modrm(7 - i, VT_LOCAL, NULL, loc);
 			}
@@ -1457,7 +1457,7 @@ void gfunc_prolog(uc_c_type_t *func_type)
 			gen_le32(loc + 8);
 			gen_le32(0);
 		}
-		for (i = 0; i < REGN; i++) {
+		for (i = 0; i < REGN; ++i) {
 			push_arg_reg(REGN - 1 - i);
 		}
 	}
@@ -1476,13 +1476,13 @@ void gfunc_prolog(uc_c_type_t *func_type)
 		reg_param_index++;
 	}
 	/* define parameters */
-	while ((sym = sym->next) != NULL) {
+	while ((sym = sym->uc_pre_next_expansion) != NULL) {
 		type = &sym->type;
 		mode = classify_x86_64_arg(type, NULL, &size, &align, &reg_count);
 		switch (mode) {
 		case x86_64_mode_sse:
-			if (tcc_state->nosse)
-				tcc_error("SSE disabled but floating point arguments used");
+			if (this_state->nosse)
+				uc_error("SSE disabled but floating point arguments used");
 			if (sse_param_index + reg_count <= 8) {
 				/* save arguments passed by register */
 				loc -= reg_count * 8;
@@ -1532,7 +1532,7 @@ void gfunc_prolog(uc_c_type_t *func_type)
 
 #ifdef CONFIG_TCC_BCHECK
 	/* leave some room for bound checking code */
-	if (tcc_state->do_bounds_check) {
+	if (this_state->do_bounds_check) {
 		func_bound_offset = lbounds_section->data_offset;
 		func_bound_ind = ind;
 		oad(0xb8, 0); /* lbound section pointer */
@@ -1548,7 +1548,7 @@ void gfunc_epilog(void)
 	int v, saved_ind;
 
 #ifdef CONFIG_TCC_BCHECK
-	if (tcc_state->do_bounds_check
+	if (this_state->do_bounds_check
 		&& func_bound_offset != lbounds_section->data_offset)
 	{
 		addr_t saved_ind;
@@ -1653,7 +1653,7 @@ ST_FUNC int gtst(int inv, int t)
 {
 	int v = vtop->r & VT_VALMASK;
 
-	if (nocode_wanted) {
+	if (want_no_code) {
 		;
 	}
 	else if (v == VT_CMP) {

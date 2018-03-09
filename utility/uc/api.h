@@ -45,10 +45,10 @@ LIBTCCAPI int tcc_add_sysinclude_path(uc_state_t *s, const char *pathname);
 
 
 // Define preprocessor symbol with optional value.
-LIBTCCAPI void tcc_define_symbol(uc_state_t *s, const char *sym, const char *value);
+LIBTCCAPI void uc_define_symbol(uc_state_t *s, const char *sym, const char *value);
 
 
-// Undefine preprocess symbol.
+// Undefine uc_preprocess symbol.
 LIBTCCAPI void tcc_undefine_symbol(uc_state_t *s, const char *sym);
 
 
@@ -73,7 +73,7 @@ LIBTCCAPI int tcc_compile_string(uc_state_t *s, const char *buf);
 #define TCC_OUTPUT_EXE        2 // Executable file.
 #define TCC_OUTPUT_DLL        3 // Dynamic library.
 #define TCC_OUTPUT_OBJ        4 // Object file.
-#define TCC_OUTPUT_PREPROCESS 5 // Only preprocess (used internally).
+#define TCC_OUTPUT_PREPROCESS 5 // Only uc_preprocess (used internally).
 
 
 // Set output type. Note: This must be called before compilation.

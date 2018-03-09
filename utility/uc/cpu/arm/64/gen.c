@@ -68,7 +68,7 @@ ST_FUNC void o(unsigned int c)
 {
 	int ind1 = ind + 4;
 
-	if (nocode_wanted)
+	if (want_no_code)
 		return;
 
 	if (ind1 > cur_text_section->data_allocated)
@@ -229,14 +229,14 @@ ST_FUNC void gsym_addr(int t_, int a_)
 	while (t) 
 	{
 		unsigned char *ptr = cur_text_section->data + t;
-		uint32_t next = read32le(ptr);
+		uint32_t uc_pre_next_expansion = read32le(ptr);
 
 		if (a - t + 0x8000000 >= 0x10000000)
-			tcc_error("branch out of range");
+			uc_error("branch out of range");
 
 		write32le(ptr, (a - t == 4 ? 0xD503201F : 0x14000000 | ((a - t) >> 2 & 0x3FFFFFF)));
 
-		t = next;
+		t = uc_pre_next_expansion;
 	}
 }
 
@@ -658,7 +658,7 @@ static int arm64_hfa_aux(uc_c_type_t *type, int *fsize, int num)
 		int is_struct = 0; // Rather than union.
 		uc_symbol_t *field;
 
-		for (field = type->ref->next; field; field = field->next)
+		for (field = type->ref->uc_pre_next_expansion; field; field = field->uc_pre_next_expansion)
 		{
 			if (field->c)
 			{
@@ -671,7 +671,7 @@ static int arm64_hfa_aux(uc_c_type_t *type, int *fsize, int num)
 		{
 			int num0 = num;
 
-			for (field = type->ref->next; field; field = field->next) 
+			for (field = type->ref->uc_pre_next_expansion; field; field = field->uc_pre_next_expansion) 
 			{
 				if (field->c != (num - num0) * *fsize)
 					return -1;
@@ -691,7 +691,7 @@ static int arm64_hfa_aux(uc_c_type_t *type, int *fsize, int num)
 		{
 			int num0 = num;
 
-			for (field = type->ref->next; field; field = field->next) 
+			for (field = type->ref->uc_pre_next_expansion; field; field = field->uc_pre_next_expansion) 
 			{
 				int num1 = arm64_hfa_aux(&field->type, fsize, num0);
 
@@ -758,7 +758,7 @@ static unsigned long arm64_pcs_aux(int n, uc_c_type_t **type, unsigned long *a)
 	unsigned long ns = 32; // Next stack offset.
 	int i;
 
-	for (i = 0; i < n; i++)
+	for (i = 0; i < n; ++i)
 	{
 		int hfa = arm64_hfa(type[i], 0);
 		int size, align;
@@ -898,7 +898,7 @@ static unsigned long arm64_pcs(int n, uc_c_type_t **type, unsigned long *a)
 	{
 		int i;
 
-		for (i = 0; i <= n; i++) 
+		for (i = 0; i <= n; ++i) 
 		{
 			if (!i)
 				printf("arm64_pcs return: ");
@@ -933,12 +933,12 @@ ST_FUNC void gfunc_call(int nb_args)
 	if ((return_type->t & VT_BTYPE) == VT_STRUCT)
 		--nb_args;
 
-	t = tcc_malloc((nb_args + 1) * sizeof(*t));
-	a = tcc_malloc((nb_args + 1) * sizeof(*a));
-	a1 = tcc_malloc((nb_args + 1) * sizeof(*a1));
+	t = uc_malloc((nb_args + 1) * sizeof(*t));
+	a = uc_malloc((nb_args + 1) * sizeof(*a));
+	a1 = uc_malloc((nb_args + 1) * sizeof(*a1));
 
 	t[0] = return_type;
-	for (i = 0; i < nb_args; i++)
+	for (i = 0; i < nb_args; ++i)
 		t[nb_args - i] = &vtop[-i].type;
 
 	stack = arm64_pcs(nb_args, t, a);
@@ -1108,9 +1108,9 @@ ST_FUNC void gfunc_call(int nb_args)
 		}
 	}
 
-	tcc_free(a1);
-	tcc_free(a);
-	tcc_free(t);
+	uc_free(a1);
+	uc_free(a);
+	uc_free(t);
 }
 
 
@@ -1127,13 +1127,13 @@ ST_FUNC void gfunc_prolog(uc_c_type_t *func_type)
 	func_vt = func_type->ref->type;
 	func_vc = 144; // Offset of where x8 is stored.
 
-	for (sym = func_type->ref; sym; sym = sym->next)
+	for (sym = func_type->ref; sym; sym = sym->uc_pre_next_expansion)
 		++n;
 
-	t = tcc_malloc(n * sizeof(*t));
-	a = tcc_malloc(n * sizeof(*a));
+	t = uc_malloc(n * sizeof(*t));
+	a = uc_malloc(n * sizeof(*a));
 
-	for (sym = func_type->ref; sym; sym = sym->next)
+	for (sym = func_type->ref; sym; sym = sym->uc_pre_next_expansion)
 		t[i++] = &sym->type;
 
 	arm64_func_va_list_stack = arm64_pcs(n - 1, t, a);
@@ -1152,7 +1152,7 @@ ST_FUNC void gfunc_prolog(uc_c_type_t *func_type)
 	arm64_func_va_list_gr_offs = -64;
 	arm64_func_va_list_vr_offs = -128;
 
-	for (i = 1, sym = func_type->ref->next; sym; i++, sym = sym->next) 
+	for (i = 1, sym = func_type->ref->uc_pre_next_expansion; sym; i++, sym = sym->uc_pre_next_expansion) 
 	{
 		int off = (a[i] < 16 ? 160 + a[i] / 2 * 8 : a[i] < 32 ? 16 + (a[i] - 16) / 2 * 16 : 224 + ((a[i] - 32) >> 1 << 1));
 		sym_push(sym->v & ~SYM_FIELD, &sym->type, (a[i] & 1 ? VT_LLOCAL : VT_LOCAL) | lvalue_type(sym->type.t), off);
@@ -1182,8 +1182,8 @@ ST_FUNC void gfunc_prolog(uc_c_type_t *func_type)
 		}
 	}
 
-	tcc_free(a);
-	tcc_free(t);
+	uc_free(a);
+	uc_free(t);
 
 	o(0x910003fd); // mov x29,sp
 
@@ -1457,7 +1457,7 @@ ST_FUNC int gjmp(int t)
 {
 	int r = ind;
 
-	if (nocode_wanted)
+	if (want_no_code)
 		return t;
 
 	o(t);

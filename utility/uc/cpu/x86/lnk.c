@@ -29,7 +29,7 @@ int code_reloc (int reloc_type)
             return 1;
     }
 
-    tcc_error ("Unknown relocation type: %d", reloc_type);
+    uc_error ("Unknown relocation type: %d", reloc_type);
     return -1;
 }
 
@@ -66,7 +66,7 @@ int gotplt_entry_type (int reloc_type)
             return ALWAYS_GOTPLT_ENTRY;
     }
 
-    tcc_error ("Unknown relocation type: %d", reloc_type);
+    uc_error ("Unknown relocation type: %d", reloc_type);
 
     return -1;
 }
@@ -139,7 +139,7 @@ ST_FUNC void relocate_plt(uc_state_t *s1)
     }
 }
 
-static ElfW_Rel *qrel; /* ptr to next reloc entry reused */
+static ElfW_Rel *qrel; /* ptr to uc_pre_next_expansion reloc entry reused */
 
 void relocate_init(uc_section_t *sr)
 {
@@ -202,7 +202,7 @@ void relocate(uc_state_t *s1, ElfW_Rel *rel, int type, unsigned char *ptr, addr_
         case R_386_16:
             if (s1->output_format != TCC_OUTPUT_FORMAT_BINARY) {
             output_file:
-                tcc_error("can only produce 16-bit binary files");
+                uc_error("can only produce 16-bit binary files");
             }
             write16le(ptr, read16le(ptr) + val);
             return;

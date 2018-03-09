@@ -12,72 +12,152 @@
 #include "all.h"
 
 
+// Basic OS types.
+typedef enum uc_os_e
+{
+	uc_os_undefined = 0,
+	uc_os_linux,
+	uc_os_windows,
+}
+uc_os_t;
+
+
+// Processor architectures.
+typedef enum uc_cpu_e
+{
+	uc_cpu_undefined = 0,
+	uc_cpu_intel_x86,
+	uc_cpu_arm,
+}
+uc_cpu_t;
+
+
+// Processor bits.
+typedef enum uc_bits_e
+{
+	uc_bits_undefined = 0,
+	uc_bits_16 = 16,
+	uc_bits_32 = 32,
+	uc_bits_64 = 64,
+}
+uc_bits_t;
+
+
+// Image types.
+typedef enum uc_image_e
+{
+	uc_image_undefined = 0,
+	uc_image_elf,
+	uc_image_pe,
+	uc_image_coff,
+}
+uc_image_t;
+
+
+// Endian models.
+typedef enum uc_endian_e
+{
+	uc_endian_undefined = 0,
+	uc_endian_little,
+	uc_endian_big,
+	uc_endian_mid,
+}
+uc_endian_t;
+
+
+typedef struct uc_system_s
+{
+	// OS.
+	uc_os_t os;
+
+	// Endian model.
+	uc_endian_t endian;
+
+	// CPU architecture.
+	uc_cpu_t cpu;
+
+	// CPU bits.
+	uc_bits_t bits;
+
+	// Image type.
+	uc_image_t image;
+
+	// CPU-specific extension flags, eg. SSE, AVX, EABI, etc.
+	uint16_t cpu_extensions;
+}
+uc_system_t;
+
+
 // Compiler state structure.
 typedef struct uc_context_s
 {
+	// The target system.
+	uc_system_t target;
+
+	// The host / native system.
+	uc_system_t native;
+
 	// Preprocessor-specific entries.
-	struct
+	struct pre_s
 	{
-		int32_t tok_flags;
+		int32_t token_flags;
 		int32_t parse_flags;
 
-		struct uc_buffered_file_t* file;
+		uc_buffered_file_t* file;
 
-		int32_t ch;
-		int32_t tok;
+		int32_t character;
+		int32_t token;
 
-		uc_const_value_t tokc;
+		uc_const_value_t token_constant;
 
-		const int32_t* macro_ptr;
+		const int32_t* macro_pointer;
 
-		uc_string_t tokcstr; // Current parsed string, if any.
+		uc_string_t current_token; // Current parsed string, if any.
 
 		// Benchmark information.
 
 		int32_t total_lines;
 		int32_t total_bytes;
-		int32_t tok_ident;
+		int32_t total_identifiers;
 
-		uc_token_symbol_t** table_ident;
+		uc_token_symbol_t** identifier_table;
+		uc_token_symbol_t* identifier_hash[UC_LIMIT_HASH_SIZE];
 
-		uc_token_symbol_t* hash_ident[TOK_HASH_SIZE];
-		char token_buf[STRING_MAX_SIZE + 1];
+		char token_buffer[UC_LIMIT_STRING_MAXIMUM_SIZE + 1];
 
-		uc_string_t cstr_buf;
-		uc_string_t macro_equal_buf;
+		uc_string_t string_buffer;
+		uc_string_t macro_resolution_buffer;
 
-		uc_token_string_t tokstr_buf;
-		uint8_t isidnum_table[256 - CH_EOF];
+		uc_token_string_t token_string_buffer;
+		uint8_t is_id_number_table[256 - CH_EOF];
 
-		int32_t pp_debug_tok;
-		int32_t pp_debug_symv;
-		int32_t pp_once;
-		int32_t pp_expr;
-		int32_t pp_counter;
+		int32_t preprocessor_debug_token;
+		int32_t preprocessor_debug_symbol;
+		int32_t preprocessor_once;
+		int32_t preprocessor_expression;
+		int32_t preprocessor_counter;
 
-		struct TinyAlloc* toksym_alloc;
-		struct TinyAlloc* tokstr_alloc;
-		struct TinyAlloc* cstr_alloc;
+		struct uc_allocator_s* token_symbol_allocator;
+		struct uc_allocator_s* token_string_allocator;
+		struct uc_allocator_s* string_allocator;
 
 		uc_token_string_t* macro_stack;
 	}
 	pre;
 
 	// API-specific entries.
-	struct
+	struct api_s
 	{
-		bool gnu_ext; // = true // Use GNU C extensions.
-		bool tcc_ext; // = true // Use built-in extensions.
-
-		struct uc_state_t* tcc_state;
-
-		int32_t nb_states;
-		void* tcc_module; // Module handle.
+		bool use_gnu_extensions; // = true // Use GNU C extensions.
+		bool use_builtin_extensions; // = true // Use built-in extensions.
+		uc_state_t* this_state;
+		int32_t state_count;
+		void* module_handle; // Module handle.
 	}
 	api;
 
 	// Code generation
-	struct
+	struct gen_s
 	{
 		// Return symbol.
 		int32_t rsym;
@@ -94,7 +174,6 @@ typedef struct uc_context_s
 		uc_symbol_t* sym_free_first;
 
 		void** sym_pools;
-
 		int32_t nb_sym_pools;
 
 		uc_symbol_t* global_stack;
@@ -108,20 +187,20 @@ typedef struct uc_context_s
 		int32_t section_sym;
 
 		int32_t vlas_in_scope; // Number of VLAs that are currently in scope.
-		int32_t vla_sp_root_loc; // The vla_sp_loc for SP before any VLAs were pushed.
+		int32_t vla_sp_root_loc; // The VLA stack pointer location for SP before any VLAs were pushed.
 		int32_t vla_sp_loc; // Pointer to variable holding location to store stack pointer on the stack when modifying stack pointer.
 
 		uc_stack_value_t __vstack[VSTACK_SIZE + 1];
 		uc_stack_value_t* vtop;
 		uc_stack_value_t* pvtop;
 
-		bool const_wanted; // True if constant wanted.
-		bool nocode_wanted; // True if no code generation wanted.
+		bool want_constant; // True if constant wanted.
+		bool want_no_code; // True if no code generation wanted.
 	}
 	gen;
 
 	// Dynamic execution-specific entries.
-	struct
+	struct run_s
 	{
 		int32_t rt_num_callers; // = 6
 		const char** rt_bound_error_msg;
@@ -130,7 +209,7 @@ typedef struct uc_context_s
 	run;
 
 	// ELF-specific entries.
-	struct
+	struct elf_s
 	{
 		// Predefined sections.
 
@@ -151,7 +230,6 @@ typedef struct uc_context_s
 		uc_section_t* stabstr_section;
 
 		bool new_undef_sym; // = false // Is there a new undefined symbol since last?
-
 	}
 	elf;
 }

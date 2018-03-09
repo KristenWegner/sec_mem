@@ -33,7 +33,7 @@ int code_reloc(int reloc_type)
 		return 1;
 	}
 
-	tcc_error("Unknown relocation type: %d", reloc_type);
+	uc_error("Unknown relocation type: %d", reloc_type);
 
 	return -1;
 }
@@ -67,7 +67,7 @@ int gotplt_entry_type(int reloc_type)
 		return ALWAYS_GOTPLT_ENTRY;
 	}
 
-	tcc_error("Unknown relocation type: %d", reloc_type);
+	uc_error("Unknown relocation type: %d", reloc_type);
 	return -1;
 }
 
@@ -78,7 +78,7 @@ ST_FUNC unsigned create_plt_entry(uc_state_t *s1, unsigned got_offset, struct uc
 	unsigned plt_offset;
 
 	if (s1->output_type == TCC_OUTPUT_DLL)
-		tcc_error("DLLs unimplemented!");
+		uc_error("DLLs unimplemented!");
 
 	if (plt->data_offset == 0) {
 		section_ptr_add(plt, 32);
@@ -108,7 +108,7 @@ ST_FUNC void relocate_plt(uc_state_t *s1)
 		uint64_t got = s1->got->sh_addr;
 		uint64_t off = (got >> 12) - (plt >> 12);
 		if ((off + ((uint32_t)1 << 20)) >> 21)
-			tcc_error("Failed relocating PLT (off=0x%lx, got=0x%lx, plt=0x%lx)", off, got, plt);
+			uc_error("Failed relocating PLT (off=0x%lx, got=0x%lx, plt=0x%lx)", off, got, plt);
 		write32le(p, 0xa9bf7bf0); // stp x16,x30,[sp,#-16]!
 		write32le(p + 4, (0x90000010 | // adrp x16,...
 			(off & 0x1ffffc) << 3 | (off & 3) << 29));
@@ -126,7 +126,7 @@ ST_FUNC void relocate_plt(uc_state_t *s1)
 			uint64_t addr = got + read64le(p);
 			uint64_t off = (addr >> 12) - (pc >> 12);
 			if ((off + ((uint32_t)1 << 20)) >> 21)
-				tcc_error("Failed relocating PLT (off=0x%lx, addr=0x%lx, pc=0x%lx)", off, addr, pc);
+				uc_error("Failed relocating PLT (off=0x%lx, addr=0x%lx, pc=0x%lx)", off, addr, pc);
 			write32le(p, (0x90000010 | // adrp x16,...
 				(off & 0x1ffffc) << 3 | (off & 3) << 29));
 			write32le(p + 4, (0xf9400211 | // ldr x17,[x16,#...]
@@ -177,7 +177,7 @@ void relocate(uc_state_t *s1, ElfW_Rel *rel, int type, unsigned char *ptr, addr_
 	case R_AARCH64_ADR_PREL_PG_HI21: {
 		uint64_t off = (val >> 12) - (addr >> 12);
 		if ((off + ((uint64_t)1 << 20)) >> 21)
-			tcc_error("R_AARCH64_ADR_PREL_PG_HI21 relocation failed");
+			uc_error("R_AARCH64_ADR_PREL_PG_HI21 relocation failed");
 		write32le(ptr, ((read32le(ptr) & 0x9f00001f) |
 			(off & 0x1ffffc) << 3 | (off & 3) << 29));
 		return;
@@ -193,7 +193,7 @@ void relocate(uc_state_t *s1, ElfW_Rel *rel, int type, unsigned char *ptr, addr_
 			(char *)symtab_section->link->data + sym->st_name);
 #endif
 		if (((val - addr) + ((uint64_t)1 << 27)) & ~(uint64_t)0xffffffc)
-			tcc_error("R_AARCH64_(JUMP|CALL)26 relocation failed"
+			uc_error("R_AARCH64_(JUMP|CALL)26 relocation failed"
 				" (val=%lx, addr=%lx)", val, addr);
 		write32le(ptr, (0x14000000 |
 			(uint32_t)(type == R_AARCH64_CALL26) << 31 |
@@ -204,7 +204,7 @@ void relocate(uc_state_t *s1, ElfW_Rel *rel, int type, unsigned char *ptr, addr_
 			(((s1->got->sh_addr +
 				s1->sym_attrs[sym_index].got_offset) >> 12) - (addr >> 12));
 		if ((off + ((uint64_t)1 << 20)) >> 21)
-			tcc_error("R_AARCH64_ADR_GOT_PAGE relocation failed");
+			uc_error("R_AARCH64_ADR_GOT_PAGE relocation failed");
 		write32le(ptr, ((read32le(ptr) & 0x9f00001f) |
 			(off & 0x1ffffc) << 3 | (off & 3) << 29));
 		return;

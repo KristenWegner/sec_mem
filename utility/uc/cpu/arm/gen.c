@@ -51,7 +51,7 @@ ST_FUNC void arm_init(struct uc_state_t *s)
 	func_double_type.ref = sym_push(SYM_FIELD, &double_type, FUNC_CDECL, FUNC_OLD);
 	float_abi = s->float_abi;
 #ifndef TCC_ARM_HARDFLOAT
-	tcc_warning("ARM soft float ABI currently not supported.");
+	uc_warn("ARM soft float ABI currently not supported.");
 #endif
 }
 
@@ -70,12 +70,12 @@ ST_FUNC void arm_init(struct uc_state_t *s)
 
 
 #if !defined (TCC_ARM_VFP)
-	tcc_warning("Support for ARM FPA is deprecated.");
+	uc_warn("Support for ARM FPA is deprecated.");
 #endif
 
 
 #if !defined (TCC_ARM_EABI)
-	tcc_warning("Support for ARM OABI is deprecated.");
+	uc_warn("Support for ARM OABI is deprecated.");
 #endif
 
 
@@ -119,13 +119,13 @@ void o(uint32_t i)
 
 	int ind1;
 
-	if (nocode_wanted)
+	if (want_no_code)
 		return;
 
 	ind1 = ind + 4;
 
 	if (!cur_text_section)
-		tcc_error("Cannot evaluate constant expressions outside of a function.");
+		uc_error("Cannot evaluate constant expressions outside of a function.");
 
 	if (ind1 > cur_text_section->data_allocated)
 		section_realloc(cur_text_section, ind1);
@@ -224,10 +224,10 @@ void stuff_const_harder(uint32_t op, uint32_t v)
 		a[0] = 0xFF;
 		o2 = (op & 0xFFF0FFFF) | ((op & 0xF000) << 4);
 
-		for (i = 1; i < 16; i++)
+		for (i = 1; i < 16; ++i)
 			a[i] = (a[i - 1] >> 2) | (a[i - 1] << 30);
 
-		for (i = 0; i < 12; i++)
+		for (i = 0; i < 12; ++i)
 		{
 			for (j = i < 4 ? i + 12 : 15; j >= i + 4; j--)
 			{
@@ -245,7 +245,7 @@ void stuff_const_harder(uint32_t op, uint32_t v)
 		n2 = o2 ^ 0xC00000;
 		nv = -v;
 
-		for (i = 0; i < 12; i++)
+		for (i = 0; i < 12; ++i)
 		{
 			for (j = i < 4 ? i + 12 : 15; j >= i + 4; j--)
 			{
@@ -258,7 +258,7 @@ void stuff_const_harder(uint32_t op, uint32_t v)
 			}
 		}
 
-		for (i = 0; i < 8; i++)
+		for (i = 0; i < 8; ++i)
 		{
 			for (j = i + 4; j < 12; j++)
 			{
@@ -278,7 +278,7 @@ void stuff_const_harder(uint32_t op, uint32_t v)
 		no = op ^ 0xC00000;
 		nv = -v;
 
-		for (i = 0; i < 8; i++)
+		for (i = 0; i < 8; ++i)
 		{
 			for (j = i + 4; j < 12; j++)
 			{
@@ -311,7 +311,7 @@ uint32_t encbranch(int pos, int addr, int fail)
 	if (addr >= 0x1000000 || addr < -0x1000000)
 	{
 		if (fail)
-			tcc_error("Current function is larger than the current (32MB) limit.");
+			uc_error("Current function is larger than the current (32MB) limit.");
 
 		return 0;
 	}
@@ -366,7 +366,7 @@ void gsym(int t)
 static uint32_t vfpr(int r)
 {
 	if (r < TREG_F0 || r > TREG_F7)
-		tcc_error("Register (%i) is not an ARM VFP register.", r);
+		uc_error("Register (%i) is not an ARM VFP register.", r);
 	return r - TREG_F0;
 }
 
@@ -377,7 +377,7 @@ static uint32_t vfpr(int r)
 static uint32_t fpr(int r)
 {
 	if (r < TREG_F0 || r > TREG_F3)
-		tcc_error("Register (%i) is not an ARM FPA register.", r);
+		uc_error("Register (%i) is not an ARM FPA register.", r);
 	return r - TREG_F0;
 }
 
@@ -395,7 +395,7 @@ static uint32_t intr(int r)
 	if (r >= TREG_SP && r <= TREG_LR)
 		return r + (13 - TREG_SP);
 
-	tcc_error("Register (%i) is not an ARM integer register.", r);
+	uc_error("Register (%i) is not an ARM integer register.", r);
 }
 
 
@@ -473,7 +473,7 @@ static uint32_t mapcc(int cc)
 		return 0xC0000000; // GT
 	}
 
-	tcc_error("Unexpected condition code.");
+	uc_error("Unexpected condition code.");
 
 	return 0xE0000000; // AL
 }
@@ -509,7 +509,7 @@ static int negcc(int cc)
 		return TOK_LE;
 	}
 
-	tcc_error("Unexpected condition code.");
+	uc_error("Unexpected condition code.");
 
 	return TOK_NE;
 }
@@ -707,7 +707,7 @@ void load(int r, uc_stack_value_t *sv)
 		}
 	}
 
-	tcc_error("Unimplemented load.");
+	uc_error("Unimplemented load.");
 }
 
 
@@ -819,7 +819,7 @@ void store(int r, uc_stack_value_t *sv)
 		}
 	}
 
-	tcc_error("Unimplemented store.");
+	uc_error("Unimplemented store.");
 }
 
 
@@ -901,12 +901,12 @@ static int is_hgen_float_aggr(uc_c_type_t *type)
 		struct uc_symbol_s *ref;
 		int btype, nb_fields = 0;
 
-		ref = type->ref->next;
+		ref = type->ref->uc_pre_next_expansion;
 		btype = unalias_ldbl(ref->type.t & VT_BTYPE);
 
 		if (btype == VT_FLOAT || btype == VT_DOUBLE) 
 		{
-			for (; ref && btype == unalias_ldbl(ref->type.t & VT_BTYPE); ref = ref->next, nb_fields++);
+			for (; ref && btype == unalias_ldbl(ref->type.t & VT_BTYPE); ref = ref->uc_pre_next_expansion, nb_fields++);
 
 			return !ref && nb_fields <= 4;
 		}
@@ -946,7 +946,7 @@ int assign_vfpreg(struct avail_regs *avregs, int align, int size)
 	{
 		first_reg = avregs->first_free_reg;
 
-		// Alignment constraint not respected so use next reg and record hole.
+		// Alignment constraint not respected so use uc_pre_next_expansion reg and record hole.
 		if (first_reg & 1)
 			avregs->avail[avregs->last_hole++] = first_reg++;
 	}
@@ -1059,7 +1059,7 @@ enum reg_class
 struct param_plan 
 {
 	int start; /* first reg or addr used depending on the class */
-	int end; /* last reg used or next free addr depending on the class */
+	int end; /* last reg used or uc_pre_next_expansion free addr depending on the class */
 	uc_stack_value_t *sval; /* pointer to uc_stack_value_t on the value stack */
 	struct param_plan *prev; /* previous element in this class */
 };
@@ -1088,7 +1088,7 @@ struct plan
 //
 // Returns the amount of stack space needed for parameter passing.
 //
-// Note: this function allocated an array in plan->pplans with tcc_malloc. It is the responsibility 
+// Note: this function allocated an array in plan->pplans with uc_malloc. It is the responsibility 
 // of the caller to free this array once used (i.e. not before copy_params).
 static int assign_regs(int nb_args, int float_abi, struct plan *plan, int *todo)
 {
@@ -1102,7 +1102,7 @@ static int assign_regs(int nb_args, int float_abi, struct plan *plan, int *todo)
 	ncrn = nsaa = 0;
 	*todo = 0;
 
-	plan->pplans = tcc_malloc(nb_args * sizeof(*plan->pplans));
+	plan->pplans = uc_malloc(nb_args * sizeof(*plan->pplans));
 
 	memset(plan->clsplans, 0, sizeof(plan->clsplans));
 
@@ -1227,7 +1227,7 @@ static int copy_params(int nb_args, struct plan *plan, int todo)
 	/* Several constraints require parameters to be copied in a specific order:
 	- structures are copied to the stack before being loaded in a reg;
 	- floats loaded to an odd numbered VFP reg are first copied to the
-	preceding even numbered VFP reg and then moved to the next VFP reg.
+	preceding even numbered VFP reg and then moved to the uc_pre_next_expansion VFP reg.
 
 	It is thus important that:
 	- structures assigned to core regs must be copied after parameters
@@ -1242,7 +1242,7 @@ static int copy_params(int nb_args, struct plan *plan, int todo)
 
 again:
 
-	for (i = 0; i < NB_CLASSES; i++) 
+	for (i = 0; i < NB_CLASSES; ++i) 
 	{
 		for (pplan = plan->clsplans[i]; pplan; pplan = pplan->prev) 
 		{
@@ -1364,7 +1364,7 @@ again:
 				if (pplan->start & 1) /* Must be in upper part of double register */
 				{
 					o(0xEEF00A40 | ((pplan->start >> 1) << 12) | (pplan->start >> 1)); /* vmov.f32 s(n+1), sn */
-					vtop->r = VT_CONST; /* avoid being saved on stack by gv for next float */
+					vtop->r = VT_CONST; /* avoid being saved on stack by gv for uc_pre_next_expansion float */
 				}
 
 				break;
@@ -1399,7 +1399,7 @@ again:
 	if (++pass < 2)
 		goto again;
 
-	/* Manually free remaining registers since next parameters are loaded
+	/* Manually free remaining registers since uc_pre_next_expansion parameters are loaded
 	* manually, without the help of gv(int). */
 
 	save_regs(nb_args);
@@ -1476,7 +1476,7 @@ void gfunc_call(int nb_args)
 #endif
 
 	nb_args += copy_params(nb_args, &plan, todo);
-	tcc_free(plan.pplans);
+	uc_free(plan.pplans);
 
 	/* Move fct uc_stack_value_t on top as required by gcall_or_jmp */
 
@@ -1529,7 +1529,7 @@ void gfunc_prolog(uc_c_type_t *func_type)
 		func_vc = 12; /* Offset from fp of the place to store the result */
 	}
 
-	for (sym2 = sym->next; sym2 && (n < 4 || nf < 16); sym2 = sym2->next) 
+	for (sym2 = sym->uc_pre_next_expansion; sym2 && (n < 4 || nf < 16); sym2 = sym2->uc_pre_next_expansion) 
 	{
 		size = type_size(&sym2->type, &align);
 
@@ -1589,7 +1589,7 @@ void gfunc_prolog(uc_c_type_t *func_type)
 
 	pn = struct_ret, sn = 0;
 
-	while ((sym = sym->next)) 
+	while ((sym = sym->uc_pre_next_expansion)) 
 	{
 		uc_c_type_t* type = &sym->type;
 		size = type_size(type, &align);
@@ -1691,7 +1691,7 @@ void gfunc_epilog(void)
 /* generate a jump to a label */
 int gjmp(int t)
 {
-	if (nocode_wanted)
+	if (want_no_code)
 		return t;
 
 	int r = ind;
@@ -1716,7 +1716,7 @@ int gtst(int inv, int t)
 	int v = vtop->r & VT_VALMASK;
 	int r = ind;
 
-	if (nocode_wanted) ;
+	if (want_no_code) ;
 	else if (v == VT_CMP) 
 	{
 		op = mapcc(inv ? negcc(vtop->c.i) : vtop->c.i);
@@ -1974,7 +1974,7 @@ void gen_opi(int op)
 
 	default:
 
-		tcc_error("Generation of an integer binary operation for (%i) is not implemented.", op);
+		uc_error("Generation of an integer binary operation for (%i) is not implemented.", op);
 	}
 }
 
@@ -2052,7 +2052,7 @@ void gen_opf(int op)
 	default:
 		if (op < TOK_ULT || op > TOK_GT) 
 		{
-			tcc_error("Unknown floating point operation (%x).", op);
+			uc_error("Unknown floating point operation (%x).", op);
 			return;
 		}
 
@@ -2304,7 +2304,7 @@ void gen_opf(int op)
 			case TOK_UGE:
 			case TOK_ULE:
 			case TOK_UGT:
-				tcc_error("Unsigned comparison on floats.");
+				uc_error("Unsigned comparison on floats.");
 				break;
 
 			case TOK_LT:
@@ -2364,7 +2364,7 @@ void gen_opf(int op)
 		}
 		else 
 		{
-			tcc_error("Unknown floating point operation (%x).", op);
+			uc_error("Unknown floating point operation (%x).", op);
 
 			return;
 		}
@@ -2505,7 +2505,7 @@ ST_FUNC void gen_cvt_itof1(int t)
 		}
 	}
 
-	tcc_error("Unimplemented integer to float conversion (%x).", vtop->type.t);
+	uc_error("Unimplemented integer to float conversion (%x).", vtop->type.t);
 }
 
 
@@ -2583,7 +2583,7 @@ void gen_cvt_ftoi(int t)
 		return;
 	}
 
-	tcc_error("Unimplemented float to integer conversion.");
+	uc_error("Unimplemented float to integer conversion.");
 }
 
 
@@ -2647,7 +2647,7 @@ ST_FUNC void gen_vla_alloc(uc_c_type_t *type, int align)
 #endif
 
 	if (align & (align - 1))
-		tcc_error("Alignment (%i) is not a power of 2.", align);
+		uc_error("Alignment (%i) is not a power of 2.", align);
 
 	o(stuff_const(0xE3C0D000 | (r << 16), align - 1)); /* bic sp, r, #align-1 */
 

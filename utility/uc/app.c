@@ -25,7 +25,7 @@ static const char help[] =
     "  -Idir       add include path 'dir'\n"
     "  -Dsym[=val] define 'sym' with value 'val'\n"
     "  -Usym       undefine 'sym'\n"
-    "  -E          preprocess only\n"
+    "  -E          uc_preprocess only\n"
     "Linker options:\n"
     "  -Ldir       add library path 'dir'\n"
     "  -llib       link with dynamic or static library 'lib'\n"
@@ -43,7 +43,7 @@ static const char help[] =
     "  -bt N       show N callers in stack traces\n"
 #endif
     "Misc. options:\n"
-    "  -x[c|a|n]   specify type of the next infile\n"
+    "  -x[c|a|n]   specify type of the uc_pre_next_expansion infile\n"
     "  -nostdinc   do not use standard system include paths\n"
     "  -nostdlib   do not link with standard crt and libraries\n"
     "  -Bdir       set tcc's private include/library dir\n"
@@ -156,7 +156,7 @@ static void print_dirs(const char *msg, char **paths, int nb_paths)
 {
     int i;
     printf("%s:\n%s", msg, nb_paths ? "" : "  -\n");
-    for(i = 0; i < nb_paths; i++)
+    for(i = 0; i < nb_paths; ++i)
         printf("  %s\n", paths[i]);
 }
 
@@ -273,19 +273,19 @@ redo:
 
         n = s->nb_files;
         if (n == 0)
-            tcc_error("no input files\n");
+            uc_error("no input files\n");
 
         if (s->output_type == TCC_OUTPUT_PREPROCESS) {
             if (s->outfile) {
                 ppfp = fopen(s->outfile, "w");
                 if (!ppfp)
-                    tcc_error("could not write '%s'", s->outfile);
+                    uc_error("could not write '%s'", s->outfile);
             }
         } else if (s->output_type == TCC_OUTPUT_OBJ && !s->option_r) {
             if (s->nb_libraries)
-                tcc_error("cannot specify libraries with -c");
+                uc_error("cannot specify libraries with -c");
             if (n > 1 && s->outfile)
-                tcc_error("cannot specify output file with -c many files");
+                uc_error("cannot specify output file with -c many files");
         } else {
             if (s->option_pthread)
                 tcc_set_options(s, "-lpthread");

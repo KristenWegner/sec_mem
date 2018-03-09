@@ -28,7 +28,7 @@ static unsigned long func_bound_ind;
 
 ST_FUNC void g(int c)
 {
-    if (nocode_wanted)
+    if (want_no_code)
         return;
 
 	int ind1 = ind + 1;
@@ -72,7 +72,7 @@ ST_FUNC void gsym_addr(int t, int a)
 {
     while (t) {
         unsigned char *ptr = cur_text_section->data + t;
-        uint32_t n = read32le(ptr); /* next value */
+        uint32_t n = read32le(ptr); /* uc_pre_next_expansion value */
         write32le(ptr, a - t - 4);
         t = n;
     }
@@ -90,7 +90,7 @@ static int oad(int c, int s)
 {
     int t;
 
-    if (nocode_wanted)
+    if (want_no_code)
         return s;
 
     o(c);
@@ -443,7 +443,7 @@ ST_FUNC void gfunc_call(int nb_args)
     uc_symbol_t *func_sym;
     
     args_size = 0;
-    for(i = 0;i < nb_args; i++) {
+    for(i = 0;i < nb_args; ++i) {
         if ((vtop->type.t & VT_BTYPE) == VT_STRUCT) {
             size = type_size(&vtop->type, &align);
             /* align to stack align size */
@@ -504,7 +504,7 @@ ST_FUNC void gfunc_call(int nb_args)
             fastcall_regs_ptr = fastcall_regs;
             fastcall_nb_regs = func_call - FUNC_FASTCALL1 + 1;
         }
-        for(i = 0;i < fastcall_nb_regs; i++) {
+        for(i = 0;i < fastcall_nb_regs; ++i) {
             if (args_size <= 0)
                 break;
             o(0x58 + fastcall_regs_ptr[i]); /* pop r */
@@ -575,7 +575,7 @@ ST_FUNC void gfunc_prolog(uc_c_type_t *func_type)
         param_index++;
     }
     /* define parameters */
-    while ((sym = sym->next) != NULL) {
+    while ((sym = sym->uc_pre_next_expansion) != NULL) {
         type = &sym->type;
         size = type_size(type, &align);
         size = (size + 3) & ~3;
@@ -610,7 +610,7 @@ ST_FUNC void gfunc_prolog(uc_c_type_t *func_type)
 
 #ifdef CONFIG_TCC_BCHECK
     /* leave some room for bound checking code */
-    if (tcc_state->do_bounds_check) {
+    if (this_state->do_bounds_check) {
         func_bound_offset = lbounds_section->data_offset;
         func_bound_ind = ind;
         oad(0xb8, 0); /* lbound section pointer */
@@ -625,7 +625,7 @@ ST_FUNC void gfunc_epilog(void)
     addr_t v, saved_ind;
 
 #ifdef CONFIG_TCC_BCHECK
-    if (tcc_state->do_bounds_check
+    if (this_state->do_bounds_check
      && func_bound_offset != lbounds_section->data_offset) {
         addr_t saved_ind;
         addr_t *bounds_ptr;
@@ -740,7 +740,7 @@ ST_FUNC void gtst_addr(int inv, int a)
 ST_FUNC int gtst(int inv, int t)
 {
     int v = vtop->r & VT_VALMASK;
-    if (nocode_wanted) {
+    if (want_no_code) {
         ;
     } else if (v == VT_CMP) {
         /* fast case : can jump directly since flags are set */
@@ -1130,7 +1130,7 @@ ST_FUNC void gen_bounded_ptr_deref(void)
     case 12: func = TOK___bound_ptr_indir12; break;
     case 16: func = TOK___bound_ptr_indir16; break;
     default:
-        tcc_error("unhandled size when dereferencing bounded pointer");
+        uc_error("unhandled size when dereferencing bounded pointer");
         func = 0;
         break;
     }
@@ -1140,7 +1140,7 @@ ST_FUNC void gen_bounded_ptr_deref(void)
     rel = (Elf32_Rel *)(cur_text_section->reloc->data + vtop->c.i);
     sym = external_global_sym(func, &func_old_type, 0);
     if (!sym->c)
-        put_extern_sym(sym, NULL, 0, 0);
+        uc_put_external_symbol(sym, NULL, 0, 0);
     rel->r_info = ELF32_R_INFO(sym->c, ELF32_R_TYPE(rel->r_info));
 }
 #endif

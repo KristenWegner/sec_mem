@@ -803,7 +803,7 @@ static struct import_symbol *pe_add_import(struct pe_info *pe, int sym_index)
         p = pe->imp_info[i];
         goto found_dll;
     }
-    p = tcc_mallocz(sizeof *p);
+    p = uc_malloc_z(sizeof *p);
     p->dll_index = dll_index;
     dynarray_add(&pe->imp_info, &pe->imp_count, p);
 
@@ -812,7 +812,7 @@ found_dll:
     if (-1 != i)
         return p->symbols[i];
 
-    s = tcc_mallocz(sizeof *s);
+    s = uc_malloc_z(sizeof *s);
     dynarray_add(&p->symbols, &p->sym_count, s);
     s->sym_index = sym_index;
     return s;
@@ -961,7 +961,7 @@ static void pe_build_exports(struct pe_info *pe)
         if ((sym->st_other & ST_PE_EXPORT)
             /* export only symbols from actually written sections */
             && pe->s1->sections[sym->st_shndx]->sh_addr) {
-            p = tcc_malloc(sizeof *p);
+            p = uc_malloc(sizeof *p);
             p->index = sym_index;
             p->name = name;
             dynarray_add(&sorted, &sym_count, p);
@@ -1140,7 +1140,7 @@ static int pe_assign_addresses (struct pe_info *pe)
 
     // pe->thunk = new_section(pe->s1, ".iedat", SHT_PROGBITS, SHF_ALLOC);
 
-    section_order = tcc_malloc(pe->s1->nb_sections * sizeof (int));
+    section_order = uc_malloc(pe->s1->nb_sections * sizeof (int));
     for (o = k = 0 ; k < sec_last; ++k) {
         for (i = 1; i < pe->s1->nb_sections; ++i) {
             s = pe->s1->sections[i];
@@ -1152,7 +1152,7 @@ static int pe_assign_addresses (struct pe_info *pe)
         }
     }
 
-    pe->sec_info = tcc_mallocz(o * sizeof (struct section_info));
+    pe->sec_info = uc_malloc_z(o * sizeof (struct section_info));
     addr = pe->imagebase + 1;
 
     for (i = 0; i < o; ++i)
@@ -1226,7 +1226,7 @@ static int pe_assign_addresses (struct pe_info *pe)
     pe->s1->verbose = 2;
 #endif
 
-    tcc_free(section_order);
+    uc_free(section_order);
     return 0;
 }
 
@@ -1318,7 +1318,7 @@ static int pe_check_symbols(struct pe_info *pe)
                     is->thk_offset = offset;
                 }
 
-                /* tcc_realloc might have altered sym's address */
+                /* uc_realloc might have altered sym's address */
                 sym = (ElfW(Sym) *)symtab_section->data + sym_index;
 
                 /* patch the original symbol */
@@ -1503,7 +1503,7 @@ ST_FUNC uc_stack_value_t *pe_getimport(uc_stack_value_t *sv, uc_stack_value_t *v
         return sv;
     if (!sv->sym->a.dllimport)
         return sv;
-    // printf("import %04x %04x %04x %s\n", sv->type.t, sv->sym->type.t, sv->r, get_tok_str(sv->sym->v, NULL));
+    // printf("import %04x %04x %04x %s\n", sv->type.t, sv->sym->type.t, sv->r, uc_get_token_string(sv->sym->v, NULL));
     memset(v2, 0, sizeof *v2);
     v2->type.t = VT_PTR;
     v2->r = VT_CONST | VT_SYM | VT_LVAL;
@@ -1544,7 +1544,7 @@ static int add_dllref(uc_state_t *s1, const char *dllname)
     for (i = 0; i < s1->nb_loaded_dlls; ++i)
         if (0 == strcmp(s1->loaded_dlls[i]->name, dllname))
             return i + 1;
-    dllref = tcc_mallocz(sizeof(uc_dll_reference_t) + strlen(dllname));
+    dllref = uc_malloc_z(sizeof(uc_dll_reference_t) + strlen(dllname));
     strcpy(dllref->name, dllname);
     dynarray_add(&s1->loaded_dlls, &s1->nb_loaded_dlls, dllref);
     return s1->nb_loaded_dlls;
@@ -1633,9 +1633,9 @@ found:
         namep += sizeof ptr;
         for (l = 0;;) {
             if (n+1 >= n0)
-                p = tcc_realloc(p, n0 = n0 ? n0 * 2 : 256);
+                p = uc_realloc(p, n0 = n0 ? n0 * 2 : 256);
             if (!read_mem(fd, ptr - ref + l++, p + n, 1)) {
-                tcc_free(p), p = NULL;
+                uc_free(p), p = NULL;
                 goto the_end;
             }
             if (p[n++] == 0)
@@ -1782,7 +1782,7 @@ static int pe_load_dll(uc_state_t *s1, const char *filename)
         index = add_dllref(s1, tcc_basename(filename));
         for (q = p; *q; q += 1 + strlen(q))
             pe_putimport(s1, index, q, 0);
-        tcc_free(p);
+        uc_free(p);
     }
     return 0;
 }
@@ -1806,7 +1806,7 @@ ST_FUNC int pe_load_file(struct uc_state_s *s1, const char *filename, int fd)
 static unsigned pe_add_uwwind_info(uc_state_t *s1)
 {
     if (NULL == s1->uw_pdata) {
-        s1->uw_pdata = find_section(tcc_state, ".pdata");
+        s1->uw_pdata = find_section(this_state, ".pdata");
         s1->uw_pdata->sh_addralign = 4;
     }
     if (0 == s1->uw_sym)
@@ -1838,7 +1838,7 @@ static unsigned pe_add_uwwind_info(uc_state_t *s1)
 
 ST_FUNC void pe_add_unwind_data(unsigned start, unsigned end, unsigned stack)
 {
-    uc_state_t *s1 = tcc_state;
+    uc_state_t *s1 = this_state;
     uc_section_t *pd;
     unsigned o, n, d;
     struct /* _RUNTIME_FUNCTION */ {
@@ -2022,7 +2022,7 @@ ST_FUNC int pe_output_file(uc_state_t *s1, const char *filename)
             ret = -1;
         else
             ret = pe_write(&pe);
-        tcc_free(pe.sec_info);
+        uc_free(pe.sec_info);
     } else {
 #ifdef TCC_IS_NATIVE
         pe.thunk = data_section;

@@ -38,7 +38,7 @@ int code_reloc(int reloc_type)
 		return 1;
 	}
 
-	tcc_error("Unknown relocation type (%d).", reloc_type);
+	uc_error("Unknown relocation type (%d).", reloc_type);
 
 	return -1;
 }
@@ -79,7 +79,7 @@ int gotplt_entry_type(int reloc_type)
 		return ALWAYS_GOTPLT_ENTRY;
 	}
 
-	tcc_error("Unknown relocation type: %d", reloc_type);
+	uc_error("Unknown relocation type: %d", reloc_type);
 	return -1;
 }
 
@@ -92,7 +92,7 @@ ST_FUNC unsigned create_plt_entry(uc_state_t *s1, unsigned got_offset, struct uc
 	/* when building a DLL, GOT entry accesses must be done relative to
 	start of GOT (see x86_64 example above) */
 	if (s1->output_type == TCC_OUTPUT_DLL)
-		tcc_error("DLLs unimplemented!");
+		uc_error("DLLs unimplemented!");
 
 	/* empty PLT: create PLT0 entry that push address of call site and
 	jump to ld.so resolution routine (GOT + 8) */
@@ -183,7 +183,7 @@ void relocate(uc_state_t *s1, ElfW_Rel *rel, int type, unsigned char *ptr, addr_
 		h = x & 2;
 		th_ko = (x & 3) && (!blx_avail || !is_call);
 		if (th_ko || x >= 0x2000000 || x < -0x2000000)
-			tcc_error("can't relocate value at %x,%d", addr, type);
+			uc_error("can't relocate value at %x,%d", addr, type);
 		x >>= 2;
 		x &= 0xffffff;
 		/* Only reached if blx is avail and it is a call */
@@ -272,7 +272,7 @@ void relocate(uc_state_t *s1, ElfW_Rel *rel, int type, unsigned char *ptr, addr_
 		- instruction must be a call (bl) or a jump to PLT */
 		if (!to_thumb || x >= 0x1000000 || x < -0x1000000)
 			if (to_thumb || (val & 2) || (!is_call && !to_plt))
-				tcc_error("can't relocate value at %x,%d", addr, type);
+				uc_error("can't relocate value at %x,%d", addr, type);
 
 		/* Compute and store final offset */
 		s = (x >> 24) & 1;
@@ -329,7 +329,7 @@ void relocate(uc_state_t *s1, ElfW_Rel *rel, int type, unsigned char *ptr, addr_
 		x = (x * 2) / 2;
 		x += val - addr;
 		if ((x ^ (x >> 1)) & 0x40000000)
-			tcc_error("can't relocate value at %x,%d", addr, type);
+			uc_error("can't relocate value at %x,%d", addr, type);
 		(*(int *)ptr) |= x & 0x7fffffff;
 	}
 	case R_ARM_ABS32:

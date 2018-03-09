@@ -99,7 +99,7 @@ ST_FUNC int tcc_tool_ar(uc_state_t *s1, int argc, char **argv)
     int verbose = 0;
 
     i_lib = 0; i_obj = 0;  // will hold the index of the lib and first obj
-    for (i = 1; i < argc; i++) {
+    for (i = 1; i < argc; ++i) {
         const char *a = argv[i];
         if (*a == '-' && strstr(a, "."))
             ret = 1; // -x.y is always invalid (same as gnu ar)
@@ -136,7 +136,7 @@ ST_FUNC int tcc_tool_ar(uc_state_t *s1, int argc, char **argv)
     }
 
     funcmax = 250;
-    afpos = tcc_realloc(NULL, funcmax * sizeof *afpos); // 250 func
+    afpos = uc_realloc(NULL, funcmax * sizeof *afpos); // 250 func
     memcpy(&arhdro.ar_mode, "100666", 6);
 
     // i_obj = first input object file
@@ -156,7 +156,7 @@ ST_FUNC int tcc_tool_ar(uc_state_t *s1, int argc, char **argv)
         fseek(fi, 0, SEEK_END);
         fsize = ftell(fi);
         fseek(fi, 0, SEEK_SET);
-        buf = tcc_malloc(fsize + 1);
+        buf = uc_malloc(fsize + 1);
         fread(buf, fsize, 1, fi);
         fclose(fi);
 
@@ -170,7 +170,7 @@ ST_FUNC int tcc_tool_ar(uc_state_t *s1, int argc, char **argv)
 
         shdr = (ElfW(Shdr) *) (buf + ehdr->e_shoff + ehdr->e_shstrndx * ehdr->e_shentsize);
         shstr = (char *)(buf + shdr->sh_offset);
-        for (i = 0; i < ehdr->e_shnum; i++)
+        for (i = 0; i < ehdr->e_shnum; ++i)
         {
             shdr = (ElfW(Shdr) *) (buf + ehdr->e_shoff + i * ehdr->e_shentsize);
             if (!shdr->sh_offset)
@@ -194,7 +194,7 @@ ST_FUNC int tcc_tool_ar(uc_state_t *s1, int argc, char **argv)
         {
             int nsym = symtabsize / sizeof(ElfW(Sym));
             //printf("symtab: info size shndx name\n");
-            for (i = 1; i < nsym; i++)
+            for (i = 1; i < nsym; ++i)
             {
                 sym = (ElfW(Sym) *) (symtab + i * sizeof(ElfW(Sym)));
                 if (sym->st_shndx &&
@@ -204,12 +204,12 @@ ST_FUNC int tcc_tool_ar(uc_state_t *s1, int argc, char **argv)
                     )) {
                     //printf("symtab: %2Xh %4Xh %2Xh %s\n", sym->st_info, sym->st_size, sym->st_shndx, strtab + sym->st_name);
                     istrlen = strlen(strtab + sym->st_name)+1;
-                    anames = tcc_realloc(anames, strpos+istrlen);
+                    anames = uc_realloc(anames, strpos+istrlen);
                     strcpy(anames + strpos, strtab + sym->st_name);
                     strpos += istrlen;
                     if (++funccnt >= funcmax) {
                         funcmax += 250;
-                        afpos = tcc_realloc(afpos, funcmax * sizeof *afpos); // 250 func more
+                        afpos = uc_realloc(afpos, funcmax * sizeof *afpos); // 250 func more
                     }
                     afpos[funccnt] = fpos;
                 }
@@ -230,7 +230,7 @@ ST_FUNC int tcc_tool_ar(uc_state_t *s1, int argc, char **argv)
         memcpy(&arhdro.ar_size, stmp, 10);
         fwrite(&arhdro, sizeof(arhdro), 1, fo);
         fwrite(buf, fsize, 1, fo);
-        tcc_free(buf);
+        uc_free(buf);
         i_obj++;
         fpos += (fsize + sizeof(arhdro));
     }
@@ -244,7 +244,7 @@ ST_FUNC int tcc_tool_ar(uc_state_t *s1, int argc, char **argv)
     memcpy(&arhdr.ar_size, stmp, 10);
     fwrite(&arhdr, sizeof(arhdr), 1, fh);
     afpos[0] = le2belong(funccnt);
-    for (i=1; i<=funccnt; i++)
+    for (i=1; i<=funccnt; ++i)
         afpos[i] = le2belong(afpos[i] + hofs);
     fwrite(afpos, (funccnt+1) * sizeof(int), 1, fh);
     fwrite(anames, strpos, 1, fh);
@@ -254,16 +254,16 @@ ST_FUNC int tcc_tool_ar(uc_state_t *s1, int argc, char **argv)
     fseek(fo, 0, SEEK_END);
     fsize = ftell(fo);
     fseek(fo, 0, SEEK_SET);
-    buf = tcc_malloc(fsize + 1);
+    buf = uc_malloc(fsize + 1);
     fread(buf, fsize, 1, fo);
     fwrite(buf, fsize, 1, fh);
-    tcc_free(buf);
+    uc_free(buf);
     ret = 0;
 the_end:
     if (anames)
-        tcc_free(anames);
+        uc_free(anames);
     if (afpos)
-        tcc_free(afpos);
+        uc_free(afpos);
     if (fh)
         fclose(fh);
     if (fo)
@@ -389,7 +389,7 @@ the_end:
     /* cannot free memory received from tcc_get_dllexports
        if it came from a dll */
     /* if (p)
-        tcc_free(p); */
+        uc_free(p); */
     if (fp)
         fclose(fp);
     if (op)
@@ -426,7 +426,7 @@ the_end:
 
 ST_FUNC void tcc_tool_cross(uc_state_t *s, char **argv, int option)
 {
-    tcc_error("-m%d not implemented.", option);
+    uc_error("-m%d not implemented.", option);
 }
 
 #else
@@ -442,7 +442,7 @@ static char *str_replace(const char *str, const char *p, const char *r)
     sl = strlen(str);
     pl = strlen(p);
     rl = strlen(r);
-    for (d0 = NULL;; d0 = tcc_malloc(sl + 1)) {
+    for (d0 = NULL;; d0 = uc_malloc(sl + 1)) {
         for (d = d0, s = str; s0 = s, s = strstr(s, p), s; s += pl) {
             if (d) {
                 memcpy(d, s0, sl = s - s0), d += sl;
@@ -492,7 +492,7 @@ ST_FUNC void tcc_tool_cross(uc_state_t *s, char **argv, int target)
 
     if (strcmp(a0, program))
         execvp(argv[0] = program, argv);
-    tcc_error("could not run '%s'", program);
+    uc_error("could not run '%s'", program);
 }
 
 #endif /* TCC_TARGET_I386 && TCC_TARGET_X86_64 */
@@ -528,7 +528,7 @@ ST_FUNC void gen_makedeps(uc_state_t *s, const char *target, const char *filenam
     /* XXX return err codes instead of error() ? */
     depout = fopen(filename, "w");
     if (!depout)
-        tcc_error("could not open '%s'", filename);
+        uc_error("could not open '%s'", filename);
 
     fprintf(depout, "%s: \\\n", target);
     for (i=0; i<s->nb_target_deps; ++i)

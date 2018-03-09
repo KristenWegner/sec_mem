@@ -351,7 +351,7 @@ typedef struct uc_symbol_s
 
     union 
 	{
-        struct uc_symbol_s* next; // Next related symbol (for fields and anoms).
+        struct uc_symbol_s* uc_pre_next_expansion; // Next related symbol (for fields and anoms).
 		int32_t asm_label; // Associated assembler label.
     };
 
@@ -449,7 +449,7 @@ typedef struct uc_buffered_file_s
 	int32_t ifndef_macro;  /* #ifndef macro / #endif search */
 	int32_t ifndef_macro_saved; /* saved ifndef_macro */
 	int32_t* ifdef_stack_ptr; /* ifdef_stack value at the start of the file */
-	int32_t include_next_index; /* next search path */
+	int32_t include_next_index; /* uc_pre_next_expansion search path */
     char filename[1024];    /* filename */
     char* true_filename; /* filename not modified by #line directive */
     uint8_t unget[4];
@@ -680,7 +680,7 @@ typedef struct uc_state_s
 		LINE_MACRO_OUTPUT_FORMAT_STD,
 		LINE_MACRO_OUTPUT_FORMAT_P10 = 11
 	}
-	Pflag;
+	p_flag;
 
 	// For the '-dX' value.
 	char dflag;
@@ -1074,9 +1074,9 @@ enum uc_token_e
 #define TOK_UIDENT TOK_DEFINE
 
 
-extern int gnu_ext;
-extern int tcc_ext;
-extern struct uc_state_s* tcc_state;
+extern int use_gnu_extensions;
+extern int use_builtin_extensions;
+extern struct uc_state_s* this_state;
 
 
 ST_FUNC char *pstrcpy(char *buf, int buf_size, const char *s);
@@ -1086,20 +1086,20 @@ PUB_FUNC char *tcc_basename(const char *name);
 PUB_FUNC char *tcc_fileextension (const char *name);
 
 
-#ifndef MEM_DEBUG
+#ifndef UC_OPTION_DEBUG_MEMORY
 
-PUB_FUNC void tcc_free(void *ptr);
-PUB_FUNC void *tcc_malloc(unsigned long size);
-PUB_FUNC void *tcc_mallocz(unsigned long size);
-PUB_FUNC void *tcc_realloc(void *ptr, unsigned long size);
+PUB_FUNC void uc_free(void *ptr);
+PUB_FUNC void *uc_malloc(unsigned long size);
+PUB_FUNC void *uc_malloc_z(unsigned long size);
+PUB_FUNC void *uc_realloc(void *ptr, unsigned long size);
 PUB_FUNC char *tcc_strdup(const char *str);
 
 #else
 
-#define tcc_free(ptr)           tcc_free_debug(ptr)
-#define tcc_malloc(size)        tcc_malloc_debug(size, __FILE__, __LINE__)
-#define tcc_mallocz(size)       tcc_mallocz_debug(size, __FILE__, __LINE__)
-#define tcc_realloc(ptr,size)   tcc_realloc_debug(ptr, size, __FILE__, __LINE__)
+#define uc_free(ptr)           tcc_free_debug(ptr)
+#define uc_malloc(size)        tcc_malloc_debug(size, __FILE__, __LINE__)
+#define uc_malloc_z(size)       tcc_mallocz_debug(size, __FILE__, __LINE__)
+#define uc_realloc(ptr,size)   tcc_realloc_debug(ptr, size, __FILE__, __LINE__)
 #define tcc_strdup(str)         tcc_strdup_debug(str, __FILE__, __LINE__)
 
 PUB_FUNC void tcc_free_debug(void *ptr);
@@ -1121,21 +1121,21 @@ PUB_FUNC char *tcc_strdup_debug(const char *str, const char *file, int line);
 
 PUB_FUNC void tcc_memcheck(void);
 PUB_FUNC void tcc_error_noabort(const char *fmt, ...);
-PUB_FUNC NORETURN void tcc_error(const char *fmt, ...);
-PUB_FUNC void tcc_warning(const char *fmt, ...);
+PUB_FUNC NORETURN void uc_error(const char *fmt, ...);
+PUB_FUNC void uc_warn(const char *fmt, ...);
 
 
 ST_FUNC void dynarray_add(void *ptab, int *nb_ptr, void *data);
 ST_FUNC void dynarray_reset(void *pp, int *n);
 ST_INLN void cstr_ccat(uc_string_t *cstr, int ch);
 ST_FUNC void cstr_cat(uc_string_t *cstr, const char *str, int len);
-ST_FUNC void cstr_wccat(uc_string_t *cstr, int ch);
-ST_FUNC void cstr_new(uc_string_t *cstr);
-ST_FUNC void cstr_free(uc_string_t *cstr);
-ST_FUNC void cstr_reset(uc_string_t *cstr);
+ST_FUNC void uc_pre_string_wchar_cat(uc_string_t *cstr, int ch);
+ST_FUNC void uc_pre_string_create(uc_string_t *cstr);
+ST_FUNC void uc_pre_string_free(uc_string_t *cstr);
+ST_FUNC void uc_pre_string_reset(uc_string_t *cstr);
 
-ST_INLN void sym_free(uc_symbol_t *sym);
-ST_FUNC uc_symbol_t *sym_push2(uc_symbol_t **ps, int v, int t, int c);
+ST_INLN void uc_symbol_free(uc_symbol_t *sym);
+ST_FUNC uc_symbol_t *uc_symbol_push_2(uc_symbol_t **ps, int v, int t, int c);
 ST_FUNC uc_symbol_t *sym_find2(uc_symbol_t *s, int v);
 ST_FUNC uc_symbol_t *sym_push(int v, uc_c_type_t *type, int r, int c);
 ST_FUNC void sym_pop(uc_symbol_t **ptop, uc_symbol_t *b, int keep);
@@ -1143,7 +1143,7 @@ ST_INLN uc_symbol_t *struct_find(int v);
 ST_INLN uc_symbol_t *sym_find(int v);
 ST_FUNC uc_symbol_t *global_identifier_push(int v, int t, int c);
 
-ST_FUNC void tcc_open_bf(uc_state_t *s1, const char *filename, int initlen);
+ST_FUNC void uc_open_buffered_file(uc_state_t *s1, const char *filename, int initlen);
 ST_FUNC int tcc_open(uc_state_t *s1, const char *filename);
 ST_FUNC void tcc_close(void);
 
@@ -1193,75 +1193,77 @@ ST_FUNC char *normalize_slashes(char *path);
 extern struct uc_buffered_file_s* file;
 extern int ch, tok;
 extern uc_const_value_t tokc;
-extern const int *macro_ptr;
+extern const int *macro_pointer;
 extern int parse_flags;
-extern int tok_flags;
-extern uc_string_t tokcstr; /* current parsed string, if any */
+extern int token_flags;
+extern uc_string_t current_token; // Current parsed string, if any.
 
-/* display benchmark infos */
+// Display benchmark info.
 
 extern int total_lines;
 extern int total_bytes;
-extern int tok_ident;
-extern uc_token_symbol_t** table_ident;
+extern int total_identifiers;
+extern uc_token_symbol_t** identifier_table;
 
-#define TOK_FLAG_BOL   0x0001 /* beginning of line before */
-#define TOK_FLAG_BOF   0x0002 /* beginning of file before */
-#define TOK_FLAG_ENDIF 0x0004 /* a endif was found matching starting #ifdef */
-#define TOK_FLAG_EOF   0x0008 /* end of file */
 
-#define PARSE_FLAG_PREPROCESS 0x0001 /* activate preprocessing */
-#define PARSE_FLAG_TOK_NUM    0x0002 /* return numbers instead of TOK_PPNUM */
-#define PARSE_FLAG_LINEFEED   0x0004 /* line feed is returned as a
-                                        token. line feed is also
-                                        returned at eof */
-#define PARSE_FLAG_ASM_FILE 0x0008 /* we processing an asm file: '#' can be used for line comment, etc. */
-#define PARSE_FLAG_SPACES     0x0010 /* next() returns space tokens (for -E) */
-#define PARSE_FLAG_ACCEPT_STRAYS 0x0020 /* next() returns '\\' token */
-#define PARSE_FLAG_TOK_STR    0x0040 /* return parsed strings instead of TOK_PPSTR */
+#define UC_TOKEN_FLAG_BOL					0x0001 // Beginning of line, before.
+#define UC_TOKEN_FLAG_BOF					0x0002 // Beginning of file, before.
+#define UC_TOKEN_FLAG_ENDIF					0x0004 // An #endif was found matching starting #ifdef.
+#define UC_TOKEN_FLAG_EOF					0x0008 // End of file.
 
-/* isidnum_table flags: */
+#define UC_OPTION_PARSE_PREPROCESS			0x0001 // Activate preprocessing.
+#define UC_OPTION_PARSE_TOKEN_NUMBERS		0x0002 // Return numbers instead of TOK_PPNUM.
+#define UC_OPTION_PARSE_LINE_FEED			0x0004 // Line feeds are returned as tokens. Line feed is also returned at EOF.
+#define UC_OPTION_PARSE_ASSEMBLER			0x0008 // Processing an ASM file, '#' can be used for line comment, etc.
+#define UC_OPTION_PARSE_SPACES				0x0010 // Calls to uc_pre_next_expansion() return space tokens (for '-E').
+#define UC_OPTION_PARSE_ACCEPT_STRAYS		0x0020 // Calls to uc_pre_next_expansion() return '\\' tokens.
+#define UC_OPTION_PARSE_TOKEN_STRINGS		0x0040 // Return parsed strings instead of TOK_PPSTR.
+
+
+// Flags for is_id_number_table.
+
 #define IS_SPC 1
 #define IS_ID  2
 #define IS_NUM 4
 
-ST_FUNC uc_token_symbol_t *tok_alloc(const char *str, int len);
-ST_FUNC const char *get_tok_str(int v, uc_const_value_t *cv);
-ST_FUNC void begin_macro(uc_token_string_t *str, int alloc);
-ST_FUNC void end_macro(void);
-ST_FUNC int set_idnum(int c, int val);
-ST_INLN void tok_str_new(uc_token_string_t *s);
-ST_FUNC uc_token_string_t *tok_str_alloc(void);
-ST_FUNC void tok_str_free(uc_token_string_t *s);
-ST_FUNC void tok_str_free_str(int *str);
-ST_FUNC void tok_str_add(uc_token_string_t *s, int t);
-ST_FUNC void tok_str_add_tok(uc_token_string_t *s);
-ST_INLN void define_push(int v, int macro_type, int *str, uc_symbol_t *first_arg);
-ST_FUNC void define_undef(uc_symbol_t *s);
-ST_INLN uc_symbol_t *define_find(int v);
-ST_FUNC void free_defines(uc_symbol_t *b);
-ST_FUNC uc_symbol_t *label_find(int v);
-ST_FUNC uc_symbol_t *label_push(uc_symbol_t **ptop, int v, int flags);
-ST_FUNC void label_pop(uc_symbol_t **ptop, uc_symbol_t *slast, int keep);
-ST_FUNC void parse_define(void);
-ST_FUNC void preprocess(int is_bof);
-ST_FUNC void next_nomacro(void);
-ST_FUNC void next(void);
-ST_INLN void unget_tok(int last_tok);
-ST_FUNC void preprocess_start(uc_state_t *s1, int is_asm);
-ST_FUNC void preprocess_end(uc_state_t *s1);
-ST_FUNC void tccpp_new(uc_state_t *s);
-ST_FUNC void tccpp_delete(uc_state_t *s);
-ST_FUNC int tcc_preprocess(uc_state_t *s1);
-ST_FUNC void skip(int c);
-ST_FUNC NORETURN void expect(const char *msg);
+
+uc_token_symbol_t* uc_pre_token_allocate(const char*, int32_t);
+const char* uc_get_token_string(int32_t, uc_const_value_t*);
+void uc_pre_begin_macro(uc_token_string_t*, int32_t);
+void uc_pre_end_macro(void);
+int32_t uc_pre_set_id_number(int32_t, int32_t);
+void uc_pre_new_token_string(uc_token_string_t*);
+uc_token_string_t* uc_pre_allocate_token_string(void);
+void uc_pre_free_token_string(uc_token_string_t*);
+void uc_pre_free_token_string_string(int32_t*);
+void uc_pre_token_string_append(uc_token_string_t*, int32_t);
+void uc_pre_token_string_add_token(uc_token_string_t*);
+void uc_pre_define_push(int32_t, int32_t, int32_t*, uc_symbol_t*);
+void uc_pre_undefine_define(uc_symbol_t*);
+uc_symbol_t* uc_pre_define_find(int32_t);
+void uc_pre_free_definitions_to(uc_symbol_t*);
+uc_symbol_t* uc_pre_lookup_label(int32_t);
+uc_symbol_t* uc_pre_push_label(uc_symbol_t**, int32_t, int32_t);
+void uc_pre_pop_label(uc_symbol_t**, uc_symbol_t*, bool);
+void uc_pre_parse_define(void);
+void uc_preprocess(int32_t);
+void uc_pre_next_non_macro(void);
+void uc_pre_next_expansion(void);
+void uc_pre_unget_token(int32_t);
+void uc_pre_preprocess_start(uc_state_t*, bool);
+void uc_pre_preprocess_end(uc_state_t*);
+void uc_create_preprocessor(uc_state_t*);
+void uc_destroy_preprocessor(uc_state_t*);
+int32_t uc_pre_preprocess(uc_state_t*);
+void uc_pre_skip(int32_t);
+void uc_pre_expect(const char*);
 
 
-inline static bool is_space(int ch) { return ch == ' ' || ch == '\t' || ch == '\v' || ch == '\f' || ch == '\r'; } // Excluding newline.
-inline static bool isid(int c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_'; }
-inline static bool isnum(int c) { return c >= '0' && c <= '9'; }
-inline static bool isoct(int c) { return c >= '0' && c <= '7'; }
-inline static int toup(int c) { return (c >= 'a' && c <= 'z') ? c - 'a' + 'A' : c; }
+inline static bool uc_is_space(int32_t ch) { return ch == ' ' || ch == '\t' || ch == '\v' || ch == '\f' || ch == '\r'; } // Excluding newline.
+inline static bool uc_is_id(int32_t c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_'; }
+inline static bool uc_is_number(int32_t c) { return c >= '0' && c <= '9'; }
+inline static bool uc_is_octal(int32_t c) { return c >= '0' && c <= '7'; }
+inline static int32_t uc_to_upper(int32_t c) { return (c >= 'a' && c <= 'z') ? c - 'a' + 'A' : c; }
 
 
 // gen.c
@@ -1287,8 +1289,8 @@ ST_DATA uc_stack_value_t __vstack[1 + /* for bcheck */ VSTACK_SIZE], *vtop, *pvt
 ST_DATA int rsym, anon_sym, ind, loc;
 
 
-ST_DATA int const_wanted; /* true if constant wanted */
-ST_DATA int nocode_wanted; /* true if no code generation wanted for an expression */
+ST_DATA int want_constant; /* true if constant wanted */
+ST_DATA int want_no_code; /* true if no code generation wanted for an expression */
 ST_DATA int global_expr;  /* true if compound literals must be allocated globally (used during initializers parsing */
 ST_DATA uc_c_type_t func_vt; /* current function return type (used by return instruction) */
 ST_DATA int func_var; /* true if current function is variadic */
@@ -1436,7 +1438,7 @@ ST_FUNC uc_section_t* new_symtab(uc_state_t *s1, const char *symtab_name, int sh
 
 
 ST_FUNC void put_extern_sym2(uc_symbol_t *sym, int sh_num, addr_t value, unsigned long size, int can_add_underscore);
-ST_FUNC void put_extern_sym(uc_symbol_t *sym, uc_section_t* section, addr_t value, unsigned long size);
+ST_FUNC void uc_put_external_symbol(uc_symbol_t *sym, uc_section_t* section, addr_t value, unsigned long size);
 
 
 #if PTR_SIZE == 4
@@ -1489,10 +1491,10 @@ ST_FUNC void *tcc_get_symbol_err(uc_state_t *s, const char *name);
 #ifndef TCC_TARGET_PE
 ST_FUNC int tcc_load_dll(uc_state_t *s1, int fd, const char *filename, int level);
 ST_FUNC int tcc_load_ldscript(uc_state_t *s1);
-ST_FUNC uint8_t *parse_comment(uint8_t *p);
+ST_FUNC uint8_t *uc_pre_parse_multiline_comment(uint8_t *p);
 ST_FUNC void minp(void);
 ST_INLN void inp(void);
-ST_FUNC int handle_eob(void);
+ST_FUNC int uc_pre_handle_end_of_buffer(void);
 #endif
 
 

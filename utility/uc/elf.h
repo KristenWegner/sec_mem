@@ -179,7 +179,7 @@ Elf64_Ehdr;
 #define	ET_NUM		5		/* Number of defined types */
 #define ET_LOOS		0xfe00		/* OS-specific range start */
 #define ET_HIOS		0xfeff		/* OS-specific range end */
-#define ET_LOPROC	0xff00		/* Processor-specific range start */
+#define ET_LOPROC	0xFF00		/* Processor-specific range start */
 #define ET_HIPROC	0xFFFF		/* Processor-specific range end */
 
 /* Legal values for e_machine (architecture).  */
@@ -312,9 +312,9 @@ typedef struct
 /* Special section indices.  */
 
 #define SHN_UNDEF	0		/* Undefined section */
-#define SHN_LORESERVE	0xff00		/* Start of reserved indices */
-#define SHN_LOPROC	0xff00		/* Start of processor-specific */
-#define SHN_BEFORE	0xff00		/* Order section before all others
+#define SHN_LORESERVE	0xFF00		/* Start of reserved indices */
+#define SHN_LOPROC	0xFF00		/* Start of processor-specific */
+#define SHN_BEFORE	0xFF00		/* Order section before all others
 					   (Solaris).  */
 #define SHN_AFTER	0xff01		/* Order section after all others
 					   (Solaris).  */
@@ -429,7 +429,7 @@ typedef struct
 /* Possible values for si_boundto.  */
 #define SYMINFO_BT_SELF		0xFFFF	/* Symbol bound to self */
 #define SYMINFO_BT_PARENT	0xfffe	/* Symbol bound to parent */
-#define SYMINFO_BT_LOWRESERVE	0xff00	/* Beginning of reserved entries */
+#define SYMINFO_BT_LOWRESERVE	0xFF00	/* Beginning of reserved entries */
 
 /* Possible bitmasks for si_flags.  */
 #define SYMINFO_FLG_DIRECT	0x0001	/* Direct bound symbol */
@@ -761,7 +761,7 @@ typedef struct
 #define DT_ADDRTAGIDX(tag)	(DT_ADDRRNGHI - (tag))	/* Reverse order! */
 #define DT_ADDRNUM 11
 
-/* The versioning entry types.  The next are defined as part of the
+/* The versioning entry types.  The uc_pre_next_expansion are defined as part of the
    GNU extension.  */
 #define DT_VERSYM	0x6ffffff0
 
@@ -826,9 +826,9 @@ typedef struct
 #define DTF_1_PARINIT	0x00000001
 #define DTF_1_CONFEXP	0x00000002
 
-/* Flags in the DT_POSFLAG_1 entry effecting only the next DT_* entry.  */
+/* Flags in the DT_POSFLAG_1 entry effecting only the uc_pre_next_expansion DT_* entry.  */
 #define DF_P1_LAZYLOAD	0x00000001	/* Lazyload following object.  */
-#define DF_P1_GROUPPERM	0x00000002	/* Symbols from next object are not
+#define DF_P1_GROUPPERM	0x00000002	/* Symbols from uc_pre_next_expansion object are not
 					   generally available.  */
 
 /* Version definition sections.  */
@@ -841,7 +841,7 @@ typedef struct
   Elf32_Half	vd_cnt;			/* Number of associated aux entries */
   Elf32_Word	vd_hash;		/* Version name hash value */
   Elf32_Word	vd_aux;			/* Offset in bytes to verdaux array */
-  Elf32_Word	vd_next;		/* Offset in bytes to next verdef
+  Elf32_Word	vd_next;		/* Offset in bytes to uc_pre_next_expansion verdef
 					   entry */
 } Elf32_Verdef;
 
@@ -853,7 +853,7 @@ typedef struct
   Elf64_Half	vd_cnt;			/* Number of associated aux entries */
   Elf64_Word	vd_hash;		/* Version name hash value */
   Elf64_Word	vd_aux;			/* Offset in bytes to verdaux array */
-  Elf64_Word	vd_next;		/* Offset in bytes to next verdef
+  Elf64_Word	vd_next;		/* Offset in bytes to uc_pre_next_expansion verdef
 					   entry */
 } Elf64_Verdef;
 
@@ -870,7 +870,7 @@ typedef struct
 /* Versym symbol index values.  */
 #define	VER_NDX_LOCAL		0	/* Symbol is local.  */
 #define	VER_NDX_GLOBAL		1	/* Symbol is global.  */
-#define	VER_NDX_LORESERVE	0xff00	/* Beginning of reserved entries.  */
+#define	VER_NDX_LORESERVE	0xFF00	/* Beginning of reserved entries.  */
 #define	VER_NDX_ELIMINATE	0xff01	/* Symbol is to be eliminated.  */
 
 /* Auxiliary version information.  */
@@ -878,14 +878,14 @@ typedef struct
 typedef struct
 {
   Elf32_Word	vda_name;		/* Version or dependency names */
-  Elf32_Word	vda_next;		/* Offset in bytes to next verdaux
+  Elf32_Word	vda_next;		/* Offset in bytes to uc_pre_next_expansion verdaux
 					   entry */
 } Elf32_Verdaux;
 
 typedef struct
 {
   Elf64_Word	vda_name;		/* Version or dependency names */
-  Elf64_Word	vda_next;		/* Offset in bytes to next verdaux
+  Elf64_Word	vda_next;		/* Offset in bytes to uc_pre_next_expansion verdaux
 					   entry */
 } Elf64_Verdaux;
 
@@ -899,7 +899,7 @@ typedef struct
   Elf32_Word	vn_file;		/* Offset of filename for this
 					   dependency */
   Elf32_Word	vn_aux;			/* Offset in bytes to vernaux array */
-  Elf32_Word	vn_next;		/* Offset in bytes to next verneed
+  Elf32_Word	vn_next;		/* Offset in bytes to uc_pre_next_expansion verneed
 					   entry */
 } Elf32_Verneed;
 
@@ -910,7 +910,7 @@ typedef struct
   Elf64_Word	vn_file;		/* Offset of filename for this
 					   dependency */
   Elf64_Word	vn_aux;			/* Offset in bytes to vernaux array */
-  Elf64_Word	vn_next;		/* Offset in bytes to next verneed
+  Elf64_Word	vn_next;		/* Offset in bytes to uc_pre_next_expansion verneed
 					   entry */
 } Elf64_Verneed;
 
@@ -928,7 +928,7 @@ typedef struct
   Elf32_Half	vna_flags;		/* Dependency specific information */
   Elf32_Half	vna_other;		/* Unused */
   Elf32_Word	vna_name;		/* Dependency name string offset */
-  Elf32_Word	vna_next;		/* Offset in bytes to next vernaux
+  Elf32_Word	vna_next;		/* Offset in bytes to uc_pre_next_expansion vernaux
 					   entry */
 } Elf32_Vernaux;
 
@@ -938,7 +938,7 @@ typedef struct
   Elf64_Half	vna_flags;		/* Dependency specific information */
   Elf64_Half	vna_other;		/* Unused */
   Elf64_Word	vna_name;		/* Dependency name string offset */
-  Elf64_Word	vna_next;		/* Offset in bytes to next vernaux
+  Elf64_Word	vna_next;		/* Offset in bytes to uc_pre_next_expansion vernaux
 					   entry */
 } Elf64_Vernaux;
 
@@ -1413,7 +1413,7 @@ typedef struct
 
 /* Special section indices.  */
 
-#define SHN_MIPS_ACOMMON    0xff00	/* Allocated common symbols */
+#define SHN_MIPS_ACOMMON    0xFF00	/* Allocated common symbols */
 #define SHN_MIPS_TEXT	    0xff01	/* Allocated test symbols.  */
 #define SHN_MIPS_DATA	    0xff02	/* Allocated data symbols.  */
 #define SHN_MIPS_SCOMMON    0xff03	/* Small common symbols */
@@ -1780,7 +1780,7 @@ typedef Elf32_Addr Elf32_Conflict;
 
 /* Additional section indices.  */
 
-#define SHN_PARISC_ANSI_COMMON	0xff00	   /* uc_section_t for tentatively declared
+#define SHN_PARISC_ANSI_COMMON	0xFF00	   /* uc_section_t for tentatively declared
 					      symbols in ANSI C.  */
 #define SHN_PARISC_HUGE_COMMON	0xff01	   /* Common blocks in huge model.  */
 
@@ -2947,7 +2947,7 @@ typedef Elf32_Addr Elf32_Conflict;
 #define R_MN10300_TLS_DTPMOD	30	/* ID of module containing symbol.  */
 #define R_MN10300_TLS_DTPOFF	31	/* Offset in module TLS block.  */
 #define R_MN10300_TLS_TPOFF	32	/* Offset in static TLS block.  */
-#define R_MN10300_SYM_DIFF	33	/* Adjustment for next reloc as needed
+#define R_MN10300_SYM_DIFF	33	/* Adjustment for uc_pre_next_expansion reloc as needed
 					   by linker relaxation.  */
 #define R_MN10300_ALIGN		34	/* Alignment requirement for linker
 					   relaxation.  */

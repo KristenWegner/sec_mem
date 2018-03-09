@@ -1,12 +1,13 @@
-/**************************************************************************/
-/*  COFF.H                                                                */
-/*     COFF data structures and related definitions used by the linker    */
-/**************************************************************************/
+// cof.h - Data structures and definitions used by the COFF linker.
 
-/*------------------------------------------------------------------------*/
-/*  COFF FILE HEADER                                                      */
-/*------------------------------------------------------------------------*/
-struct filehdr {
+
+#ifndef INCLUDE_COF_H
+#define INCLUDE_COF_H 1
+
+
+// COFF file header.
+struct filehdr
+{
         unsigned short  f_magic;        /* magic number */
         unsigned short  f_nscns;        /* number of sections */
         long            f_timdat;       /* time & date stamp */
@@ -15,11 +16,11 @@ struct filehdr {
         unsigned short  f_opthdr;       /* sizeof(optional hdr) */
         unsigned short  f_flags;        /* flags */
         unsigned short  f_TargetID;     /* for C6x = 0x0099 */
-        };
+};
 
-/*------------------------------------------------------------------------*/
-/*  File header flags                                                     */
-/*------------------------------------------------------------------------*/
+
+// File header flags.
+
 #define  F_RELFLG   0x01       /* relocation info stripped from file       */
 #define  F_EXEC     0x02       /* file is executable (no unresolved refs)  */
 #define  F_LNNO     0x04       /* line numbers stripped from file          */
@@ -444,3 +445,7 @@ union auxent
 #define _DORIGIN        "_dorigin"
 
 #define _SORIGIN        "_sorigin"
+
+
+#endif // INCLUDE_COF_H
+

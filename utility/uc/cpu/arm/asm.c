@@ -15,7 +15,7 @@ ST_FUNC void gen_le32(int c);
 
 static void asm_error(void)
 {
-	tcc_error("ARM assembler is not implemented.");
+	uc_error("ARM assembler is not implemented.");
 }
 
 
@@ -23,7 +23,7 @@ ST_FUNC void g(int c)
 {
 	int ind1;
 
-	if (nocode_wanted)
+	if (want_no_code)
 		return;
 
 	ind1 = ind + 1;

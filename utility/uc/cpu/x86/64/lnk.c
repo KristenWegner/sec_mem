@@ -37,7 +37,7 @@ int code_reloc(int reloc_type)
 		return 1;
 	}
 
-	tcc_error("Unknown relocation type: %d", reloc_type);
+	uc_error("Unknown relocation type: %d", reloc_type);
 	return -1;
 }
 
@@ -79,7 +79,7 @@ int gotplt_entry_type(int reloc_type)
 		return ALWAYS_GOTPLT_ENTRY;
 	}
 
-	tcc_error("Unknown relocation type: %d", reloc_type);
+	uc_error("Unknown relocation type: %d", reloc_type);
 	return -1;
 }
 
@@ -148,7 +148,7 @@ ST_FUNC void relocate_plt(uc_state_t *s1)
 	}
 }
 
-static ElfW_Rel *qrel; /* ptr to next reloc entry reused */
+static ElfW_Rel *qrel; /* ptr to uc_pre_next_expansion reloc entry reused */
 
 void relocate_init(uc_section_t *sr)
 {
@@ -216,7 +216,7 @@ void relocate(uc_state_t *s1, ElfW_Rel *rel, int type, unsigned char *ptr, addr_
 		long long diff;
 		diff = (long long)val - addr;
 		if (diff < -2147483648LL || diff > 2147483647LL) {
-			tcc_error("internal error: relocation failed");
+			uc_error("internal error: relocation failed");
 		}
 		add32le(ptr, diff);
 	}
