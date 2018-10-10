@@ -1,5 +1,8 @@
-// allocator.c
-
+/* 
+	allocator.c
+	Secure memory allocator.
+	This is protected under the MIT License and is Copyright (c) 2018 by Kristen Wegner
+*/
 
 #include "allocator_internal.h"
 
