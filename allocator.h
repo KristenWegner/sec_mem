@@ -1,4 +1,8 @@
-// allocator.h
+/*
+	allocator.h
+	Secure memory allocator.
+	This is protected under the MIT License and is Copyright (c) 2018 by Kristen Wegner
+*/
 
 
 #include <stddef.h>
