@@ -1,13 +1,11 @@
-# sec_mem
+# Secure Memory Manager
 
-An experiment in providing a secure memory manager. Currently in the early stages.
+This is an experiment in providing a secure memory manager, currently in the *very* early stages.
 
-Utility functions are encrypted and dynamically loaded at random memory locations and decrypted as needed.
+Utility functions are encrypted and dynamically loaded at random memory locations, decrypted as needed, and then reencrypted when not in use. Data blocks are strictly size-checked, encrypted when not in use, and CRC'd and/or compressed if desired. Secrets can be automatically relocated according to an interrupt.
 
-Data blocks are strictly size-checked, encrypted when not in use, and CRC'd and/or compressed if desired.
+The ultimate aim of this package is to provide a foundation for read-once, write-only, write-once, and other kinds of transient secrets and to provide an environment and API that will make it difficult for malicious or intrusive code, with real-time access to in-memory sensitive information, to actually get hold of something actionable. It is essentially a shell game with memory blocks and program code.
 
-Essentially this is a shell game with memory blocks and program code.
+Perhaps this will also, in the future, integrate some manner of dynamic code polymorphism using primitive blocks that can be rearranged as needed, in order to better obfuscate algorithms, although we may end up getting a little too close to looking like a virus.
 
-The intention is to provide an environment that will make it difficult for malicious code to access sensitive information.
-
-
+Last Update: 2018-10-10.
