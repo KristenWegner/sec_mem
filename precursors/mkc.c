@@ -1,4 +1,9 @@
-// mkc.c - Makes machine code definitions for inclusion in the secure_memory project.
+/*
+	mkc.c
+	Makes machine code definitions for inclusion in the secure_memory project.
+	This contains the main() driver for the mkc (MaKe Code) utility.
+	I tried to make it zero-dependency.
+*/
 
 
 #include <stdio.h>
