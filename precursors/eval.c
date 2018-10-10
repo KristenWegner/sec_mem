@@ -1,4 +1,7 @@
-// eval.c - Simple unsigned arithmetic evaluator.
+/*
+	eval.c
+	Simple unsigned arithmetic evaluator. Used to process precursor scripts.
+*/
 
 #include <stdio.h>
 #include <stdlib.h>
