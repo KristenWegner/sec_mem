@@ -1,5 +1,17 @@
-// allocator_internal.c - Derived from Doug Lea's dlmalloc (see: http://g.oswego.edu/dl/html/malloc.html).
-
+/*
+	allocator_internal.c
+	This is derived from Doug Lea's dlmalloc 
+	(see: http://g.oswego.edu/dl/html/malloc.html).
+	
+	Under the original license:
+	
+	This is a version (aka dlmalloc) of malloc/free/realloc written by
+	Doug Lea and released to the public domain, as explained at
+	http://creativecommons.org/publicdomain/zero/1.0/ Send questions,
+	comments, complaints, performance data, etc to dl@cs.oswego.edu
+	
+	This is protected under the MIT License and is Copyright (c) 2018 by Kristen Wegner
+*/
 
 #include "config.h"
 #include "allocator_internal.h"
