@@ -1,5 +1,9 @@
-// discontinuous_array.c
-
+/*
+	discontinuous_array.c
+	Implements an array that is composed of many small parts that, to the 
+	outside observer will seem incoherent, but when accessed through the 
+	API, will appear continuous.
+*/
 
 #include "config.h"
 #include "discontinuous_array.h"
