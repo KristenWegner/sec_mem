@@ -8,4 +8,5 @@ The ultimate aim of this package is to provide a foundation for read-once, write
 
 Perhaps this will also, in the future, integrate some manner of dynamic code polymorphism using primitive blocks that can be rearranged as needed, in order to better obfuscate algorithms, although we may end up getting a little too close to looking like a virus.
 
-Last Update: 2018-10-10.
+Last Update: 2018-10-10
+License: This is protected under the MIT License and is Copyright (c) 2018 by Kristen Wegner
